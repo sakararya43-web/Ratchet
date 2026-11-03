@@ -473,4 +473,142 @@ export async function activatePolicyBundle(proposalId: string): Promise<PolicyBu
   return resp.json();
 }
 
+export interface ContainmentAction {
+  action_id: string;
+  action_type: 'TERMINATE_SESSION' | 'REVOKE_ROLE' | 'RESTRICT_ACCOUNT' | 'REMOVE_SERVICE_PERMISSION';
+  target_identity: string;
+  target_resource_or_session: string;
+  correlation_id: string;
+}
+
+export interface ContainmentPlan {
+  plan_id: string;
+  tenant_id: string;
+  incident_id: string;
+  target_identity: string;
+  actions: ContainmentAction[];
+  plan_digest: string;
+  confirmed_by?: string;
+}
+
+export interface ContainmentActionResult {
+  action_id: string;
+  action_type: string;
+  target_identity: string;
+  success: boolean;
+  error_message?: string;
+  latency_ms: number;
+}
+
+export interface ContainmentPlanResult {
+  plan_id: string;
+  incident_id: string;
+  total_actions: number;
+  succeeded_actions: number;
+  failed_actions: number;
+  action_results: ContainmentActionResult[];
+  total_latency_ms: number;
+}
+
+export interface AuditCheckpoint {
+  checkpoint_id: string;
+  tenant_id: string;
+  epoch: number;
+  from_sequence: number;
+  to_sequence: number;
+  merkle_root: string;
+  checkpoint_digest: string;
+  signatures: MemberSignature[];
+  signed_at: string;
+}
+
+export interface AuditEvent {
+  sequence: number;
+  timestamp: string;
+  tenant_id: string;
+  event_type: string;
+  actor_id: string;
+  target_identity?: string;
+  action?: string;
+  payload: Record<string, any>;
+  previous_event_hash: string;
+  event_digest: string;
+}
+
+export interface AuditExportBundle {
+  tenant_id: string;
+  exported_at: string;
+  events: AuditEvent[];
+  checkpoints: AuditCheckpoint[];
+  genesis: GenesisState;
+  credential_history: Array<{
+    tenant_id: string;
+    actor_id: string;
+    public_key: string;
+    enrolled_at: string;
+    is_revoked: boolean;
+  }>;
+}
+
+export async function executeSimulatorCommand(
+  action: string,
+  targetIdentity: string,
+  resourceOrRole: string,
+  brokerToken: string = 'sim-broker-secret'
+): Promise<{ success: boolean; revision: number; error_message?: string }> {
+  const resp = await fetch('/api/v1/execute', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${brokerToken}`,
+    },
+    body: JSON.stringify({
+      action,
+      target_identity: targetIdentity,
+      resource_or_role: resourceOrRole,
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    return { success: false, revision: 0, error_message: errText };
+  }
+
+  const data = await resp.json();
+  return { success: true, revision: data.revision };
+}
+
+export async function fetchCheckpoints(): Promise<AuditCheckpoint[]> {
+  try {
+    const resp = await fetch('/api/v1/authority/checkpoint/list');
+    if (!resp.ok) return [];
+    return resp.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function executeProbe(
+  identityId: string,
+  sessionId: string,
+  resourceId: string,
+  action: string
+): Promise<{ allowed: boolean; reason: string }> {
+  const resp = await fetch('/api/v1/probe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      identity_id: identityId,
+      session_id: sessionId,
+      resource_id: resourceId,
+      action: action,
+    }),
+  });
+  if (!resp.ok) {
+    return { allowed: false, reason: `HTTP ${resp.status}` };
+  }
+  return resp.json();
+}
+
+
 

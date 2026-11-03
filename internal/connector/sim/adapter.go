@@ -263,7 +263,7 @@ func (a *Adapter) Verify(ctx context.Context, cmd *connector.ExecCommand) (*conn
 		if !found {
 			return nil, fmt.Errorf("read-back mismatch: assigned role %q not observed in target", cmd.ResourceOrRole)
 		}
-	case "REVOKE_ROLE":
+	case "REVOKE_ROLE", "REMOVE_SERVICE_PERMISSION":
 		for _, r := range currentRoles {
 			if r == cmd.ResourceOrRole {
 				return nil, fmt.Errorf("read-back mismatch: revoked role %q still observed in target", cmd.ResourceOrRole)
@@ -272,6 +272,12 @@ func (a *Adapter) Verify(ctx context.Context, cmd *connector.ExecCommand) (*conn
 	case "RESTRICT_ACCOUNT":
 		if !isRestricted {
 			return nil, fmt.Errorf("read-back mismatch: target account %q is not marked restricted", cmd.TargetIdentity)
+		}
+	case "TERMINATE_SESSION":
+		for _, s := range activeSessions {
+			if s == cmd.ResourceOrRole {
+				return nil, fmt.Errorf("read-back mismatch: terminated session %q still active in target", cmd.ResourceOrRole)
+			}
 		}
 	}
 

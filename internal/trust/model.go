@@ -44,6 +44,20 @@ func ComputeRegistrySigningDigest(tenantID string, currentEpoch, targetEpoch int
 	return out
 }
 
+// ComputeContainmentChallenge produces a domain-separated WebAuthn challenge binding tenant, actor, plan digest, and nonce.
+func ComputeContainmentChallenge(tenantID, actorID string, planDigest ports.Digest, nonce []byte) []byte {
+	h := sha256.New()
+	h.Write([]byte(DomainContainment))
+	h.Write([]byte(tenantID))
+	h.Write([]byte(":"))
+	h.Write([]byte(actorID))
+	h.Write([]byte(":"))
+	h.Write(planDigest[:])
+	h.Write([]byte(":"))
+	h.Write(nonce)
+	return h.Sum(nil)
+}
+
 // AuthorityMember represents a security leader enrolled during genesis or approved via quorum.
 type AuthorityMember struct {
 	ActorID     string    `json:"actor_id"`

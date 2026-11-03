@@ -161,7 +161,7 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 	switch req.Action {
 	case "ASSIGN_ROLE":
 		err = s.store.AssignRole(actorID, req.TargetIdentity, req.ResourceOrRole)
-	case "REVOKE_ROLE":
+	case "REVOKE_ROLE", "REMOVE_SERVICE_PERMISSION":
 		err = s.store.RevokeRole(actorID, req.TargetIdentity, req.ResourceOrRole)
 	case "TERMINATE_SESSION":
 		err = s.store.TerminateSession(actorID, req.ResourceOrRole)
@@ -215,6 +215,7 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 
 type ProbeRequest struct {
 	IdentityID string `json:"identity_id"`
+	SessionID  string `json:"session_id,omitempty"`
 	ResourceID string `json:"resource_id"`
 	Action     string `json:"action"`
 }
@@ -226,7 +227,12 @@ func (s *Server) handleProbe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.store.CheckAccess(req.IdentityID, req.ResourceID, req.Action)
+	var result domain.AccessProbeResult
+	if req.SessionID != "" {
+		result, _ = s.store.CheckSessionAccess(req.SessionID, req.ResourceID, req.Action)
+	} else {
+		result = s.store.CheckAccess(req.IdentityID, req.ResourceID, req.Action)
+	}
 	writeJSON(w, http.StatusOK, result)
 }
 

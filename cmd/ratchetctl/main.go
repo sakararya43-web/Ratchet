@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/sakararya43-web/Ratchet/internal/audit"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 )
@@ -83,6 +84,19 @@ func main() {
 			fmt.Printf("Unknown registry subcommand: %s\n", subcmd)
 			os.Exit(ExitBadArgs)
 		}
+	case "audit":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: ratchetctl audit <verify> [flags]")
+			os.Exit(ExitBadArgs)
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "verify":
+			runAuditVerify(os.Args[3:])
+		default:
+			fmt.Printf("Unknown audit subcommand: %s\n", subcmd)
+			os.Exit(ExitBadArgs)
+		}
 	default:
 		printUsage()
 		os.Exit(ExitBadArgs)
@@ -104,7 +118,9 @@ Usage:
   ratchetctl registry propose --members-file=<path> --m=<threshold> [--authority-url=<url>]
   ratchetctl registry sign --proposal=<id> --actor=<actor_id> --key-file=<key.pem> [--authority-url=<url>]
   ratchetctl registry activate --proposal=<id> [--authority-url=<url>]
-  ratchetctl registry history [--authority-url=<url>]`)
+  ratchetctl registry history [--authority-url=<url>]
+
+  ratchetctl audit verify --export-file=<path> [--genesis-file=<path>] [--expected-tip=<hex>] [--expected-checkpoint=<hex>] [--json]`)
 }
 
 func runGenesis(args []string) {
@@ -581,3 +597,94 @@ func parsePrivateKey(keyPath string) (*ecdsa.PrivateKey, error) {
 func parseDigest(d ports.Digest) string {
 	return d.String()
 }
+
+func runAuditVerify(args []string) {
+	fs := flag.NewFlagSet("audit verify", flag.ExitOnError)
+	exportFile := fs.String("export-file", "", "Path to the exported audit bundle JSON file (required)")
+	genesisFile := fs.String("genesis-file", "", "Path to the pinned Genesis JSON file (optional)")
+	expectedTip := fs.String("expected-tip", "", "Expected chain tip digest in hexadecimal (optional)")
+	expectedCheckpoint := fs.String("expected-checkpoint", "", "Expected checkpoint digest in hexadecimal (optional)")
+	jsonOutput := fs.Bool("json", false, "Output verification report in JSON format")
+	_ = fs.Parse(args)
+
+	if *exportFile == "" {
+		fmt.Println("Error: --export-file is required")
+		os.Exit(ExitBadArgs)
+	}
+
+	bundleBytes, err := os.ReadFile(*exportFile)
+	if err != nil {
+		fmt.Printf("Failed to read export bundle file %s: %v\n", *exportFile, err)
+		os.Exit(ExitBadArgs)
+	}
+
+	var bundle audit.AuditExportBundle
+	if err := json.Unmarshal(bundleBytes, &bundle); err != nil {
+		fmt.Printf("Invalid export bundle JSON: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+
+	var opts audit.VerifyOptions
+
+	if *genesisFile != "" {
+		genBytes, err := os.ReadFile(*genesisFile)
+		if err != nil {
+			fmt.Printf("Failed to read genesis file %s: %v\n", *genesisFile, err)
+			os.Exit(ExitBadArgs)
+		}
+		var pinnedGen trust.GenesisState
+		if err := json.Unmarshal(genBytes, &pinnedGen); err != nil {
+			fmt.Printf("Invalid genesis JSON: %v\n", err)
+			os.Exit(ExitBadArgs)
+		}
+		opts.PinnedGenesis = &pinnedGen
+	}
+
+	if *expectedTip != "" {
+		tipD, err := ports.DigestFromHex(*expectedTip)
+		if err != nil {
+			fmt.Printf("Invalid --expected-tip hex digest: %v\n", err)
+			os.Exit(ExitBadArgs)
+		}
+		opts.ExpectedTipDigest = &tipD
+	}
+
+	if *expectedCheckpoint != "" {
+		chkD, err := ports.DigestFromHex(*expectedCheckpoint)
+		if err != nil {
+			fmt.Printf("Invalid --expected-checkpoint hex digest: %v\n", err)
+			os.Exit(ExitBadArgs)
+		}
+		opts.ExpectedCheckpointDigest = &chkD
+	}
+
+	verifier := audit.NewOfflineVerifier()
+	report, err := verifier.VerifyBundle(&bundle, opts)
+	if err != nil {
+		fmt.Printf("Verifier error: %v\n", err)
+		os.Exit(ExitSigFailed)
+	}
+
+	if *jsonOutput {
+		out, _ := json.MarshalIndent(report, "", "  ")
+		fmt.Println(string(out))
+	} else {
+		fmt.Print(audit.FormatReportText(report))
+	}
+
+	if !report.Valid {
+		for _, e := range report.Errors {
+			if containsInsensitive(e, "insufficient signatures") || containsInsensitive(e, "quorum") {
+				os.Exit(ExitQuorum)
+			}
+		}
+		os.Exit(ExitSigFailed)
+	}
+
+	os.Exit(ExitSuccess)
+}
+
+func containsInsensitive(s, substr string) bool {
+	return bytes.Contains([]byte(bytes.ToLower([]byte(s))), []byte(bytes.ToLower([]byte(substr))))
+}
+

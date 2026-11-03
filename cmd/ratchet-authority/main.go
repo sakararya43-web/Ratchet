@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 )
 
@@ -37,6 +38,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/authority/bundle/propose", s.handleProposeBundle)
 	mux.HandleFunc("POST /api/v1/authority/bundle/sign", s.handleSignBundle)
 	mux.HandleFunc("POST /api/v1/authority/bundle/activate", s.handleActivateBundle)
+
+	mux.HandleFunc("POST /api/v1/authority/checkpoint/create", s.handleCreateCheckpoint)
+	mux.HandleFunc("POST /api/v1/authority/checkpoint/sign", s.handleSignCheckpoint)
+	mux.HandleFunc("GET /api/v1/authority/checkpoint/latest", s.handleGetLatestCheckpoint)
+	mux.HandleFunc("GET /api/v1/authority/checkpoint/list", s.handleListCheckpoints)
 
 	return mux
 }
@@ -282,6 +288,112 @@ func (s *Server) handleActivateRegistry(w http.ResponseWriter, r *http.Request) 
 func (s *Server) handleListRegistryProposals(w http.ResponseWriter, r *http.Request) {
 	proposals := s.store.ListRegistryProposals()
 	writeJSON(w, http.StatusOK, proposals)
+}
+
+type CreateCheckpointRequest struct {
+	TenantID              string   `json:"tenant_id"`
+	FromSequence          int64    `json:"from_sequence"`
+	ToSequence            int64    `json:"to_sequence"`
+	EventDigests          []string `json:"event_digests"`
+	PriorCheckpointDigest string   `json:"prior_checkpoint_digest"`
+}
+
+func (s *Server) handleCreateCheckpoint(w http.ResponseWriter, r *http.Request) {
+	var req CreateCheckpointRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var leaves []ports.Digest
+	for _, dStr := range req.EventDigests {
+		d, err := ports.DigestFromHex(dStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid event digest %q: %v", dStr, err), http.StatusBadRequest)
+			return
+		}
+		leaves = append(leaves, d)
+	}
+
+	var priorDigest ports.Digest
+	if req.PriorCheckpointDigest != "" {
+		pd, err := ports.DigestFromHex(req.PriorCheckpointDigest)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid prior checkpoint digest %q: %v", req.PriorCheckpointDigest, err), http.StatusBadRequest)
+			return
+		}
+		priorDigest = pd
+	}
+
+	chk, err := s.store.CreateCheckpoint(req.TenantID, req.FromSequence, req.ToSequence, leaves, priorDigest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.store.SaveCheckpoint(chk); err != nil {
+		http.Error(w, fmt.Sprintf("failed to save checkpoint: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, chk)
+}
+
+type SignCheckpointRequest struct {
+	CheckpointID string `json:"checkpoint_id"`
+	ActorID      string `json:"actor_id"`
+	Signature    string `json:"signature"` // hex encoded ASN.1 signature
+}
+
+func (s *Server) handleSignCheckpoint(w http.ResponseWriter, r *http.Request) {
+	var req SignCheckpointRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	chk, err := s.store.GetCheckpoint(req.CheckpointID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	sigBytes, err := hex.DecodeString(req.Signature)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid hex signature: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	sig := trust.MemberSignature{
+		ActorID:   req.ActorID,
+		Signature: sigBytes,
+	}
+
+	if err := s.store.SignCheckpoint(chk, sig); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if err := s.store.SaveCheckpoint(chk); err != nil {
+		http.Error(w, fmt.Sprintf("failed to update checkpoint: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, chk)
+}
+
+func (s *Server) handleGetLatestCheckpoint(w http.ResponseWriter, r *http.Request) {
+	chk, err := s.store.GetLatestCheckpoint()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, chk)
+}
+
+func (s *Server) handleListCheckpoints(w http.ResponseWriter, r *http.Request) {
+	list := s.store.ListCheckpoints()
+	writeJSON(w, http.StatusOK, list)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

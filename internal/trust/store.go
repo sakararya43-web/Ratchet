@@ -24,6 +24,7 @@ type Store struct {
 	history           []*PolicyBundle
 	registryProposals map[string]*RegistryProposal // key: proposal_id
 	registryHistory   []RegistryHistoryEntry
+	checkpoints       map[string]*AuditCheckpoint  // key: checkpoint_id
 	digester          *canon.Digester
 }
 
@@ -34,6 +35,7 @@ type persistedAuthorityData struct {
 	History           []*PolicyBundle              `json:"history"`
 	RegistryProposals map[string]*RegistryProposal `json:"registry_proposals"`
 	RegistryHistory   []RegistryHistoryEntry       `json:"registry_history"`
+	Checkpoints       map[string]*AuditCheckpoint  `json:"checkpoints,omitempty"`
 }
 
 func NewStore(filePath string) (*Store, error) {
@@ -41,6 +43,7 @@ func NewStore(filePath string) (*Store, error) {
 		filePath:          filePath,
 		proposals:         make(map[string]*PolicyBundle),
 		registryProposals: make(map[string]*RegistryProposal),
+		checkpoints:       make(map[string]*AuditCheckpoint),
 		digester:          canon.New(),
 	}
 
@@ -548,6 +551,10 @@ func (s *Store) loadFromFile() error {
 		s.registryProposals = make(map[string]*RegistryProposal)
 	}
 	s.registryHistory = pad.RegistryHistory
+	s.checkpoints = pad.Checkpoints
+	if s.checkpoints == nil {
+		s.checkpoints = make(map[string]*AuditCheckpoint)
+	}
 	return nil
 }
 
@@ -559,6 +566,7 @@ func (s *Store) saveToFile() error {
 		History:           s.history,
 		RegistryProposals: s.registryProposals,
 		RegistryHistory:   s.registryHistory,
+		Checkpoints:       s.checkpoints,
 	}
 	data, err := json.MarshalIndent(pad, "", "  ")
 	if err != nil {
@@ -576,3 +584,56 @@ func (s *Store) saveToFile() error {
 	}
 	return os.Rename(tmp, s.filePath)
 }
+
+// SaveCheckpoint stores a created or signed checkpoint and persists state.
+func (s *Store) SaveCheckpoint(chk *AuditCheckpoint) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.checkpoints == nil {
+		s.checkpoints = make(map[string]*AuditCheckpoint)
+	}
+	s.checkpoints[chk.CheckpointID] = chk
+	if s.filePath != "" {
+		return s.saveToFile()
+	}
+	return nil
+}
+
+// GetCheckpoint retrieves a checkpoint by its ID.
+func (s *Store) GetCheckpoint(checkpointID string) (*AuditCheckpoint, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	chk, ok := s.checkpoints[checkpointID]
+	if !ok {
+		return nil, fmt.Errorf("checkpoint %q not found", checkpointID)
+	}
+	return chk, nil
+}
+
+// GetLatestCheckpoint returns the checkpoint with the highest to_sequence.
+func (s *Store) GetLatestCheckpoint() (*AuditCheckpoint, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var latest *AuditCheckpoint
+	for _, chk := range s.checkpoints {
+		if latest == nil || chk.ToSequence > latest.ToSequence {
+			latest = chk
+		}
+	}
+	if latest == nil {
+		return nil, fmt.Errorf("no checkpoints available")
+	}
+	return latest, nil
+}
+
+// ListCheckpoints returns all stored checkpoints.
+func (s *Store) ListCheckpoints() []*AuditCheckpoint {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var list []*AuditCheckpoint
+	for _, chk := range s.checkpoints {
+		list = append(list, chk)
+	}
+	return list
+}
+

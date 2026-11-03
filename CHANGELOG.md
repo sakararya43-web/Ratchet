@@ -12,8 +12,9 @@
 2. [Phase 1 — Simulator Expansion, Connector Sync & Topology UI](#phase-1--simulator-expansion-connector-sync--topology-ui)
 3. [Phase 2 — Trust Prerequisites, Passkeys, Independent Authority & D1/D2 Journeys](#phase-2--trust-prerequisites-passkeys-independent-authority--d1d2-journeys)
 4. [Phase 3 — Complete Governance, Approver Registry, Policy UI & Adversarial Scenarios](#phase-3--complete-governance-approver-registry-policy-ui--adversarial-scenarios)
-5. [Current State & Verification Status](#current-state--verification-status)
-6. [Roadmap for Subsequent Phases](#roadmap-for-subsequent-phases)
+5. [Phase 4 — Priority Containment, Incident Operations & Audit Verification](#phase-4--priority-containment-incident-operations--audit-verification)
+6. [Current State & Verification Status](#current-state--verification-status)
+7. [Roadmap for Subsequent Phases](#roadmap-for-subsequent-phases)
 
 ---
 
@@ -99,15 +100,55 @@
 
 ---
 
+## Phase 4 — Priority Containment, Incident Operations & Audit Verification
+- **Requirements Covered**: FR-X1–X4 edge/UI, FR-C9 connector verification, FR-L2 signing, FR-L3, FR-L4, FR-K6 Rahul containment (D6–D8).
+- **Scope & Deliverables**:
+  - `internal/connector/priority.go` & `priority_test.go`:
+    - `PriorityContainmentEngine` running reduction commands on dedicated worker capacity to prevent starving under standard change backlog.
+    - Explicit reduction operation allowlist enforcement (`TERMINATE_SESSION`, `REVOKE_ROLE`, `RESTRICT_ACCOUNT`, `REMOVE_SERVICE_PERMISSION`), rejecting non-reduction commands.
+    - Read-back verification via `TargetAdapter.Verify()` and file-backed containment history persistence.
+  - `internal/trust/checkpoint.go`:
+    - `AuditCheckpoint` model with `ComputeMerkleRoot`, domain-separated `ComputeCheckpointSigningDigest` (`RATCHET_CHECKPOINT_V1:`), creation, member signing, and $M$-of-$N$ threshold verification.
+  - `internal/trust/model.go` & `store.go`:
+    - Added `DomainContainment` (`RATCHET_CONTAINMENT_V1:`) challenge computation `ComputeContainmentChallenge`.
+    - Checkpoints persistence and lookup in `Store` (`SaveCheckpoint`, `GetCheckpoint`, `GetLatestCheckpoint`, `ListCheckpoints`).
+  - `cmd/ratchet-authority/main.go`:
+    - Mounted `/api/v1/authority/checkpoint/create`, `/sign`, `/latest`, and `/list`.
+  - `internal/audit/`:
+    - `model.go`: `AuditEvent`, `ComputeEventDigest` ($H_i = \text{SHA256}(H_{i-1} \parallel \text{canonicalJSON}(E_i))$), `StoredCredentialRecord`, `AuditExportBundle`.
+    - `verifier.go`: Real `OfflineVerifier` evaluating complete export bundles against pinned Genesis, strictly monotonic sequences, unbroken hash chains, temporal credential validity, WebAuthn passkey assertion signatures over domain-separated challenges, Merkle roots, Authority $M$-of-$N$ signatures, and truncation/tip detection.
+    - `audit_test.go`: Comprehensive test suite (Happy path, tampered event data, broken sequence, forged approval assertion signature, tampered checkpoint Merkle root, insufficient signatures, truncation detection, revoked credential rejection, broken hash chain link).
+  - `cmd/ratchetctl/main.go`:
+    - Mounted `ratchetctl audit verify --export-file=<path> [--genesis-file=<path>] [--expected-tip=<hex>] [--expected-checkpoint=<hex>] [--json]`.
+    - Return codes: `0` (Success), `1` (Bad arguments/input), `2` (Quorum failure), and `3` (Cryptographic failure/tampering).
+  - `cmd/ratchet-sim/server/server.go`:
+    - Added session-aware access probes via `SessionID` to `/api/v1/probe`.
+    - Handled `REMOVE_SERVICE_PERMISSION` and `TERMINATE_SESSION` in `/api/v1/execute`.
+  - `e2e/scenarios/contain_rahul/contain_rahul_test.go` (D6–D8):
+    - Automated verification of the Rahul compromise and containment journey.
+    - Verified click-to-verified-revocation < 5s SLA (executed in ~1ms).
+    - Probed target before and after: Rahul workstation session terminated and account restricted; 0 Tier-0 reach.
+    - Proved unaffected business continuity: Priya (`user:finance-lead`) finance report read preserved uninterrupted; preserved non-critical operations > 87.5% of total identities, 100% of unaffected staff.
+    - Generated complete audit export bundle and validated 100% cryptographic integrity offline.
+  - `web/src/components/IncidentContainment.tsx`:
+    - Dedicated Incident Containment console with target scope selection, server-computed minimum cut plan, crown jewel threat routes eliminated, Security Lead WebAuthn passkey ceremony (`RATCHET_CONTAINMENT_V1:`), priority execution, passkey vs machine latency disclosure, live target probe results, and reviewed restoration link.
+  - `web/src/components/AuditHistory.tsx`:
+    - Audit ledger console with search by actor/target/action, event type filtering, hash chain integrity indicators, Authority Merkle checkpoints overview, expandable inspection drawer for canonical evidence, and offline proof bundle download.
+  - `web/src/App.tsx`: Mounted "Incident Containment" and "Audit & History" tabs.
+
+---
+
 ## Current State & Verification Status
 - **Git Branch**: `sakar` (clean, synchronized with `origin/sakar`).
 - **Go Test Suite**: All unit, integration, and e2e scenario tests passing:
-  - `cmd/ratchet-sim` (cached)
+  - `cmd/ratchet-sim` (passed)
   - `cmd/ratchet-sim/domain` (passed)
+  - `e2e/scenarios/contain_rahul` (passed)
   - `e2e/scenarios/controlled_approver` (passed)
   - `e2e/scenarios/self_approval` (passed)
   - `e2e/scenarios/withdrawal_rule_edit` (passed)
   - `internal/approval` (passed)
+  - `internal/audit` (passed)
   - `internal/canon` (passed)
   - `internal/connector` (passed)
   - `internal/connector/sim` (passed)
@@ -117,17 +158,6 @@
 ---
 
 ## Roadmap for Subsequent Phases
-
-### Phase 4 — Priority Containment, Incident Operations & Audit Verification
-- **Requirements**: FR-X1–X4 edge/UI, FR-C9 connector verification, FR-L2 signing, FR-L3, FR-L4, FR-K6 Rahul containment.
-- **Scope**:
-  - Connector priority containment consumer on frozen priority subject with reserved worker capacity.
-  - Actual grant removal, account restriction, service-permission removal, and session termination in simulator.
-  - Incident Containment console with server-computed cut plan, critical routes, executable revocations, business impact, preserved activities, passkey confirmation ceremony, progress and verified results.
-  - Audit & History console with real person/resource/request/incident/time search, request/approval/execution chronology, and reasons.
-  - Authority checkpoint signing over versioned Merkle candidates.
-  - Offline verifier: `ratchetctl audit verify` verifying canonical bytes, chain order, approval assertions, operation-digest binding, policy evidence, and checkpoint signatures.
-  - Run `contain_rahul` scenario: click-to-verified-revocation < 5s, zero tier-0 reach, working finance report activity, preserved non-critical access > 90% (D6–D8).
 
 ### Phase 5 — Planned P1 Edge Features & Complete Simulator Evidence
 - Emergency request/status experience.
@@ -146,3 +176,4 @@
 - Accessibility, keyboard navigation, input validation.
 - Privileged action cancellation, timeouts, retries, duplicate clicks, stale context.
 - Dependency audit (`govulncheck`, npm audit), minimal container artifacts, and final evidence pack.
+

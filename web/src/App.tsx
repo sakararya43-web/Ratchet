@@ -5,13 +5,15 @@ import { ChangeReview } from './components/ChangeReview';
 import { InfrastructureMap } from './components/InfrastructureMap';
 import { ImpactSimulator } from './components/ImpactSimulator';
 import { PolicyGovernance } from './components/PolicyGovernance';
-import { RefreshCw, Layers, Sparkles, AlertCircle, ShieldCheck, Activity, Key } from 'lucide-react';
+import { IncidentContainment } from './components/IncidentContainment';
+import { AuditHistory } from './components/AuditHistory';
+import { RefreshCw, Layers, Sparkles, AlertCircle, ShieldCheck, Activity, Key, ShieldAlert, FileText } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [org, setOrg] = useState<OrgState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'map' | 'simulator' | 'governance'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'map' | 'simulator' | 'governance' | 'containment' | 'audit'>('overview');
 
   const loadOrg = async () => {
     setLoading(true);
@@ -142,6 +144,30 @@ export const App: React.FC = () => {
             <Key className="w-3.5 h-3.5" />
             Policy Governance
           </button>
+
+          <button
+            onClick={() => setActiveTab('containment')}
+            className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'containment'
+                ? 'border-red-500 text-red-400 bg-red-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            Incident Containment
+          </button>
+
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'audit'
+                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Audit &amp; History
+          </button>
         </div>
       </div>
 
@@ -181,6 +207,14 @@ export const App: React.FC = () => {
         {org && activeTab === 'map' && <InfrastructureMap org={org} />}
         {org && activeTab === 'simulator' && <ImpactSimulator org={org} />}
         {org && activeTab === 'governance' && <PolicyGovernance tenantId={org.tenant_id} />}
+        {org && activeTab === 'containment' && (
+          <IncidentContainment
+            org={org}
+            onRefreshOrg={loadOrg}
+            onNavigateToReview={() => setActiveTab('review')}
+          />
+        )}
+        {org && activeTab === 'audit' && <AuditHistory org={org} />}
       </main>
     </div>
   );

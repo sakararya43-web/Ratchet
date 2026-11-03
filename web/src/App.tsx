@@ -7,13 +7,14 @@ import { ImpactSimulator } from './components/ImpactSimulator';
 import { PolicyGovernance } from './components/PolicyGovernance';
 import { IncidentContainment } from './components/IncidentContainment';
 import { AuditHistory } from './components/AuditHistory';
-import { RefreshCw, Layers, Sparkles, AlertCircle, ShieldCheck, Activity, Key, ShieldAlert, FileText } from 'lucide-react';
+import { EmergencyAndDrift } from './components/EmergencyAndDrift';
+import { RefreshCw, Layers, Sparkles, AlertCircle, ShieldCheck, Activity, Key, ShieldAlert, FileText, Flame } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [org, setOrg] = useState<OrgState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'map' | 'simulator' | 'governance' | 'containment' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'map' | 'simulator' | 'governance' | 'containment' | 'emergency' | 'audit'>('overview');
 
   const loadOrg = async () => {
     setLoading(true);
@@ -158,6 +159,18 @@ export const App: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('emergency')}
+            className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'emergency'
+                ? 'border-amber-500 text-amber-400 bg-amber-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5" />
+            Emergency &amp; Drift
+          </button>
+
+          <button
             onClick={() => setActiveTab('audit')}
             className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
               activeTab === 'audit'
@@ -213,6 +226,9 @@ export const App: React.FC = () => {
             onRefreshOrg={loadOrg}
             onNavigateToReview={() => setActiveTab('review')}
           />
+        )}
+        {org && activeTab === 'emergency' && (
+          <EmergencyAndDrift org={org} onRefreshOrg={loadOrg} />
         )}
         {org && activeTab === 'audit' && <AuditHistory org={org} />}
       </main>

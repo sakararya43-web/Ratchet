@@ -55,6 +55,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/reset", s.handleReset)
 	mux.HandleFunc("POST /api/v1/execute", s.handleExecute)
 	mux.HandleFunc("POST /api/v1/probe", s.handleProbe)
+	mux.HandleFunc("POST /api/v1/test/inject-drift", s.handleInjectDrift)
 	mux.HandleFunc("POST /api/v1/business/finance-report/read", s.handleBusinessFinanceReport)
 	mux.HandleFunc("POST /api/v1/business/wallet/sign", s.handleBusinessWalletSign)
 
@@ -130,6 +131,40 @@ func (s *Server) handleReset(w http.ResponseWriter, r *http.Request) {
 	state := s.store.GetState()
 	writeJSON(w, http.StatusOK, map[string]any{
 		"message":  "simulator state reset to deterministic seed",
+		"revision": state.Revision,
+	})
+}
+
+type InjectDriftRequest struct {
+	ActorID        string `json:"actor_id"`
+	TargetIdentity string `json:"target_identity"`
+	RoleID         string `json:"role_id"`
+}
+
+func (s *Server) handleInjectDrift(w http.ResponseWriter, r *http.Request) {
+	var req InjectDriftRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	actorID := req.ActorID
+	if actorID == "" {
+		actorID = "rogue-operator:out-of-band"
+	}
+
+	err := s.store.AssignRole(actorID, req.TargetIdentity, req.RoleID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("drift injection failed: %v", err), http.StatusUnprocessableEntity)
+		return
+	}
+
+	state := s.store.GetState()
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"status":   "drift_injected",
+		"actor_id": actorID,
+		"target":   req.TargetIdentity,
+		"role_id":  req.RoleID,
 		"revision": state.Revision,
 	})
 }

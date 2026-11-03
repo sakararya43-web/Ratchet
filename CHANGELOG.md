@@ -13,8 +13,9 @@
 3. [Phase 2 — Trust Prerequisites, Passkeys, Independent Authority & D1/D2 Journeys](#phase-2--trust-prerequisites-passkeys-independent-authority--d1d2-journeys)
 4. [Phase 3 — Complete Governance, Approver Registry, Policy UI & Adversarial Scenarios](#phase-3--complete-governance-approver-registry-policy-ui--adversarial-scenarios)
 5. [Phase 4 — Priority Containment, Incident Operations & Audit Verification](#phase-4--priority-containment-incident-operations--audit-verification)
-6. [Current State & Verification Status](#current-state--verification-status)
-7. [Roadmap for Subsequent Phases](#roadmap-for-subsequent-phases)
+6. [Phase 5 — Planned P1 Edge Features, Drift Watch & Complete Attack Scenario Suite](#phase-5--planned-p1-edge-features-drift-watch--complete-attack-scenario-suite)
+7. [Current State & Verification Status](#current-state--verification-status)
+8. [Roadmap for Subsequent Phases](#roadmap-for-subsequent-phases)
 
 ---
 
@@ -138,6 +139,37 @@
 
 ---
 
+## Phase 5 — Planned P1 Edge Features, Drift Watch & Complete Attack Scenario Suite
+- **Requirements Covered**: FR-C10 UI, FR-E2 connector revoke, FR-E3 UI, FR-O2 UI, FR-K4 watch/revert, FR-K6 complete attack families.
+- **Scope & Deliverables**:
+  - `internal/connector/watch.go` & `watch_test.go`:
+    - `WatchEngine` consuming target simulator audit log stream via `/api/v1/audit?since_revision=...`.
+    - Durable file-backed watch cursor (`watch_cursor.json`).
+    - Detection of out-of-band drift (mutations not originating from `broker:ratchet-connector`).
+    - Corrective reduction execution: `RevertDrift` dispatches `REVOKE_ROLE` via connector and performs independent read-back verification.
+  - `internal/connector/temporary.go`:
+    - `TemporaryGrantManager` supporting time-bounded access grants with expiry deadlines.
+    - Automated sweep and revocation upon TTL expiration with independent read-back verification.
+    - Cold-start catch-up: revokes grants that expired while connector process was disconnected.
+  - `cmd/ratchet-sim/server/server.go`:
+    - Mounted `/api/v1/test/inject-drift` to simulate out-of-band rogue operator mutations for test and acceptance verification.
+  - `e2e/scenarios/k6_attacks/k6_attacks_test.go`:
+    - Complete suite of all six FR-K6 attack families paired with legitimate counterparts:
+      - **Family 1**: Stolen finance account / session blocked vs legitimate active lead session.
+      - **Family 2**: Compromised intern self-escalation blocked under Invariant R1 vs legitimate 2-lead quorum promotion.
+      - **Family 3**: Rogue admin out-of-band injection detected by Watch and reverted vs legitimate review flow.
+      - **Family 4**: Service account over-grant blocked without broker auth vs scoped time-bounded temporary grant auto-revoking on expiry.
+      - **Family 5**: Direct safeguard edit blocked vs governed $M$-of-$N$ Security Lead policy amendment.
+      - **Family 6**: Lateral spread to Tier-0 wallet signer blocked (0 reach) vs legitimate wallet operator grant.
+  - `web/src/components/EmergencyAndDrift.tsx`:
+    - Unified UI console supporting:
+      - Emergency access requests with TTL countdown, justification, and Security Lead WebAuthn passkey ceremony.
+      - Scheduled temporary grants table with live status and manual/automated revocation verification.
+      - Target Watch stream monitoring with durable cursor tracking, out-of-band drift injection simulation, and one-click authorized corrective reversion.
+  - `web/src/App.tsx`: Mounted "Emergency & Drift" tab with full React 19 + Tailwind controls.
+
+---
+
 ## Current State & Verification Status
 - **Git Branch**: `sakar` (clean, synchronized with `origin/sakar`).
 - **Go Test Suite**: All unit, integration, and e2e scenario tests passing:
@@ -145,6 +177,7 @@
   - `cmd/ratchet-sim/domain` (passed)
   - `e2e/scenarios/contain_rahul` (passed)
   - `e2e/scenarios/controlled_approver` (passed)
+  - `e2e/scenarios/k6_attacks` (passed)
   - `e2e/scenarios/self_approval` (passed)
   - `e2e/scenarios/withdrawal_rule_edit` (passed)
   - `internal/approval` (passed)
@@ -158,14 +191,6 @@
 ---
 
 ## Roadmap for Subsequent Phases
-
-### Phase 5 — Planned P1 Edge Features & Complete Simulator Evidence
-- Emergency request/status experience.
-- Scheduled temporary-grant revocation execution and read-back.
-- Watch streams for review/incident updates with resume cursors, reconnect/backoff.
-- Simulator Watch with durable audit cursor and drift reports.
-- Complete all six FR-K6 attack families paired with legitimate cases.
-- Virtual-authenticator Playwright coverage for all flows.
 
 ### Phase 6 — Optional Real Kubernetes Adapter on kind (Stretch)
 - Sync ServiceAccounts, Roles/ClusterRoles, RoleBindings/ClusterRoleBindings.

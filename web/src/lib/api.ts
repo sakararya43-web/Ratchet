@@ -610,5 +610,35 @@ export async function executeProbe(
   return resp.json();
 }
 
+export async function injectSimulatedDrift(
+  actorId: string,
+  targetIdentity: string,
+  roleId: string
+): Promise<{ status: string; revision: number }> {
+  const resp = await fetch('/api/v1/test/inject-drift', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      actor_id: actorId,
+      target_identity: targetIdentity,
+      role_id: roleId,
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Failed to inject drift: ${errText}`);
+  }
+  return resp.json();
+}
+
+export async function fetchAuditSince(sinceRevision: number): Promise<TargetAuditEntry[]> {
+  const resp = await fetch(`/api/v1/audit?since_revision=${sinceRevision}`);
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch audit stream: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+
 
 

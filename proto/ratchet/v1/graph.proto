@@ -60,3 +60,4 @@ message GetReachResponse {
   map<string, int32> reach_by_tier = 3;
   int64 graph_version = 4;
 }
+

@@ -46,3 +46,4 @@ message GetIncidentRequest {
 message GetIncidentResponse {
   Incident incident = 1;
 }
+

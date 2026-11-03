@@ -125,3 +125,4 @@ message SignCheckpointResponse {
   bool signed = 1;
   string checkpoint_digest = 2;
 }
+

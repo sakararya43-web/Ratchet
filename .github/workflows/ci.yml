@@ -33,8 +33,11 @@ jobs:
       - name: Build Sim Binary
         run: go build -v ./cmd/ratchet-sim
 
+      - name: Build Connector Binary
+        run: go build -v ./cmd/ratchet-connector
+
   ts-ci:
-    name: TypeScript & Canonicalization Verification
+    name: TypeScript & Web Verification
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -47,3 +50,12 @@ jobs:
 
       - name: Run RFC 8785 Canonicalization Tests
         run: node --test web/src/lib/canon.test.ts
+
+      - name: Install Web Dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build Web Console
+        working-directory: web
+        run: npm run build
+

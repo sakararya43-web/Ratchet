@@ -29,3 +29,4 @@ message DecisionResponse {
   string policy_bundle_hash = 5;
   int64 graph_version = 6;
 }
+

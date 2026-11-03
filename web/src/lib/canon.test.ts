@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { canonicalize, canonicalizeJSON, digest, digestJSON } from './canon.ts';
+import { canonicalize, canonicalizeJSON, digestJSON } from './canon.ts';
 
 interface CanonicalVector {
   name: string;
@@ -19,7 +19,9 @@ interface VectorsFile {
 }
 
 test('RFC 8785 TypeScript canonicalization & golden vectors', async (t) => {
-  const vectorsPath = resolve(process.cwd(), 'testdata', 'canon', 'vectors.json');
+  const vectorsPath = existsSync(resolve(process.cwd(), 'testdata', 'canon', 'vectors.json'))
+    ? resolve(process.cwd(), 'testdata', 'canon', 'vectors.json')
+    : resolve(process.cwd(), '..', 'testdata', 'canon', 'vectors.json');
   const fileContent = readFileSync(vectorsPath, 'utf-8');
   const vf: VectorsFile = JSON.parse(fileContent);
 
@@ -69,3 +71,4 @@ test('Direct value canonicalization and number edge cases', async () => {
   // Undefined in object omitted
   assert.equal(canonicalize({ a: 1, b: undefined }), '{"a":1}');
 });
+

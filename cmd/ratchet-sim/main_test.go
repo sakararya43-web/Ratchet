@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
+	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/server"
 )
 
 func TestSimulatorHTTPServer(t *testing.T) {
@@ -19,7 +20,7 @@ func TestSimulatorHTTPServer(t *testing.T) {
 	}
 
 	brokerSecret := "test-secret-token"
-	server := NewServer(store, brokerSecret)
+	server := server.NewServer(store, brokerSecret)
 	handler := server.Routes()
 
 	// 1. Test /healthz
@@ -103,3 +104,59 @@ func TestSimulatorHTTPServer(t *testing.T) {
 		t.Errorf("expected revision 1000 after reset, got %d", stateAfterReset.Revision)
 	}
 }
+
+func TestBusinessProbesAndSafeguards(t *testing.T) {
+	tmpDir := t.TempDir()
+	store, err := domain.NewStore(filepath.Join(tmpDir, "sim_probe_test.json"))
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+
+	srv := server.NewServer(store, "test-secret")
+	handler := srv.Routes()
+
+	// 1. Probe Rahul on finance report read (should be Allowed)
+	probe1Body := []byte(`{"identity_id":"user:rahul","resource_id":"res:finance-reports","action":"read"}`)
+	reqProbe1 := httptest.NewRequest("POST", "/api/v1/probe", bytes.NewReader(probe1Body))
+	recProbe1 := httptest.NewRecorder()
+	handler.ServeHTTP(recProbe1, reqProbe1)
+
+	var res1 domain.AccessProbeResult
+	_ = json.Unmarshal(recProbe1.Body.Bytes(), &res1)
+	if !res1.Allowed {
+		t.Errorf("expected Rahul allowed to read finance reports, got false")
+	}
+
+	// 2. Probe Rahul on wallet signer (should NOT be Allowed initially)
+	probe2Body := []byte(`{"identity_id":"user:rahul","resource_id":"svc:wallet-signer","action":"sign"}`)
+	reqProbe2 := httptest.NewRequest("POST", "/api/v1/probe", bytes.NewReader(probe2Body))
+	recProbe2 := httptest.NewRecorder()
+	handler.ServeHTTP(recProbe2, reqProbe2)
+
+	var res2 domain.AccessProbeResult
+	_ = json.Unmarshal(recProbe2.Body.Bytes(), &res2)
+	if res2.Allowed {
+		t.Errorf("expected Rahul denied on wallet signing initially, got true")
+	}
+
+	// 3. Business finance report read with valid session
+	bReq1 := []byte(`{"session_id":"session:rahul-workstation-1"}`)
+	reqBiz1 := httptest.NewRequest("POST", "/api/v1/business/finance-report/read", bytes.NewReader(bReq1))
+	recBiz1 := httptest.NewRecorder()
+	handler.ServeHTTP(recBiz1, reqBiz1)
+
+	if recBiz1.Code != http.StatusOK {
+		t.Errorf("expected 200 OK for valid finance report read, got %d", recBiz1.Code)
+	}
+
+	// 4. Terminate Rahul's session and test report read again (should be 403 Forbidden)
+	_ = store.TerminateSession("sec-lead", "session:rahul-workstation-1")
+	reqBiz2 := httptest.NewRequest("POST", "/api/v1/business/finance-report/read", bytes.NewReader(bReq1))
+	recBiz2 := httptest.NewRecorder()
+	handler.ServeHTTP(recBiz2, reqBiz2)
+
+	if recBiz2.Code != http.StatusForbidden {
+		t.Errorf("expected 403 Forbidden after session termination, got %d", recBiz2.Code)
+	}
+}
+

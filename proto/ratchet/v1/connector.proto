@@ -92,3 +92,4 @@ message DriftReport {
   string detected_at = 5;
   string severity = 6;
 }
+

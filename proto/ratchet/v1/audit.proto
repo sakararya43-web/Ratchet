@@ -47,3 +47,4 @@ message ExportHashChainResponse {
   repeated LedgerEvent chain = 2;
   string latest_checkpoint_digest = 3;
 }
+

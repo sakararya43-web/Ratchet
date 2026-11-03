@@ -116,3 +116,4 @@ func (d *Digester) DigestJSON(raw []byte) (ports.Digest, error) {
 	}
 	return sha256.Sum256(canonicalBytes), nil
 }
+

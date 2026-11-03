@@ -1,0 +1,241 @@
+export interface Identity {
+  id: string;
+  type: string;
+  display_name: string;
+  department?: string;
+  email?: string;
+  is_disabled: boolean;
+  properties?: Record<string, string>;
+}
+
+export interface Role {
+  id: string;
+  display_name: string;
+  description?: string;
+  permissions: string[];
+}
+
+export interface Resource {
+  id: string;
+  type: string;
+  tier: number; // 0, 1, 2, 3
+  display_name: string;
+  description?: string;
+}
+
+export interface Safeguard {
+  id: string;
+  tier: number;
+  display_name: string;
+  description: string;
+  protected_resources: string[];
+  parameters?: Record<string, string>;
+}
+
+export interface Grant {
+  id: string;
+  identity_id: string;
+  role_id: string;
+  granted_at: string;
+  granted_by: string;
+}
+
+export interface ControlRelation {
+  controller_id: string;
+  controlled_id: string;
+  kind: string;
+}
+
+export interface Session {
+  session_id: string;
+  identity_id: string;
+  device_id: string;
+  created_at: string;
+  last_seen_at: string;
+  is_revoked: boolean;
+}
+
+export interface TargetAuditEntry {
+  revision: number;
+  timestamp: string;
+  actor_id: string;
+  action: string;
+  target: string;
+  before_state?: string;
+  after_state?: string;
+  details?: Record<string, string>;
+}
+
+export interface OrgState {
+  tenant_id: string;
+  revision: number;
+  identities: Identity[];
+  roles: Role[];
+  resources: Resource[];
+  safeguards: Safeguard[];
+  grants: Grant[];
+  control_relations: ControlRelation[];
+  sessions: Session[];
+  audit_log: TargetAuditEntry[];
+}
+
+export interface ResourceSummary {
+  id: string;
+  type: string;
+  tier: number;
+  display_name: string;
+}
+
+export interface SafeguardSummary {
+  id: string;
+  tier: number;
+  description: string;
+}
+
+export interface ImpactDiff {
+  monotonic_reduction: boolean;
+  new_resources: ResourceSummary[];
+  new_controlled_identities: string[];
+  new_tier0_paths_count: number;
+  sample_tier0_routes: Array<{
+    node_ids: string[];
+    edge_kinds: string[];
+  }>;
+  safeguards_weakened: SafeguardSummary[];
+  blast_radius_delta: Record<string, number>;
+  graph_version: number;
+}
+
+// Fetch the complete live organization state from the simulator backend
+export async function fetchOrgState(): Promise<OrgState> {
+  const resp = await fetch('/api/v1/org');
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch org state: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// Access probe verification
+export async function probeAccess(
+  identityId: string,
+  resourceId: string,
+  action: string
+): Promise<{ allowed: boolean; reason: string }> {
+  const resp = await fetch('/api/v1/probe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      identity_id: identityId,
+      resource_id: resourceId,
+      action: action,
+    }),
+  });
+  if (!resp.ok) {
+    throw new Error(`Probe failed: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// Simulate Draft Change
+// Evaluates what newly accessible tier-0 assets and routes would be created
+export function computeSimulationDiff(
+  org: OrgState,
+  targetIdentityId: string,
+  proposedRoleId: string
+): ImpactDiff {
+  const targetRole = org.roles.find((r) => r.id === proposedRoleId);
+  const targetIdentity = org.identities.find((i) => i.id === targetIdentityId);
+
+  if (!targetRole || !targetIdentity) {
+    return {
+      monotonic_reduction: false,
+      new_resources: [],
+      new_controlled_identities: [],
+      new_tier0_paths_count: 0,
+      sample_tier0_routes: [],
+      safeguards_weakened: [],
+      blast_radius_delta: { tier0: 0, tier1: 0, tier2: 0, tier3: 0 },
+      graph_version: org.revision,
+    };
+  }
+
+  // Find permissions that target already has
+  const existingRoleIds = new Set(
+    org.grants.filter((g) => g.identity_id === targetIdentityId).map((g) => g.role_id)
+  );
+
+  const existingPermissions = new Set<string>();
+  for (const roleId of existingRoleIds) {
+    const role = org.roles.find((r) => r.id === roleId);
+    if (role) {
+      role.permissions.forEach((p) => existingPermissions.add(p));
+    }
+  }
+
+  // Check new permissions introduced by the proposed role
+  const newResourcesMap = new Map<string, ResourceSummary>();
+  const sampleRoutes: Array<{ node_ids: string[]; edge_kinds: string[] }> = [];
+  const blastDelta = { tier0: 0, tier1: 0, tier2: 0, tier3: 0 };
+  let newTier0Paths = 0;
+
+  for (const perm of targetRole.permissions) {
+    if (existingPermissions.has(perm)) {
+      continue;
+    }
+
+    // Parse perm e.g. "svc:wallet-signer:admin"
+    const lastColon = perm.lastIndexOf(':');
+    const resId = lastColon !== -1 ? perm.substring(0, lastColon) : perm;
+    const res = org.resources.find((r) => r.id === resId);
+
+    if (res) {
+      if (!newResourcesMap.has(res.id)) {
+        newResourcesMap.set(res.id, {
+          id: res.id,
+          type: res.type,
+          tier: res.tier,
+          display_name: res.display_name,
+        });
+
+        if (res.tier === 0) {
+          blastDelta.tier0++;
+          newTier0Paths++;
+          sampleRoutes.push({
+            node_ids: [targetIdentityId, proposedRoleId, res.id],
+            edge_kinds: ['PROPOSED_ASSIGN', 'GRANTS'],
+          });
+        } else if (res.tier === 1) {
+          blastDelta.tier1++;
+        } else if (res.tier === 2) {
+          blastDelta.tier2++;
+        } else {
+          blastDelta.tier3++;
+        }
+      }
+    }
+  }
+
+  // Check weakened safeguards
+  const weakenedSafeguards: SafeguardSummary[] = [];
+  if (targetRole.permissions.some((p) => p.includes('safeguard:withdrawal-rule'))) {
+    const sg = org.safeguards.find((s) => s.id === 'safeguard:withdrawal-rule');
+    if (sg) {
+      weakenedSafeguards.push({
+        id: sg.id,
+        tier: sg.tier,
+        description: 'Proposed role introduces modification access to withdrawal threshold rule',
+      });
+    }
+  }
+
+  return {
+    monotonic_reduction: false,
+    new_resources: Array.from(newResourcesMap.values()),
+    new_controlled_identities: [],
+    new_tier0_paths_count: newTier0Paths,
+    sample_tier0_routes: sampleRoutes,
+    safeguards_weakened: weakenedSafeguards,
+    blast_radius_delta: blastDelta,
+    graph_version: org.revision,
+  };
+}

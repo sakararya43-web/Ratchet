@@ -30,3 +30,4 @@ message GetAttentionItemsResponse {
   repeated ChangeRequest pending_requests = 2;
   repeated Incident active_incidents = 3;
 }
+

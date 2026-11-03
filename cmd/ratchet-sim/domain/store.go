@@ -65,12 +65,94 @@ func (s *Store) ResetToSeed() error {
 	return nil
 }
 
+// CheckAccess verifies whether an identity can perform an action on a target resource.
+func (s *Store) CheckAccess(identityID, resourceID, action string) AccessProbeResult {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.checkAccessLocked(identityID, resourceID, action)
+}
+
+// CheckSessionAccess checks access bound to a specific session.
+func (s *Store) CheckSessionAccess(sessionID, resourceID, action string) (AccessProbeResult, string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var sess *Session
+	for i := range s.state.Sessions {
+		if s.state.Sessions[i].SessionID == sessionID {
+			sess = &s.state.Sessions[i]
+			break
+		}
+	}
+	if sess == nil {
+		return AccessProbeResult{Allowed: false, Reason: "session not found"}, ""
+	}
+	if sess.IsRevoked {
+		return AccessProbeResult{Allowed: false, Reason: "session is revoked"}, sess.IdentityID
+	}
+
+	return s.checkAccessLocked(sess.IdentityID, resourceID, action), sess.IdentityID
+}
+
+func (s *Store) checkAccessLocked(identityID, resourceID, action string) AccessProbeResult {
+	var targetIdentity *Identity
+	for i := range s.state.Identities {
+		if s.state.Identities[i].ID == identityID {
+			targetIdentity = &s.state.Identities[i]
+			break
+		}
+	}
+	if targetIdentity == nil {
+		return AccessProbeResult{Allowed: false, Reason: "identity not found"}
+	}
+	if targetIdentity.IsDisabled {
+		return AccessProbeResult{Allowed: false, Reason: "identity is disabled / restricted"}
+	}
+
+	roleMap := make(map[string]Role)
+	for _, r := range s.state.Roles {
+		roleMap[r.ID] = r
+	}
+
+	neededPerm := fmt.Sprintf("%s:%s", resourceID, action)
+	wildcardPerm := fmt.Sprintf("%s:all", resourceID)
+
+	var rolesUsed []string
+	allowed := false
+
+	for _, g := range s.state.Grants {
+		if g.IdentityID == identityID {
+			if r, ok := roleMap[g.RoleID]; ok {
+				for _, p := range r.Permissions {
+					if p == neededPerm || p == wildcardPerm || p == "iam:all" {
+						allowed = true
+						rolesUsed = append(rolesUsed, r.ID)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if !allowed {
+		return AccessProbeResult{
+			Allowed: false,
+			Reason:  fmt.Sprintf("no active grant permits %q on %q", action, resourceID),
+		}
+	}
+
+	return AccessProbeResult{
+		Allowed:   true,
+		Reason:    fmt.Sprintf("authorized via roles: %v", rolesUsed),
+		RolesUsed: rolesUsed,
+	}
+}
+
 // AssignRole grants a role to a target identity.
 func (s *Store) AssignRole(actorID, targetIdentity, roleID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Verify identity exists
 	foundIdentity := false
 	for _, id := range s.state.Identities {
 		if id.ID == targetIdentity {
@@ -82,7 +164,6 @@ func (s *Store) AssignRole(actorID, targetIdentity, roleID string) error {
 		return fmt.Errorf("identity %q not found", targetIdentity)
 	}
 
-	// Verify role exists
 	foundRole := false
 	for _, r := range s.state.Roles {
 		if r.ID == roleID {
@@ -94,12 +175,13 @@ func (s *Store) AssignRole(actorID, targetIdentity, roleID string) error {
 		return fmt.Errorf("role %q not found", roleID)
 	}
 
-	// Check if grant already exists
 	for _, g := range s.state.Grants {
 		if g.IdentityID == targetIdentity && g.RoleID == roleID {
-			return nil // idempotent success
+			return nil // idempotent
 		}
 	}
+
+	beforeGrants, _ := json.Marshal(s.getGrantsForIdentity(targetIdentity))
 
 	now := time.Now().UTC()
 	s.state.Revision++
@@ -112,12 +194,16 @@ func (s *Store) AssignRole(actorID, targetIdentity, roleID string) error {
 		GrantedBy:  actorID,
 	})
 
+	afterGrants, _ := json.Marshal(s.getGrantsForIdentity(targetIdentity))
+
 	s.state.AuditLog = append(s.state.AuditLog, TargetAuditEntry{
-		Revision:  s.state.Revision,
-		Timestamp: now,
-		ActorID:   actorID,
-		Action:    "ASSIGN_ROLE",
-		Target:    targetIdentity,
+		Revision:    s.state.Revision,
+		Timestamp:   now,
+		ActorID:     actorID,
+		Action:      "ASSIGN_ROLE",
+		Target:      targetIdentity,
+		BeforeState: string(beforeGrants),
+		AfterState:  string(afterGrants),
 		Details: map[string]string{
 			"role_id": roleID,
 		},
@@ -133,6 +219,8 @@ func (s *Store) AssignRole(actorID, targetIdentity, roleID string) error {
 func (s *Store) RevokeRole(actorID, targetIdentity, roleID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	beforeGrants, _ := json.Marshal(s.getGrantsForIdentity(targetIdentity))
 
 	newGrants := make([]Grant, 0, len(s.state.Grants))
 	found := false
@@ -152,12 +240,16 @@ func (s *Store) RevokeRole(actorID, targetIdentity, roleID string) error {
 	now := time.Now().UTC()
 	s.state.Revision++
 
+	afterGrants, _ := json.Marshal(s.getGrantsForIdentity(targetIdentity))
+
 	s.state.AuditLog = append(s.state.AuditLog, TargetAuditEntry{
-		Revision:  s.state.Revision,
-		Timestamp: now,
-		ActorID:   actorID,
-		Action:    "REVOKE_ROLE",
-		Target:    targetIdentity,
+		Revision:    s.state.Revision,
+		Timestamp:   now,
+		ActorID:     actorID,
+		Action:      "REVOKE_ROLE",
+		Target:      targetIdentity,
+		BeforeState: string(beforeGrants),
+		AfterState:  string(afterGrants),
 		Details: map[string]string{
 			"role_id": roleID,
 		},
@@ -189,11 +281,13 @@ func (s *Store) TerminateSession(actorID, sessionID string) error {
 	now := time.Now().UTC()
 	s.state.Revision++
 	s.state.AuditLog = append(s.state.AuditLog, TargetAuditEntry{
-		Revision:  s.state.Revision,
-		Timestamp: now,
-		ActorID:   actorID,
-		Action:    "TERMINATE_SESSION",
-		Target:    sessionID,
+		Revision:    s.state.Revision,
+		Timestamp:   now,
+		ActorID:     actorID,
+		Action:      "TERMINATE_SESSION",
+		Target:      sessionID,
+		BeforeState: "active",
+		AfterState:  "revoked",
 	})
 
 	if s.filePath != "" {
@@ -219,7 +313,6 @@ func (s *Store) RestrictAccount(actorID, targetIdentity string) error {
 		return fmt.Errorf("identity %q not found", targetIdentity)
 	}
 
-	// Revoke sessions
 	for i, sess := range s.state.Sessions {
 		if sess.IdentityID == targetIdentity {
 			s.state.Sessions[i].IsRevoked = true
@@ -229,17 +322,29 @@ func (s *Store) RestrictAccount(actorID, targetIdentity string) error {
 	now := time.Now().UTC()
 	s.state.Revision++
 	s.state.AuditLog = append(s.state.AuditLog, TargetAuditEntry{
-		Revision:  s.state.Revision,
-		Timestamp: now,
-		ActorID:   actorID,
-		Action:    "RESTRICT_ACCOUNT",
-		Target:    targetIdentity,
+		Revision:    s.state.Revision,
+		Timestamp:   now,
+		ActorID:     actorID,
+		Action:      "RESTRICT_ACCOUNT",
+		Target:      targetIdentity,
+		BeforeState: "enabled",
+		AfterState:  "disabled",
 	})
 
 	if s.filePath != "" {
 		return s.saveToFile()
 	}
 	return nil
+}
+
+func (s *Store) getGrantsForIdentity(identityID string) []string {
+	var roles []string
+	for _, g := range s.state.Grants {
+		if g.IdentityID == identityID {
+			roles = append(roles, g.RoleID)
+		}
+	}
+	return roles
 }
 
 func (s *Store) loadFromFile() error {

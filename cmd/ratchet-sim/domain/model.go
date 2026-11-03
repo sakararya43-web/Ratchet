@@ -84,12 +84,22 @@ type Session struct {
 
 // TargetAuditEntry records every mutation inside the target system.
 type TargetAuditEntry struct {
-	Revision   int64             `json:"revision"`
-	Timestamp  time.Time         `json:"timestamp"`
-	ActorID    string            `json:"actor_id"`
-	Action     string            `json:"action"`
-	Target     string            `json:"target"`
-	Details    map[string]string `json:"details,omitempty"`
+	Revision      int64             `json:"revision"`
+	Timestamp     time.Time         `json:"timestamp"`
+	ActorID       string            `json:"actor_id"`
+	Action        string            `json:"action"`
+	Target        string            `json:"target"`
+	CorrelationID string            `json:"correlation_id,omitempty"`
+	BeforeState   string            `json:"before_state,omitempty"`
+	AfterState    string            `json:"after_state,omitempty"`
+	Details       map[string]string `json:"details,omitempty"`
+}
+
+// AccessProbeResult provides observable evidence of whether an access request succeeds on the target.
+type AccessProbeResult struct {
+	Allowed   bool     `json:"allowed"`
+	Reason    string   `json:"reason"`
+	RolesUsed []string `json:"roles_used,omitempty"`
 }
 
 // OrgState is the complete snapshot of the simulated exchange organization.
@@ -105,3 +115,4 @@ type OrgState struct {
 	Sessions         []Session          `json:"sessions"`
 	AuditLog         []TargetAuditEntry `json:"audit_log"`
 }
+

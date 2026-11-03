@@ -48,3 +48,4 @@ message SimulateChangeRequest {
 message SimulateChangeResponse {
   ImpactDiff impact = 1;
 }
+

@@ -1,0 +1,13 @@
+{
+  "request_id": "req-safeguard-edit-005",
+  "tenant_id": "tenant-exchange-demo",
+  "kind": "MODIFY_SAFEGUARD",
+  "target_safeguard": "safeguard:withdrawal-rule",
+  "proposed_parameters": {
+    "threshold_usd": "1000000",
+    "required_checks": "1"
+  },
+  "justification": "Speed up withdrawal pipeline by raising threshold to $1M and lowering checks to 1",
+  "requested_by": "user:admin-operator",
+  "emergency": false
+}

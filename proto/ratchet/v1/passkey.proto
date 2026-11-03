@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+service PasskeyService {
+  rpc BeginRegistration(BeginRegistrationRequest) returns (BeginRegistrationResponse);
+  rpc FinishRegistration(FinishRegistrationRequest) returns (FinishRegistrationResponse);
+  rpc ListPasskeys(ListPasskeysRequest) returns (ListPasskeysResponse);
+  rpc RevokePasskey(RevokePasskeyRequest) returns (RevokePasskeyResponse);
+  rpc BeginAssertion(BeginAssertionRequest) returns (BeginAssertionResponse);
+  rpc FinishAssertion(FinishAssertionRequest) returns (FinishAssertionResponse);
+}
+
+message PasskeyMetadata {
+  string credential_id = 1;
+  string label = 2;
+  string created_at = 3;
+  string last_used_at = 4;
+  string aaguid = 5;
+}
+
+message BeginRegistrationRequest {
+  string tenant_id = 1;
+  string actor_id = 2;
+  string display_name = 3;
+}
+
+message BeginRegistrationResponse {
+  string session_id = 1;
+  string creation_options_json = 2;
+}
+
+message FinishRegistrationRequest {
+  string tenant_id = 1;
+  string actor_id = 2;
+  string session_id = 3;
+  string credential_response_json = 4;
+  string label = 5;
+}
+
+message FinishRegistrationResponse {
+  bool success = 1;
+  PasskeyMetadata passkey = 2;
+}
+
+message ListPasskeysRequest {
+  string tenant_id = 1;
+  string actor_id = 2;
+}
+
+message ListPasskeysResponse {
+  repeated PasskeyMetadata passkeys = 1;
+}
+
+message RevokePasskeyRequest {
+  string tenant_id = 1;
+  string actor_id = 2;
+  string credential_id = 3;
+}
+
+message RevokePasskeyResponse {
+  bool success = 1;
+}
+
+message BeginAssertionRequest {
+  string tenant_id = 1;
+  string actor_id = 2;
+  string change_digest = 3; // 64-char hex of the canonical action/change digest
+}
+
+message BeginAssertionResponse {
+  string session_id = 1;
+  string request_options_json = 2;
+  string challenge_nonce = 3;
+}
+
+message FinishAssertionRequest {
+  string tenant_id = 1;
+  string actor_id = 2;
+  string session_id = 3;
+  string change_digest = 4;
+  string assertion_response_json = 5;
+}
+
+message FinishAssertionResponse {
+  bool verified = 1;
+  string verified_at = 2;
+  string credential_id = 3;
+  bool user_verified = 4;
+  bytes signed_evidence = 5;
+}

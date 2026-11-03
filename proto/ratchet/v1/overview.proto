@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+import "ratchet/v1/change.proto";
+import "ratchet/v1/incident.proto";
+
+service OverviewService {
+  rpc GetAttentionItems(GetAttentionItemsRequest) returns (GetAttentionItemsResponse);
+}
+
+message AttentionItem {
+  string item_id = 1;
+  string item_type = 2; // PENDING_CHANGE, ACTIVE_INCIDENT, POLICY_UPDATE, DRIFT_ALERT
+  string title = 3;
+  string description = 4;
+  string severity = 5;
+  string created_at = 6;
+  string entity_id = 7;
+}
+
+message GetAttentionItemsRequest {
+  string tenant_id = 1;
+}
+
+message GetAttentionItemsResponse {
+  repeated AttentionItem attention_items = 1;
+  repeated ChangeRequest pending_requests = 2;
+  repeated Incident active_incidents = 3;
+}

@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+import "ratchet/v1/connector.proto";
+
+service ContainmentService {
+  rpc PlanContainment(PlanContainmentRequest) returns (PlanContainmentResponse);
+  rpc ExecuteContainment(ExecuteContainmentRequest) returns (ExecuteContainmentResponse);
+  rpc RestoreAccess(RestoreAccessRequest) returns (RestoreAccessResponse);
+}
+
+message RevocationAction {
+  string action_id = 1;
+  string action_type = 2; // REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
+  string target_identity = 3;
+  string resource_or_role = 4;
+  string reason = 5;
+}
+
+message PreservedActivity {
+  string resource_id = 1;
+  string resource_name = 2;
+  string permitted_action = 3;
+  int32 tier = 4;
+}
+
+message ContainmentPlan {
+  string plan_id = 1;
+  string tenant_id = 2;
+  string compromised_identity = 3;
+  repeated RevocationAction recommended_revocations = 4;
+  repeated PreservedActivity preserved_activities = 5;
+  int32 severed_tier0_routes_count = 6;
+  string plan_digest = 7;
+  int64 graph_version = 8;
+  string created_at = 9;
+}
+
+message PlanContainmentRequest {
+  string tenant_id = 1;
+  string compromised_identity = 2;
+}
+
+message PlanContainmentResponse {
+  ContainmentPlan plan = 1;
+}
+
+message ExecuteContainmentRequest {
+  string tenant_id = 1;
+  string plan_id = 2;
+  string responder_id = 3;
+  string assertion_response_json = 4;
+}
+
+message ExecuteContainmentResponse {
+  bool executed = 1;
+  string incident_id = 2;
+  repeated ExecResult execution_results = 3;
+  int64 verified_latency_ms = 4;
+}
+
+message RestoreAccessRequest {
+  string tenant_id = 1;
+  string incident_id = 2;
+  string target_identity = 3;
+  string access_to_restore = 4;
+  string justification = 5;
+  string requested_by = 6;
+}
+
+message RestoreAccessResponse {
+  string change_request_id = 1;
+}

@@ -1,0 +1,41 @@
+# CODEOWNERS for RATCHET
+# Defines code ownership across Half A (Ishaan), Half B (Sakar), and Shared contracts.
+
+# Shared paths — both must approve changes
+proto/                          @sakararya43-web
+internal/ports/                 @sakararya43-web
+testdata/                       @sakararya43-web
+deploy/compose/                 @sakararya43-web
+.github/                        @sakararya43-web
+PRD.md                          @sakararya43-web
+RATCHET_Architecture.md         @sakararya43-web
+buf.yaml                        @sakararya43-web
+go.mod                          @sakararya43-web
+go.sum                          @sakararya43-web
+
+# Half A: Control Plane Core (Ishaan)
+internal/domain/                @ishaan
+internal/eventstore/            @ishaan
+internal/bus/                   @ishaan
+internal/graph/                 @ishaan
+internal/policy/                @ishaan
+policies/                       @ishaan
+internal/workflow/              @ishaan
+internal/projection/            @ishaan
+internal/ledger/                @ishaan
+internal/api/                   @ishaan
+cmd/ratchetd/                   @ishaan
+internal/connector/conformance/ @ishaan
+
+# Half B: Trust, Edges & Experience (Sakar)
+web/                            @sakararya43-web
+internal/canon/                 @sakararya43-web
+internal/approval/              @sakararya43-web
+internal/trust/                 @sakararya43-web
+cmd/ratchet-authority/          @sakararya43-web
+cmd/ratchet-sim/                @sakararya43-web
+cmd/ratchet-connector/          @sakararya43-web
+internal/connector/sim/         @sakararya43-web
+internal/connector/k8s/         @sakararya43-web
+cmd/ratchetctl/                 @sakararya43-web
+e2e/                            @sakararya43-web

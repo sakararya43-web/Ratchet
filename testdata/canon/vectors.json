@@ -1,0 +1,98 @@
+{
+  "description": "RFC 8785 Canonical JSON and SHA-256 Golden Vectors for RATCHET (Shared Go \u0026 TS)",
+  "vectors": [
+    {
+      "name": "empty_object",
+      "input_raw": "{}",
+      "expected_bytes": "{}",
+      "expected_hex_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "should_fail": false
+    },
+    {
+      "name": "empty_array",
+      "input_raw": "[]",
+      "expected_bytes": "[]",
+      "expected_hex_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "should_fail": false
+    },
+    {
+      "name": "empty_string",
+      "input_raw": "\"\"",
+      "expected_bytes": "\"\"",
+      "expected_hex_hash": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+      "should_fail": false
+    },
+    {
+      "name": "null_literal",
+      "input_raw": "null",
+      "expected_bytes": "null",
+      "expected_hex_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "should_fail": false
+    },
+    {
+      "name": "key_reordering_simple",
+      "input_raw": "{\"z\": 100, \"b\": 2, \"a\": 1}",
+      "expected_bytes": "{\"a\":1,\"b\":2,\"z\":100}",
+      "expected_hex_hash": "29cae4618ad6fe96d22fb519477b6aa5079fd7c136c705379874321df4f7ea22",
+      "should_fail": false
+    },
+    {
+      "name": "nested_objects_and_arrays",
+      "input_raw": "{\n  \"users\": [\"rahul\", \"admin\"],\n  \"details\": {\n    \"verified\": true,\n    \"age\": 35,\n    \"active\": false\n  }\n}",
+      "expected_bytes": "{\"details\":{\"active\":false,\"age\":35,\"verified\":true},\"users\":[\"rahul\",\"admin\"]}",
+      "expected_hex_hash": "e0ab12c836a2f8cea9e27ca0e9a15ac6a12dd2a3577ae930b84982cf24952769",
+      "should_fail": false
+    },
+    {
+      "name": "string_escaping_spec",
+      "input_raw": "{\"escapes\": \"\\\"quotes\\\" \\\\backslash\\\\ \\b \\f \\n \\r \\t /slash/ \u003ctag\u003e \u0026amp;\"}",
+      "expected_bytes": "{\"escapes\":\"\\\"quotes\\\" \\\\backslash\\\\ \\b \\f \\n \\r \\t /slash/ \u003ctag\u003e \u0026amp;\"}",
+      "expected_hex_hash": "99d1c720f0237d4825c40de4e7389f41693467090bb5d28b3ad963656d11fafa",
+      "should_fail": false
+    },
+    {
+      "name": "unicode_characters_and_surrogate_sorting",
+      "input_raw": "{\"€\": \"euro\", \"a\": \"latin_a\", \"𐐷\": \"deseret_yee\", \"~\": \"tilde\", \"ÿ\": \"latin_small_y_diaeresis\"}",
+      "expected_bytes": "{\"a\":\"latin_a\",\"~\":\"tilde\",\"ÿ\":\"latin_small_y_diaeresis\",\"€\":\"euro\",\"𐐷\":\"deseret_yee\"}",
+      "expected_hex_hash": "fc6f1d760b302768cf50fb7c9be99343b13325a6a2951da14868cad96c781837",
+      "should_fail": false
+    },
+    {
+      "name": "numeric_representations",
+      "input_raw": "{\"zero\": 0, \"negative\": -42, \"float_val\": 3.14159, \"sci_notation\": 1e10, \"exp_negative\": 1e-4}",
+      "expected_bytes": "{\"exp_negative\":0.0001,\"float_val\":3.14159,\"negative\":-42,\"sci_notation\":10000000000,\"zero\":0}",
+      "expected_hex_hash": "47b5c5dae413f83fea15cbbb4ae0ac18f1c3d7fde10a847d5876a559696eb654",
+      "should_fail": false
+    },
+    {
+      "name": "large_integer_boundaries",
+      "input_raw": "{\"max_safe_int\": 9007199254740991, \"decimal_string_bigint\": \"18446744073709551615\"}",
+      "expected_bytes": "{\"decimal_string_bigint\":\"18446744073709551615\",\"max_safe_int\":9007199254740991}",
+      "expected_hex_hash": "64f827146597c3e9cfed4a989d54d63e1f6919960bcfbc2328344c6f8d74cda5",
+      "should_fail": false
+    },
+    {
+      "name": "real_change_request",
+      "input_raw": "{\n  \"request\": {\n    \"kind\": \"ROLE_ASSIGN\",\n    \"target\": \"user:rahul\",\n    \"role\": \"role:exchange-admin\",\n    \"justification\": \"Elevated access for quarterly finance audit\",\n    \"requested_by\": \"user:rahul\",\n    \"emergency\": false\n  },\n  \"tenant_id\": \"tenant-exchange-demo\",\n  \"graph_version\": 100\n}",
+      "expected_bytes": "{\"graph_version\":100,\"request\":{\"emergency\":false,\"justification\":\"Elevated access for quarterly finance audit\",\"kind\":\"ROLE_ASSIGN\",\"requested_by\":\"user:rahul\",\"role\":\"role:exchange-admin\",\"target\":\"user:rahul\"},\"tenant_id\":\"tenant-exchange-demo\"}",
+      "expected_hex_hash": "88bb3ae7a0db52f3ba5a2e01e025c0542b5e41d515bd1d6d1b2e87dfcfc59971",
+      "should_fail": false
+    },
+    {
+      "name": "malformed_json_unclosed_object",
+      "input_raw": "{\"unclosed\": ",
+      "expected_bytes": "",
+      "expected_hex_hash": "",
+      "should_fail": true,
+      "failure_reason": "unexpected EOF in JSON object"
+    },
+    {
+      "name": "malformed_json_trailing_comma",
+      "input_raw": "{\"a\": 1,}",
+      "expected_bytes": "",
+      "expected_hex_hash": "",
+      "should_fail": true,
+      "failure_reason": "trailing comma in JSON object"
+    }
+  ]
+}

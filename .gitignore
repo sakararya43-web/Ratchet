@@ -1,0 +1,34 @@
+# Binaries and compiled output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+bin/
+dist/
+build/
+
+# Go
+*.out
+
+# Simulator state files (local runtime data)
+sim_data.json*
+*.tmp
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDE and Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS artifacts
+Thumbs.db
+.DS_Store

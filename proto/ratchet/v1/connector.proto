@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+message GraphNode {
+  string id = 1;
+  string type = 2; // Human, ServiceAccount, Group, Role, Permission, Resource, Safeguard, Session
+  int32 tier = 3;  // Criticality tier 0-3
+  string display_name = 4;
+  map<string, string> properties = 5;
+}
+
+message GraphEdge {
+  string source = 1;
+  string target = 2;
+  string kind = 3;   // MEMBER_OF, ASSIGNED, GRANTS, CAN_ASSUME, CAN_ADMINISTER, CAN_MODIFY, CAN_APPROVE, PROTECTED_BY
+  string action = 4; // e.g. "read", "admin", "sign"
+  map<string, string> properties = 5;
+}
+
+message GraphSnapshot {
+  string tenant_id = 1;
+  string connector_id = 2;
+  int64 source_revision = 3;
+  repeated GraphNode nodes = 4;
+  repeated GraphEdge edges = 5;
+  string timestamp = 6;
+}
+
+message GraphDelta {
+  string tenant_id = 1;
+  string connector_id = 2;
+  int64 from_revision = 3;
+  int64 to_revision = 4;
+  repeated GraphNode nodes_added = 5;
+  repeated string nodes_removed = 6;
+  repeated GraphEdge edges_added = 7;
+  repeated GraphEdge edges_removed = 8;
+  string timestamp = 9;
+}
+
+message ExecCommand {
+  string command_id = 1;
+  string tenant_id = 2;
+  string request_id = 3;
+  string action = 4; // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT, MODIFY_SAFEGUARD
+  string target_identity = 5;
+  string resource_or_role = 6;
+  int64 expected_target_revision = 7;
+  bool is_reduction = 8;
+  string deadline = 9;
+}
+
+message ObservedState {
+  string tenant_id = 1;
+  string target_identity = 2;
+  repeated string current_roles = 3;
+  repeated string active_sessions = 4;
+  bool is_restricted = 5;
+  int64 observed_revision = 6;
+}
+
+message ExecResult {
+  string command_id = 1;
+  string tenant_id = 2;
+  string request_id = 3;
+  bool success = 4;
+  string error_message = 5;
+  string applied_at = 6;
+  int64 target_revision_after = 7;
+  ObservedState observed_state = 8;
+}
+
+message AuditEvent {
+  string event_id = 1;
+  string tenant_id = 2;
+  string actor_id = 3;
+  string action = 4;
+  string target = 5;
+  string timestamp = 6;
+  string correlation_id = 7;
+  map<string, string> details = 8;
+}
+
+message DriftReport {
+  string drift_id = 1;
+  string tenant_id = 2;
+  string connector_id = 3;
+  AuditEvent unapproved_operation = 4;
+  string detected_at = 5;
+  string severity = 6;
+}

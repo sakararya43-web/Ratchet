@@ -1,0 +1,274 @@
+{
+  "tenant_id": "tenant-exchange-demo",
+  "revision": 1000,
+  "identities": [
+    {
+      "id": "user:rahul",
+      "type": "Human",
+      "display_name": "Rahul Sharma",
+      "department": "finance",
+      "email": "rahul@cryptox.internal",
+      "is_disabled": false,
+      "properties": {
+        "job_title": "Senior Financial Analyst",
+        "location": "Singapore"
+      }
+    },
+    {
+      "id": "user:rahul-assistant",
+      "type": "Human",
+      "display_name": "Finance Intern (Rahul Team)",
+      "department": "finance",
+      "email": "intern-finance@cryptox.internal",
+      "is_disabled": false,
+      "properties": {
+        "supervisor": "user:rahul"
+      }
+    },
+    {
+      "id": "user:finance-lead",
+      "type": "Human",
+      "display_name": "Priya Patel (Finance Lead)",
+      "department": "finance",
+      "email": "priya.finance@cryptox.internal",
+      "is_disabled": false,
+      "properties": {
+        "job_title": "Head of Financial Operations"
+      }
+    },
+    {
+      "id": "user:sec-lead-1",
+      "type": "Human",
+      "display_name": "Alice Vance (Security Lead 1)",
+      "department": "security",
+      "email": "alice.sec@cryptox.internal",
+      "is_disabled": false,
+      "properties": {
+        "authority": "true",
+        "job_title": "Principal Security Engineer"
+      }
+    },
+    {
+      "id": "user:sec-lead-2",
+      "type": "Human",
+      "display_name": "Bob Chen (Security Lead 2)",
+      "department": "security",
+      "email": "bob.sec@cryptox.internal",
+      "is_disabled": false,
+      "properties": {
+        "authority": "true",
+        "job_title": "Head of Information Security"
+      }
+    },
+    {
+      "id": "user:admin-operator",
+      "type": "Human",
+      "display_name": "David Kim (Platform Admin)",
+      "department": "infrastructure",
+      "email": "david.infra@cryptox.internal",
+      "is_disabled": false,
+      "properties": {
+        "job_title": "Site Reliability Engineer"
+      }
+    },
+    {
+      "id": "svc:withdrawal-worker",
+      "type": "ServiceAccount",
+      "display_name": "Automated Withdrawal Processor",
+      "department": "payments",
+      "is_disabled": false,
+      "properties": {
+        "runtime": "k8s-pod"
+      }
+    },
+    {
+      "id": "svc:reporting-worker",
+      "type": "ServiceAccount",
+      "display_name": "Nightly Analytics Worker",
+      "department": "data",
+      "is_disabled": false,
+      "properties": {
+        "runtime": "cronjob"
+      }
+    }
+  ],
+  "roles": [
+    {
+      "id": "role:finance-analyst",
+      "display_name": "Finance Analyst",
+      "description": "Read-only access to daily finance ledgers and report exports",
+      "permissions": [
+        "res:finance-reports:read",
+        "res:daily-exchange-ledger:read"
+      ]
+    },
+    {
+      "id": "role:finance-lead",
+      "display_name": "Finance Lead",
+      "description": "Manage financial reporting and approve report dissemination",
+      "permissions": [
+        "res:finance-reports:read",
+        "res:finance-reports:approve",
+        "res:daily-exchange-ledger:read"
+      ]
+    },
+    {
+      "id": "role:security-lead",
+      "display_name": "Security Lead",
+      "description": "Review security policies and independent escalation governance",
+      "permissions": [
+        "policy:review",
+        "audit:inspect"
+      ]
+    },
+    {
+      "id": "role:wallet-operator",
+      "display_name": "Wallet Operator (Tier-0)",
+      "description": "Direct signing capability on cryptocurrency wallet signing service",
+      "permissions": [
+        "svc:wallet-signer:sign"
+      ]
+    },
+    {
+      "id": "role:exchange-admin",
+      "display_name": "Exchange Super Admin (Tier-0)",
+      "description": "Full administrative control over exchange systems, DBs, and signing services",
+      "permissions": [
+        "svc:wallet-signer:admin",
+        "res:customer-db:admin",
+        "safeguard:withdrawal-rule:modify",
+        "iam:all"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "svc:wallet-signer",
+      "type": "service",
+      "tier": 0,
+      "display_name": "Cryptocurrency Hot/Cold Wallet Signer",
+      "description": "Authorizes and signs blockchain withdrawal transactions"
+    },
+    {
+      "id": "res:customer-db",
+      "type": "database",
+      "tier": 0,
+      "display_name": "Customer Account \u0026 KYC Database",
+      "description": "Houses customer identities, private keys, and user balances"
+    },
+    {
+      "id": "res:finance-reports",
+      "type": "storage_bucket",
+      "tier": 2,
+      "display_name": "Financial Auditing \u0026 Reporting Bucket",
+      "description": "Contains quarterly finance summaries and compliance reports"
+    },
+    {
+      "id": "res:daily-exchange-ledger",
+      "type": "database_view",
+      "tier": 2,
+      "display_name": "Daily Exchange Trading Ledger",
+      "description": "Read-only ledger view of daily matched exchange trades"
+    },
+    {
+      "id": "res:staging-env",
+      "type": "environment",
+      "tier": 3,
+      "display_name": "Internal Staging Sandbox",
+      "description": "Non-production testing cluster"
+    }
+  ],
+  "safeguards": [
+    {
+      "id": "safeguard:withdrawal-rule",
+      "tier": 0,
+      "display_name": "Dual-Control Withdrawal Threshold Rule",
+      "description": "Enforces dual authorization for any crypto transaction exceeding $10,000 equivalent",
+      "protected_resources": [
+        "svc:wallet-signer"
+      ],
+      "parameters": {
+        "required_checks": "2",
+        "threshold_usd": "10000"
+      }
+    },
+    {
+      "id": "safeguard:admin-mfa-policy",
+      "tier": 1,
+      "display_name": "Hardware MFA Policy for Admins",
+      "description": "Requires FIDO2 WebAuthn authentication for all administrative actions",
+      "protected_resources": [
+        "role:exchange-admin",
+        "res:customer-db"
+      ]
+    }
+  ],
+  "grants": [
+    {
+      "id": "grant:rahul:finance-analyst",
+      "identity_id": "user:rahul",
+      "role_id": "role:finance-analyst",
+      "granted_at": "2026-11-01T09:00:00Z",
+      "granted_by": "user:finance-lead"
+    },
+    {
+      "id": "grant:priya:finance-lead",
+      "identity_id": "user:finance-lead",
+      "role_id": "role:finance-lead",
+      "granted_at": "2026-11-01T09:00:00Z",
+      "granted_by": "system:init"
+    },
+    {
+      "id": "grant:alice:security-lead",
+      "identity_id": "user:sec-lead-1",
+      "role_id": "role:security-lead",
+      "granted_at": "2026-11-01T09:00:00Z",
+      "granted_by": "system:init"
+    },
+    {
+      "id": "grant:bob:security-lead",
+      "identity_id": "user:sec-lead-2",
+      "role_id": "role:security-lead",
+      "granted_at": "2026-11-01T09:00:00Z",
+      "granted_by": "system:init"
+    }
+  ],
+  "control_relations": [
+    {
+      "controller_id": "user:rahul",
+      "controlled_id": "user:rahul-assistant",
+      "kind": "CAN_ADMINISTER"
+    }
+  ],
+  "sessions": [
+    {
+      "session_id": "session:rahul-workstation-1",
+      "identity_id": "user:rahul",
+      "device_id": "device:sg-macbook-402",
+      "created_at": "2026-11-01T10:00:00Z",
+      "last_seen_at": "2026-11-01T11:00:00Z",
+      "is_revoked": false
+    },
+    {
+      "session_id": "session:finance-lead-1",
+      "identity_id": "user:finance-lead",
+      "device_id": "device:sg-laptop-101",
+      "created_at": "2026-11-01T09:30:00Z",
+      "last_seen_at": "2026-11-01T11:00:00Z",
+      "is_revoked": false
+    }
+  ],
+  "audit_log": [
+    {
+      "revision": 1000,
+      "timestamp": "2026-11-01T09:00:00Z",
+      "actor_id": "system:init",
+      "action": "BOOTSTRAP_ORGANIZATION",
+      "target": "tenant-exchange-demo",
+      "details": {
+        "initial_identities": "8",
+        "initial_roles": "5"
+      }
+    }
+  ]
+}

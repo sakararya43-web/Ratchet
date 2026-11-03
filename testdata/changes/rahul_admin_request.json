@@ -1,0 +1,10 @@
+{
+  "request_id": "req-rahul-admin-002",
+  "tenant_id": "tenant-exchange-demo",
+  "kind": "ROLE_ASSIGN",
+  "target_identity": "user:rahul",
+  "requested_access": "role:exchange-admin",
+  "justification": "Need full administrative access to troubleshoot cold storage wallet syncing issues",
+  "requested_by": "user:rahul",
+  "emergency": false
+}

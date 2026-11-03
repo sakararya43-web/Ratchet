@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+service DecisionService {
+  rpc Decide(DecisionRequest) returns (DecisionResponse);
+}
+
+message ChangeIntent {
+  string tenant_id = 1;
+  string kind = 2; // e.g. K8S_ROLEBINDING_CREATE, SIM_ROLE_ASSIGN
+  string target_identity = 3;
+  string requested_access = 4;
+  string requested_by = 5;
+  map<string, string> context = 6;
+}
+
+message DecisionRequest {
+  ChangeIntent intent = 1;
+}
+
+message DecisionResponse {
+  string outcome = 1; // ALLOW, REQUIRE_APPROVAL, HOLD, REJECT
+  repeated string reasons = 2;
+  repeated string required_approver_groups = 3;
+  int32 required_quorum = 4;
+  string policy_bundle_hash = 5;
+  int64 graph_version = 6;
+}

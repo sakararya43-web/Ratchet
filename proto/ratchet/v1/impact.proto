@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+service ImpactService {
+  rpc SimulateChange(SimulateChangeRequest) returns (SimulateChangeResponse);
+}
+
+message ResourceSummary {
+  string id = 1;
+  string type = 2;
+  int32 tier = 3;
+  string display_name = 4;
+}
+
+message SafeguardSummary {
+  string id = 1;
+  int32 tier = 2;
+  string description = 3;
+}
+
+message GraphRoute {
+  repeated string node_ids = 1;
+  repeated string edge_kinds = 2;
+}
+
+message ImpactDiff {
+  bool monotonic_reduction = 1;
+  repeated ResourceSummary new_resources = 2;
+  repeated string new_controlled_identities = 3;
+  int32 new_tier0_paths_count = 4;
+  repeated GraphRoute sample_tier0_routes = 5;
+  repeated SafeguardSummary safeguards_weakened = 6;
+  map<string, int32> blast_radius_delta = 7;
+  int64 graph_version = 8;
+}
+
+message SimulateChangeRequest {
+  string tenant_id = 1;
+  string kind = 2;
+  string target_identity = 3;
+  string requested_access = 4;
+  string requested_by = 5;
+}
+
+message SimulateChangeResponse {
+  ImpactDiff impact = 1;
+}

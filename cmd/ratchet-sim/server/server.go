@@ -7,20 +7,38 @@ import (
 	"strconv"
 
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
+	"github.com/sakararya43-web/Ratchet/internal/approval"
 )
 
 type Server struct {
-	store       *domain.Store
-	brokerToken string
+	store            *domain.Store
+	brokerToken      string
+	credStore        *approval.CredentialStore
+	approvalVerifier *approval.ApprovalVerifier
+	approvalHandler  *approval.Handler
 }
 
 func NewServer(store *domain.Store, brokerToken string) *Server {
 	if brokerToken == "" {
 		brokerToken = "sim-broker-secret"
 	}
+
+	credStore := approval.NewCredentialStore()
+	_ = approval.SeedDemoCredentials(credStore, "tenant-exchange-demo")
+
+	approvalVerifier, err := approval.NewApprovalVerifier(credStore, "localhost", []string{"http://localhost:3000", "http://localhost:8085"})
+	if err != nil {
+		panic(fmt.Sprintf("failed to init approval verifier: %v", err))
+	}
+
+	approvalHandler := approval.NewHandler(approvalVerifier, credStore)
+
 	return &Server{
-		store:       store,
-		brokerToken: brokerToken,
+		store:            store,
+		brokerToken:      brokerToken,
+		credStore:        credStore,
+		approvalVerifier: approvalVerifier,
+		approvalHandler:  approvalHandler,
 	}
 }
 
@@ -39,6 +57,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/probe", s.handleProbe)
 	mux.HandleFunc("POST /api/v1/business/finance-report/read", s.handleBusinessFinanceReport)
 	mux.HandleFunc("POST /api/v1/business/wallet/sign", s.handleBusinessWalletSign)
+
+	// Mount passkey Level 3 WebAuthn and simulated endpoints
+	mux.Handle("/api/v1/passkey/", http.StripPrefix("/api/v1/passkey", s.approvalHandler.Routes()))
 
 	return mux
 }

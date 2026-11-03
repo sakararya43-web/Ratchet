@@ -266,6 +266,14 @@ func NewSeedOrgState() *OrgState {
 				LastSeenAt: FixedSeedTime.Add(2 * time.Hour),
 				IsRevoked:  false,
 			},
+			{
+				SessionID:  "session:intern-workstation-1",
+				IdentityID: "user:rahul-assistant",
+				DeviceID:   "device:sg-intern-laptop",
+				CreatedAt:  FixedSeedTime,
+				LastSeenAt: FixedSeedTime,
+				IsRevoked:  false,
+			},
 		},
 		AuditLog: []TargetAuditEntry{
 			{

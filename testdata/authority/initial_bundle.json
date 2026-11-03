@@ -1,0 +1,67 @@
+{
+  "proposal_id": "prop-v1.0.0-1793714794",
+  "tenant_id": "tenant-exchange-demo",
+  "bundle_version": "v1.0.0",
+  "description": "RATCHET Production Security Policy Bundle v1.0.0",
+  "epoch": 1,
+  "modules": {
+    "change.rego": "package ratchet.change\nimport rego.v1\ndefault allow := false\nallow if input.impact.monotonic_reduction == true\nallow if input.approvals.count \u003e= 2",
+    "safeguards.rego": "package ratchet.safeguards\nimport rego.v1\ndefault protected := true"
+  },
+  "data": {
+    "critical_tier": 0,
+    "quorums": {
+      "ordinary": 1,
+      "tier0": 2
+    }
+  },
+  "bundle_digest": [
+    28,
+    27,
+    177,
+    155,
+    12,
+    195,
+    116,
+    182,
+    211,
+    247,
+    35,
+    242,
+    62,
+    7,
+    211,
+    254,
+    44,
+    162,
+    97,
+    226,
+    29,
+    99,
+    61,
+    99,
+    68,
+    98,
+    66,
+    85,
+    98,
+    21,
+    231,
+    220
+  ],
+  "signatures": [
+    {
+      "actor_id": "user:sec-lead-1",
+      "signature": "MEUCIQDIQXkcLj/ulej4inUeptI0HESwfruCtISTpUXe6qxVlAIga25ydnErm/60EA9H4W4EZbZb3ge/fibj81sCPl2Gfgg=",
+      "signed_at": "2026-11-03T14:06:34.9116095Z"
+    },
+    {
+      "actor_id": "user:sec-lead-2",
+      "signature": "MEUCICsBg/B8JsknHBNCbDSchnhlhJbVXCJSnJHJyF6lVICQAiEA0FJ3q2LNWzSYqTvJlRt5PuopJ0zgL7FVyUtn7G7mEWE=",
+      "signed_at": "2026-11-03T14:06:34.9126693Z"
+    }
+  ],
+  "status": "ACTIVE",
+  "proposed_at": "2026-11-03T14:06:34.9105612Z",
+  "activated_at": "2026-11-03T14:06:34.9137316Z"
+}

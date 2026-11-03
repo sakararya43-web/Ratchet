@@ -136,6 +136,88 @@ export async function probeAccess(
   return resp.json();
 }
 
+// Passkey Assertion Submission
+export async function submitPasskeyAssertion(
+  tenantId: string,
+  actorId: string,
+  changeDigestHex: string
+): Promise<{
+  verified: boolean;
+  verified_at: string;
+  actor_id: string;
+  credential_id: string;
+  user_verified: boolean;
+  change_digest: string;
+}> {
+  const resp = await fetch('/api/v1/passkey/assert/simulate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: tenantId,
+      actor_id: actorId,
+      change_digest: changeDigestHex,
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Passkey assertion verification failed: ${errText}`);
+  }
+  return resp.json();
+}
+
+// Execute IAM command via Connector Broker
+export async function executeConnectorCommand(
+  commandId: string,
+  action: 'ASSIGN_ROLE' | 'REVOKE_ROLE' | 'TERMINATE_SESSION' | 'RESTRICT_ACCOUNT',
+  targetIdentity: string,
+  resourceOrRole: string,
+  brokerToken: string = 'sim-broker-secret'
+): Promise<{
+  command_id: string;
+  success: boolean;
+  revision: number;
+  observed_state: {
+    target_identity: string;
+    current_roles: string[];
+    active_sessions: string[];
+    is_restricted: boolean;
+  };
+}> {
+  const resp = await fetch('/api/v1/execute', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${brokerToken}`,
+    },
+    body: JSON.stringify({
+      command_id: commandId,
+      action: action,
+      target_identity: targetIdentity,
+      resource_or_role: resourceOrRole,
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Connector execution failed (HTTP ${resp.status}): ${errText}`);
+  }
+  return resp.json();
+}
+
+// Business Endpoint: Finance Report Read
+export async function readBusinessFinanceReport(sessionId: string): Promise<{
+  status: string;
+  actor?: string;
+  report?: any;
+  reason?: string;
+}> {
+  const resp = await fetch('/api/v1/business/finance-report/read', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+  return resp.json();
+}
+
 // Simulate Draft Change
 // Evaluates what newly accessible tier-0 assets and routes would be created
 export function computeSimulationDiff(
@@ -239,3 +321,4 @@ export function computeSimulationDiff(
     graph_version: org.revision,
   };
 }
+

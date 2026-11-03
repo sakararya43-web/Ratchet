@@ -51,11 +51,45 @@ type GraphDelta struct {
 	Timestamp      string      `json:"timestamp"`
 }
 
+// ExecCommand represents an authorized IAM modification to apply on the target.
+type ExecCommand struct {
+	CommandID              string `json:"command_id"`
+	TenantID               string `json:"tenant_id"`
+	RequestID              string `json:"request_id"`
+	Action                 string `json:"action"` // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
+	TargetIdentity         string `json:"target_identity"`
+	ResourceOrRole         string `json:"resource_or_role"`
+	ExpectedTargetRevision int64  `json:"expected_target_revision"`
+	IsReduction            bool   `json:"is_reduction"`
+}
+
+// ObservedState represents the independently verified target IAM state.
+type ObservedState struct {
+	TenantID         string   `json:"tenant_id"`
+	TargetIdentity   string   `json:"target_identity"`
+	CurrentRoles     []string `json:"current_roles"`
+	ActiveSessions   []string `json:"active_sessions"`
+	IsRestricted     bool     `json:"is_restricted"`
+	ObservedRevision int64    `json:"observed_revision"`
+}
+
+// ExecResult captures the execution and read-back verification evidence.
+type ExecResult struct {
+	CommandID           string        `json:"command_id"`
+	Success             bool          `json:"success"`
+	ErrorMessage        string        `json:"error_message,omitempty"`
+	AppliedAt           string        `json:"applied_at"`
+	TargetRevisionAfter int64         `json:"target_revision_after"`
+	ObservedState       ObservedState `json:"observed_state"`
+}
+
 // TargetAdapter defines the capability required to integrate any external IAM/infrastructure target.
 type TargetAdapter interface {
 	Name() string
 	FetchSnapshot(ctx context.Context) (*GraphSnapshot, error)
 	FetchDelta(ctx context.Context, fromRevision int64) (*GraphDelta, error)
+	Execute(ctx context.Context, cmd *ExecCommand) (*ExecResult, error)
+	Verify(ctx context.Context, cmd *ExecCommand) (*ObservedState, error)
 }
 
 // Publisher is an abstraction for publishing messages to the message backbone (NATS JetStream).

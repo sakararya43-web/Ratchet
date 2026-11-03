@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { fetchOrgState, OrgState } from './lib/api';
+import { SecurityOverview } from './components/SecurityOverview';
+import { ChangeReview } from './components/ChangeReview';
 import { InfrastructureMap } from './components/InfrastructureMap';
 import { ImpactSimulator } from './components/ImpactSimulator';
-import { RefreshCw, Layers, Sparkles, AlertCircle } from 'lucide-react';
+import { RefreshCw, Layers, Sparkles, AlertCircle, ShieldCheck, Activity } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [org, setOrg] = useState<OrgState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'map' | 'simulator'>('map');
+  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'map' | 'simulator'>('overview');
 
   const loadOrg = async () => {
     setLoading(true);
@@ -77,9 +79,33 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Sub-Header Tabs */}
+      {/* Sub-Header Navigation Tabs */}
       <div className="border-b border-[#1f293d] bg-[#0d1424] px-6">
         <div className="max-w-7xl mx-auto flex gap-2 pt-2">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'overview'
+                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            Security Overview
+          </button>
+
+          <button
+            onClick={() => setActiveTab('review')}
+            className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'review'
+                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Change Review
+          </button>
+
           <button
             onClick={() => setActiveTab('map')}
             className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
@@ -130,6 +156,15 @@ export const App: React.FC = () => {
           </div>
         )}
 
+        {org && activeTab === 'overview' && (
+          <SecurityOverview
+            org={org}
+            onNavigateToReview={() => setActiveTab('review')}
+            onNavigateToMap={() => setActiveTab('map')}
+            onNavigateToSimulator={() => setActiveTab('simulator')}
+          />
+        )}
+        {org && activeTab === 'review' && <ChangeReview org={org} onRefreshOrg={loadOrg} />}
         {org && activeTab === 'map' && <InfrastructureMap org={org} />}
         {org && activeTab === 'simulator' && <ImpactSimulator org={org} />}
       </main>

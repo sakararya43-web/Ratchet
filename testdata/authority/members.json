@@ -1,0 +1,17 @@
+[
+  {
+    "actor_id": "user:sec-lead-1",
+    "display_name": "Alice Vance (Security Lead 1)",
+    "public_key": "3059301306072a8648ce3d020106082a8648ce3d030107034200046c8e4772c1b82fc956264ee0c02fad4a7c7bcac8665619597b576a8bf88cfdcc9e4da177fe6f217fd18e697165120c9f7855219ad0d775c118b5bbbd2fdac9e1"
+  },
+  {
+    "actor_id": "user:sec-lead-2",
+    "display_name": "Bob Chen (Security Lead 2)",
+    "public_key": "3059301306072a8648ce3d020106082a8648ce3d03010703420004ed42343bbe47d773a97815f8f3ec3a93db6db211112de7615d43a0cd7ba76f0e838eb261f94464f19dc201b868514ce975f1584a9a40e7def7fb7237db333f19"
+  },
+  {
+    "actor_id": "user:sec-lead-3",
+    "display_name": "Carol Danvers (Security Lead 3)",
+    "public_key": "3059301306072a8648ce3d020106082a8648ce3d03010703420004e5db9096254716ced8b16c0dc7c83eade292b9abd24b4874d730c3e893575263ef1e887e32d7638ba022f46588effccf3e0d9f60f6044ab4376d04ac75d00ae8"
+  }
+]

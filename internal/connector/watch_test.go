@@ -194,7 +194,10 @@ func TestTemporaryGrantManager_ScheduleAndRevoke(t *testing.T) {
 
 	// Verify target simulator has actually removed the grant
 	orgReq, _ := http.NewRequestWithContext(ctx, "GET", ts.URL+"/api/v1/org", nil)
-	orgResp, _ := http.DefaultClient.Do(orgReq)
+	orgResp, err := http.DefaultClient.Do(orgReq)
+	if err != nil {
+		t.Fatalf("failed to fetch org: %v", err)
+	}
 	defer orgResp.Body.Close()
 
 	var org domain.OrgState

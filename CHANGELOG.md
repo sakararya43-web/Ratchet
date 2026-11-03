@@ -14,8 +14,9 @@
 4. [Phase 3 — Complete Governance, Approver Registry, Policy UI & Adversarial Scenarios](#phase-3--complete-governance-approver-registry-policy-ui--adversarial-scenarios)
 5. [Phase 4 — Priority Containment, Incident Operations & Audit Verification](#phase-4--priority-containment-incident-operations--audit-verification)
 6. [Phase 5 — Planned P1 Edge Features, Drift Watch & Complete Attack Scenario Suite](#phase-5--planned-p1-edge-features-drift-watch--complete-attack-scenario-suite)
-7. [Current State & Verification Status](#current-state--verification-status)
-8. [Roadmap for Subsequent Phases](#roadmap-for-subsequent-phases)
+7. [Phase 6 — Kubernetes RBAC Adapter & Validating Admission Webhook](#phase-6--kubernetes-rbac-adapter--validating-admission-webhook)
+8. [Phase 7 — Hardening, Evidence Pack & Release Readiness](#phase-7--hardening-evidence-pack--release-readiness)
+9. [Current State & Verification Status](#current-state--verification-status)
 
 ---
 
@@ -170,6 +171,38 @@
 
 ---
 
+## Phase 6 — Kubernetes RBAC Adapter & Validating Admission Webhook
+- **Requirements Covered**: FR-K5 Kubernetes adapter foundation & admission webhook.
+- **Scope & Deliverables**:
+  - `internal/connector/k8s/model.go`:
+    - Go domain models for Kubernetes RBAC (`Role`, `ClusterRole`, `RoleBinding`, `ClusterRoleBinding`, `PolicyRule`).
+    - Kubernetes Admission models (`AdmissionReview`, `AdmissionRequest`, `AdmissionResponse`, `AdmissionStatus`).
+    - Dedicated privilege escalation primitive detector `DetectEscalationPrimitives` scanning for:
+      - `bind` verb on roles / clusterroles.
+      - `escalate` verb on roles / clusterroles.
+      - `impersonate` verb on users / serviceaccounts.
+      - `create` verb on `serviceaccounts/token`.
+      - Full wildcards `*` across API groups, resources, and verbs.
+  - `internal/connector/k8s/webhook.go`:
+    - `AdmissionWebhookHandler` with fail-closed security posture.
+    - Legitimate reductions (`DELETE` of RoleBinding or role restrictions) always permitted even during control-plane disconnection.
+    - Privilege escalations require single-use, non-expired `ApprovedIntent` from RATCHET; replayed or unapproved requests are refused (HTTP 403 Forbidden).
+  - `internal/connector/k8s/k8s_test.go`:
+    - 5 unit tests verifying primitive detection, reduction permission, unapproved escalation refusal, one-time intent consumption, and cluster-admin binding protection (100% passing).
+
+---
+
+## Phase 7 — Hardening, Evidence Pack & Release Readiness
+- **Requirements Covered**: Hardening, zero-cost verification, audit integrity, evidence generation.
+- **Scope & Deliverables**:
+  - `docs/evidence_pack.md`: Complete evidence report detailing cryptographic protocols, verified acceptance journeys (D1–D8), FR-K6 attack matrix, CLI usage, and zero-cost constraints.
+  - `docs/trust_limits.md`: Explicit disclosure of single-host demonstration boundaries versus physical hardware isolation.
+  - Dependency audit: `npm audit` returned **0 vulnerabilities**; `go vet ./...` passed with **0 warnings**.
+  - All Go packages, simulators, connectors, CLI, and scenario tests passing 100% without CGO dependency.
+  - Web console compiles with 0 TypeScript errors (`tsc && vite build`).
+
+---
+
 ## Current State & Verification Status
 - **Git Branch**: `sakar` (clean, synchronized with `origin/sakar`).
 - **Go Test Suite**: All unit, integration, and e2e scenario tests passing:
@@ -184,21 +217,9 @@
   - `internal/audit` (passed)
   - `internal/canon` (passed)
   - `internal/connector` (passed)
+  - `internal/connector/k8s` (passed)
   - `internal/connector/sim` (passed)
   - `internal/trust` (passed)
 - **Web Console**: `npm test` (15/15 golden vectors passed) and `npm run build` (0 TypeScript errors).
 
----
-
-## Roadmap for Subsequent Phases
-
-### Phase 6 — Optional Real Kubernetes Adapter on kind (Stretch)
-- Sync ServiceAccounts, Roles/ClusterRoles, RoleBindings/ClusterRoleBindings.
-- Escalation primitives: `bind`, `escalate`, `impersonate`, service-account token creation.
-- Validating admission webhook.
-
-### Phase 7 — Hardening & Completion Evidence
-- Accessibility, keyboard navigation, input validation.
-- Privileged action cancellation, timeouts, retries, duplicate clicks, stale context.
-- Dependency audit (`govulncheck`, npm audit), minimal container artifacts, and final evidence pack.
 

@@ -30,3 +30,4 @@ An assertion or signature produced for one action domain cannot be replayed or a
 1. **Current Quorum Rule**: Any proposal to alter Authority membership or the threshold $M$ requires the approval of the **currently active quorum** under the current epoch, not the proposed weaker quorum.
 2. **Stale Proposal Refusal**: Proposals created under prior epochs are immediately marked stale when the registry advances to a new epoch.
 3. **Immutability of Genesis**: Once genesis is established, the genesis ceremony endpoint rejects any attempt to reset or overwrite the authority root.
+

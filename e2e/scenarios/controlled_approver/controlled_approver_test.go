@@ -95,3 +95,4 @@ func TestControlledApproverRefusal(t *testing.T) {
 		t.Fatalf("CRITICAL SECURITY VIOLATION: Rahul obtained wallet-signer access via controlled approver!")
 	}
 }
+

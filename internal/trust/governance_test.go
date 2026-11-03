@@ -217,3 +217,4 @@ func TestCrossActionReplayPrevention(t *testing.T) {
 		t.Fatalf("cross-action replay vulnerability: policy signature verified as valid registry signature!")
 	}
 }
+

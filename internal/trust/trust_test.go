@@ -158,3 +158,4 @@ decision := allow if input.impact.monotonic_reduction`,
 		t.Errorf("expected error verifying tampered bundle, but verification succeeded!")
 	}
 }
+

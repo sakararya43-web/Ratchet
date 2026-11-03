@@ -4,13 +4,14 @@ import { SecurityOverview } from './components/SecurityOverview';
 import { ChangeReview } from './components/ChangeReview';
 import { InfrastructureMap } from './components/InfrastructureMap';
 import { ImpactSimulator } from './components/ImpactSimulator';
-import { RefreshCw, Layers, Sparkles, AlertCircle, ShieldCheck, Activity } from 'lucide-react';
+import { PolicyGovernance } from './components/PolicyGovernance';
+import { RefreshCw, Layers, Sparkles, AlertCircle, ShieldCheck, Activity, Key } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [org, setOrg] = useState<OrgState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'map' | 'simulator'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'review' | 'map' | 'simulator' | 'governance'>('overview');
 
   const loadOrg = async () => {
     setLoading(true);
@@ -129,6 +130,18 @@ export const App: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5" />
             Impact Simulator
           </button>
+
+          <button
+            onClick={() => setActiveTab('governance')}
+            className={`px-4 py-2 text-xs font-medium border-b-2 flex items-center gap-2 transition-colors ${
+              activeTab === 'governance'
+                ? 'border-blue-500 text-blue-400 bg-blue-500/5'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Key className="w-3.5 h-3.5" />
+            Policy Governance
+          </button>
         </div>
       </div>
 
@@ -167,6 +180,7 @@ export const App: React.FC = () => {
         {org && activeTab === 'review' && <ChangeReview org={org} onRefreshOrg={loadOrg} />}
         {org && activeTab === 'map' && <InfrastructureMap org={org} />}
         {org && activeTab === 'simulator' && <ImpactSimulator org={org} />}
+        {org && activeTab === 'governance' && <PolicyGovernance tenantId={org.tenant_id} />}
       </main>
     </div>
   );

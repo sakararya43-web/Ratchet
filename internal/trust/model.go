@@ -1,10 +1,48 @@
 package trust
 
 import (
+	"crypto/sha256"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
+
+// Domain separation constants to prevent cross-action replay
+const (
+	DomainApproval     = "RATCHET_APPROVAL_V1:"
+	DomainPolicyBundle = "RATCHET_POLICY_BUNDLE_V1:"
+	DomainRegistry     = "RATCHET_REGISTRY_V1:"
+	DomainContainment  = "RATCHET_CONTAINMENT_V1:"
+	DomainCheckpoint   = "RATCHET_CHECKPOINT_V1:"
+)
+
+// ComputePolicySigningDigest produces a domain-separated hash binding tenant, epoch, and bundle digest.
+func ComputePolicySigningDigest(tenantID string, epoch int64, bundleDigest ports.Digest) [32]byte {
+	h := sha256.New()
+	h.Write([]byte(DomainPolicyBundle))
+	h.Write([]byte(tenantID))
+	h.Write([]byte(":epoch:"))
+	h.Write([]byte(strconv.FormatInt(epoch, 10)))
+	h.Write([]byte(":"))
+	h.Write(bundleDigest[:])
+	var out [32]byte
+	copy(out[:], h.Sum(nil))
+	return out
+}
+
+// ComputeRegistrySigningDigest produces a domain-separated hash binding tenant, current epoch, target epoch, and proposal.
+func ComputeRegistrySigningDigest(tenantID string, currentEpoch, targetEpoch int64, proposalDigest ports.Digest) [32]byte {
+	h := sha256.New()
+	h.Write([]byte(DomainRegistry))
+	h.Write([]byte(tenantID))
+	h.Write([]byte(fmt.Sprintf(":epochs:%d->%d:", currentEpoch, targetEpoch)))
+	h.Write(proposalDigest[:])
+	var out [32]byte
+	copy(out[:], h.Sum(nil))
+	return out
+}
 
 // AuthorityMember represents a security leader enrolled during genesis or approved via quorum.
 type AuthorityMember struct {
@@ -49,4 +87,30 @@ type PolicyBundle struct {
 	Status        string            `json:"status"` // PROPOSED, ACTIVE, SUPERSEDED
 	ProposedAt    time.Time         `json:"proposed_at"`
 	ActivatedAt   *time.Time        `json:"activated_at,omitempty"`
+}
+
+// RegistryProposal represents a proposed membership rotation or threshold change.
+type RegistryProposal struct {
+	ProposalID      string            `json:"proposal_id"`
+	TenantID        string            `json:"tenant_id"`
+	CurrentEpoch    int64             `json:"current_epoch"`
+	TargetEpoch     int64             `json:"target_epoch"`
+	ProposedM       int               `json:"proposed_m"`
+	ProposedN       int               `json:"proposed_n"`
+	ProposedMembers []AuthorityMember `json:"proposed_members"`
+	ProposalDigest  ports.Digest      `json:"proposal_digest"`
+	Signatures      []MemberSignature `json:"signatures"`
+	Status          string            `json:"status"` // PROPOSED, ACTIVATED, SUPERSEDED
+	ProposedAt      time.Time         `json:"proposed_at"`
+	ActivatedAt     *time.Time        `json:"activated_at,omitempty"`
+}
+
+// RegistryHistoryEntry records a past or present epoch of Authority governance.
+type RegistryHistoryEntry struct {
+	Epoch       int64             `json:"epoch"`
+	ThresholdM  int               `json:"threshold_m"`
+	TotalN      int               `json:"total_n"`
+	Members     []AuthorityMember `json:"members"`
+	ActivatedAt time.Time         `json:"activated_at"`
+	ApprovedBy  []string          `json:"approved_by"`
 }

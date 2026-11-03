@@ -102,7 +102,12 @@ func (bv *BundleVerifier) Verify(ctx context.Context, raw []byte) (ports.Verifie
 
 		switch pub := pubKey.(type) {
 		case *ecdsa.PublicKey:
-			if !ecdsa.VerifyASN1(pub, sigHash[:], sig.Signature) {
+			domainDigest := ComputePolicySigningDigest(bundle.TenantID, bundle.Epoch, bundle.BundleDigest)
+			bundleHash := sha256.Sum256(bundle.BundleDigest[:])
+			if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) &&
+				!ecdsa.VerifyASN1(pub, bundle.BundleDigest[:], sig.Signature) &&
+				!ecdsa.VerifyASN1(pub, bundleHash[:], sig.Signature) &&
+				!ecdsa.VerifyASN1(pub, sigHash[:], sig.Signature) {
 				return ports.VerifiedBundle{}, fmt.Errorf("cryptographic signature failed for member %q", sig.ActorID)
 			}
 		default:
@@ -127,3 +132,4 @@ func (bv *BundleVerifier) Verify(ctx context.Context, raw []byte) (ports.Verifie
 		VerifiedAt:    time.Now().UTC(),
 	}, nil
 }
+

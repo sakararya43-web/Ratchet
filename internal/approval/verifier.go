@@ -160,3 +160,4 @@ func (av *ApprovalVerifier) Verify(
 		ChangeDigest: changeDigest,
 	}, nil
 }
+

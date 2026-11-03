@@ -151,3 +151,4 @@ default protected := true`,
 		t.Errorf("expected 2 signers, got %d", len(verified.SignerIDs))
 	}
 }
+

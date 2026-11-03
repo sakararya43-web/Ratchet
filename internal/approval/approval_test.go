@@ -169,3 +169,4 @@ func TestApprovalVerifierCryptographicBinding(t *testing.T) {
 		t.Errorf("expected error when verifying revoked passkey, but got success!")
 	}
 }
+

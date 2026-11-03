@@ -24,7 +24,15 @@ func (s *Server) Routes() http.Handler {
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /api/v1/authority/registry", s.handleGetRegistry)
+	mux.HandleFunc("GET /api/v1/authority/registry/history", s.handleGetRegistryHistory)
+	mux.HandleFunc("POST /api/v1/authority/registry/propose", s.handleProposeRegistry)
+	mux.HandleFunc("POST /api/v1/authority/registry/sign", s.handleSignRegistry)
+	mux.HandleFunc("POST /api/v1/authority/registry/activate", s.handleActivateRegistry)
+	mux.HandleFunc("GET /api/v1/authority/registry/proposals", s.handleListRegistryProposals)
+
 	mux.HandleFunc("GET /api/v1/authority/bundle/active", s.handleGetActiveBundle)
+	mux.HandleFunc("GET /api/v1/authority/bundle/proposals", s.handleListProposals)
+	mux.HandleFunc("GET /api/v1/authority/bundle/history", s.handleGetBundleHistory)
 	mux.HandleFunc("POST /api/v1/authority/genesis", s.handleGenesis)
 	mux.HandleFunc("POST /api/v1/authority/bundle/propose", s.handleProposeBundle)
 	mux.HandleFunc("POST /api/v1/authority/bundle/sign", s.handleSignBundle)
@@ -46,6 +54,11 @@ func (s *Server) handleGetRegistry(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, gen)
 }
 
+func (s *Server) handleGetRegistryHistory(w http.ResponseWriter, r *http.Request) {
+	history := s.store.GetRegistryHistory()
+	writeJSON(w, http.StatusOK, history)
+}
+
 func (s *Server) handleGetActiveBundle(w http.ResponseWriter, r *http.Request) {
 	bundle, err := s.store.GetActiveBundle()
 	if err != nil {
@@ -53,6 +66,16 @@ func (s *Server) handleGetActiveBundle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, bundle)
+}
+
+func (s *Server) handleListProposals(w http.ResponseWriter, r *http.Request) {
+	proposals := s.store.ListProposals()
+	writeJSON(w, http.StatusOK, proposals)
+}
+
+func (s *Server) handleGetBundleHistory(w http.ResponseWriter, r *http.Request) {
+	history := s.store.GetHistory()
+	writeJSON(w, http.StatusOK, history)
 }
 
 type GenesisRequest struct {
@@ -170,6 +193,95 @@ func (s *Server) handleActivateBundle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, bundle)
+}
+
+type ProposeRegistryRequest struct {
+	TenantID   string `json:"tenant_id"`
+	ProposedM  int    `json:"proposed_m"`
+	ProposedN  int    `json:"proposed_n"`
+	Members    []struct {
+		ActorID     string `json:"actor_id"`
+		DisplayName string `json:"display_name"`
+		PublicKey   string `json:"public_key"`
+		IsActive    bool   `json:"is_active"`
+	} `json:"members"`
+}
+
+func (s *Server) handleProposeRegistry(w http.ResponseWriter, r *http.Request) {
+	var req ProposeRegistryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var members []trust.AuthorityMember
+	for _, m := range req.Members {
+		pkBytes, err := hex.DecodeString(m.PublicKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("invalid hex public key for %s", m.ActorID), http.StatusBadRequest)
+			return
+		}
+		members = append(members, trust.AuthorityMember{
+			ActorID:     m.ActorID,
+			DisplayName: m.DisplayName,
+			PublicKey:   pkBytes,
+			IsActive:    m.IsActive,
+		})
+	}
+
+	prop, err := s.store.ProposeRegistryChange(req.TenantID, req.ProposedM, req.ProposedN, members)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, prop)
+}
+
+func (s *Server) handleSignRegistry(w http.ResponseWriter, r *http.Request) {
+	var req SignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	sigBytes, err := hex.DecodeString(req.Signature)
+	if err != nil {
+		http.Error(w, "invalid signature hex", http.StatusBadRequest)
+		return
+	}
+
+	err = s.store.SignRegistryProposal(req.ProposalID, trust.MemberSignature{
+		ActorID:   req.ActorID,
+		Signature: sigBytes,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+}
+
+func (s *Server) handleActivateRegistry(w http.ResponseWriter, r *http.Request) {
+	var req ActivateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	gen, err := s.store.ActivateRegistryProposal(req.ProposalID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, gen)
+}
+
+func (s *Server) handleListRegistryProposals(w http.ResponseWriter, r *http.Request) {
+	proposals := s.store.ListRegistryProposals()
+	writeJSON(w, http.StatusOK, proposals)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

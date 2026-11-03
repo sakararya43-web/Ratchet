@@ -322,3 +322,155 @@ export function computeSimulationDiff(
   };
 }
 
+// ==========================================
+// Independent Authority Governance API
+// ==========================================
+
+export interface AuthorityMember {
+  actor_id: string;
+  display_name: string;
+  public_key: string;
+  enrolled_at?: string;
+  is_active: boolean;
+}
+
+export interface GenesisState {
+  tenant_id: string;
+  threshold_m: number;
+  total_n: number;
+  epoch: number;
+  members: AuthorityMember[];
+  genesis_digest: number[];
+  initialized_at: string;
+}
+
+export interface MemberSignature {
+  actor_id: string;
+  signature: string;
+  signed_at: string;
+}
+
+export interface PolicyBundle {
+  proposal_id: string;
+  tenant_id: string;
+  bundle_version: string;
+  description: string;
+  epoch: number;
+  modules: Record<string, string>;
+  data: Record<string, any>;
+  bundle_digest: number[];
+  signatures: MemberSignature[];
+  status: 'PROPOSED' | 'ACTIVE' | 'SUPERSEDED';
+  proposed_at: string;
+  activated_at?: string;
+}
+
+export interface RegistryHistoryEntry {
+  epoch: number;
+  threshold_m: number;
+  total_n: number;
+  members: AuthorityMember[];
+  activated_at: string;
+  approved_by: string[];
+}
+
+export async function fetchAuthorityRegistry(): Promise<GenesisState> {
+  const resp = await fetch('/api/v1/authority/registry');
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch authority registry: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function fetchRegistryHistory(): Promise<RegistryHistoryEntry[]> {
+  const resp = await fetch('/api/v1/authority/registry/history');
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch registry history: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function fetchActiveBundle(): Promise<PolicyBundle> {
+  const resp = await fetch('/api/v1/authority/bundle/active');
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch active bundle: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function fetchPolicyProposals(): Promise<PolicyBundle[]> {
+  const resp = await fetch('/api/v1/authority/bundle/proposals');
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch policy proposals: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function fetchBundleHistory(): Promise<PolicyBundle[]> {
+  const resp = await fetch('/api/v1/authority/bundle/history');
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch bundle history: HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function proposePolicyBundle(
+  tenantId: string,
+  bundleVersion: string,
+  description: string,
+  modules: Record<string, string>,
+  data: Record<string, any>
+): Promise<PolicyBundle> {
+  const resp = await fetch('/api/v1/authority/bundle/propose', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tenant_id: tenantId,
+      bundle_version: bundleVersion,
+      description: description,
+      modules: modules,
+      data: data,
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Failed to propose bundle: ${errText}`);
+  }
+  return resp.json();
+}
+
+export async function signPolicyBundle(
+  proposalId: string,
+  actorId: string,
+  signatureHex: string
+): Promise<{ success: boolean }> {
+  const resp = await fetch('/api/v1/authority/bundle/sign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      proposal_id: proposalId,
+      actor_id: actorId,
+      signature: signatureHex,
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Failed to sign proposal: ${errText}`);
+  }
+  return resp.json();
+}
+
+export async function activatePolicyBundle(proposalId: string): Promise<PolicyBundle> {
+  const resp = await fetch('/api/v1/authority/bundle/activate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ proposal_id: proposalId }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Failed to activate bundle: ${errText}`);
+  }
+  return resp.json();
+}
+
+

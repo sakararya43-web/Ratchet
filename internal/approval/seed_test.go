@@ -51,3 +51,4 @@ func TestSeedDemoCredentialsAndAssertion(t *testing.T) {
 		t.Errorf("expected verification to fail for tampered change digest, but got success")
 	}
 }
+

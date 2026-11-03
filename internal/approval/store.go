@@ -194,3 +194,4 @@ func (cs *CredentialStore) ConsumeSession(sessionID string) (*ActiveSession, err
 	}
 	return sess, nil
 }
+

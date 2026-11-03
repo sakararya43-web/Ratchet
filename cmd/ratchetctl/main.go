@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/hex"
@@ -16,16 +15,26 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+
+	"github.com/sakararya43-web/Ratchet/internal/ports"
+	"github.com/sakararya43-web/Ratchet/internal/trust"
 )
 
 type ecdsaSignature struct {
 	R, S *big.Int
 }
 
+const (
+	ExitSuccess   = 0
+	ExitBadArgs   = 1
+	ExitQuorum    = 2
+	ExitSigFailed = 3
+)
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	command := os.Args[1]
@@ -34,8 +43,8 @@ func main() {
 		runGenesis(os.Args[2:])
 	case "policy":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: ratchetctl policy <propose|sign|activate|status> [flags]")
-			os.Exit(1)
+			fmt.Println("Usage: ratchetctl policy <propose|sign|activate|status|list> [flags]")
+			os.Exit(ExitBadArgs)
 		}
 		subcmd := os.Args[2]
 		switch subcmd {
@@ -47,13 +56,36 @@ func main() {
 			runPolicyActivate(os.Args[3:])
 		case "status":
 			runPolicyStatus(os.Args[3:])
+		case "list":
+			runPolicyList(os.Args[3:])
 		default:
 			fmt.Printf("Unknown policy subcommand: %s\n", subcmd)
-			os.Exit(1)
+			os.Exit(ExitBadArgs)
+		}
+	case "registry":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: ratchetctl registry <list|propose|sign|activate|history> [flags]")
+			os.Exit(ExitBadArgs)
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "list":
+			runRegistryList(os.Args[3:])
+		case "propose":
+			runRegistryPropose(os.Args[3:])
+		case "sign":
+			runRegistrySign(os.Args[3:])
+		case "activate":
+			runRegistryActivate(os.Args[3:])
+		case "history":
+			runRegistryHistory(os.Args[3:])
+		default:
+			fmt.Printf("Unknown registry subcommand: %s\n", subcmd)
+			os.Exit(ExitBadArgs)
 		}
 	default:
 		printUsage()
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 }
 
@@ -65,7 +97,14 @@ Usage:
   ratchetctl policy propose --bundle-file=<path> --version=<v> [--authority-url=<url>]
   ratchetctl policy sign --proposal=<id> --actor=<actor_id> --key-file=<key.pem> [--authority-url=<url>]
   ratchetctl policy activate --proposal=<id> [--authority-url=<url>]
-  ratchetctl policy status [--authority-url=<url>]`)
+  ratchetctl policy status [--authority-url=<url>]
+  ratchetctl policy list [--authority-url=<url>]
+
+  ratchetctl registry list [--authority-url=<url>]
+  ratchetctl registry propose --members-file=<path> --m=<threshold> [--authority-url=<url>]
+  ratchetctl registry sign --proposal=<id> --actor=<actor_id> --key-file=<key.pem> [--authority-url=<url>]
+  ratchetctl registry activate --proposal=<id> [--authority-url=<url>]
+  ratchetctl registry history [--authority-url=<url>]`)
 }
 
 func runGenesis(args []string) {
@@ -78,13 +117,13 @@ func runGenesis(args []string) {
 
 	if *membersFile == "" {
 		fmt.Println("Error: --members-file is required")
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	data, err := os.ReadFile(*membersFile)
 	if err != nil {
 		fmt.Printf("Failed to read members file: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	var members []struct {
@@ -94,7 +133,7 @@ func runGenesis(args []string) {
 	}
 	if err := json.Unmarshal(data, &members); err != nil {
 		fmt.Printf("Invalid members JSON: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	payload := map[string]any{
@@ -108,14 +147,14 @@ func runGenesis(args []string) {
 	resp, err := http.Post(*authURL+"/api/v1/authority/genesis", "application/json", bytes.NewReader(body))
 	if err != nil {
 		fmt.Printf("Failed to reach authority service: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 	defer resp.Body.Close()
 
 	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
 		fmt.Printf("Genesis failed (HTTP %d): %s\n", resp.StatusCode, string(respBytes))
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	fmt.Printf("Genesis successfully established: %s\n", string(respBytes))
@@ -132,13 +171,13 @@ func runPolicyPropose(args []string) {
 
 	if *bundleFile == "" {
 		fmt.Println("Error: --bundle-file is required")
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	data, err := os.ReadFile(*bundleFile)
 	if err != nil {
 		fmt.Printf("Failed to read bundle file: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	var bundleContent struct {
@@ -147,7 +186,7 @@ func runPolicyPropose(args []string) {
 	}
 	if err := json.Unmarshal(data, &bundleContent); err != nil {
 		fmt.Printf("Invalid bundle JSON: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	payload := map[string]any{
@@ -162,14 +201,14 @@ func runPolicyPropose(args []string) {
 	resp, err := http.Post(*authURL+"/api/v1/authority/bundle/propose", "application/json", bytes.NewReader(body))
 	if err != nil {
 		fmt.Printf("Failed to reach authority: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 	defer resp.Body.Close()
 
 	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
 		fmt.Printf("Proposal failed (HTTP %d): %s\n", resp.StatusCode, string(respBytes))
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	fmt.Printf("Proposal created: %s\n", string(respBytes))
@@ -185,59 +224,52 @@ func runPolicySign(args []string) {
 
 	if *proposalID == "" || *actorID == "" || *keyFile == "" {
 		fmt.Println("Error: --proposal, --actor, and --key-file are all required")
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
-	// Read and parse private key
-	keyBytes, err := os.ReadFile(*keyFile)
+	privKey, err := parsePrivateKey(*keyFile)
 	if err != nil {
-		fmt.Printf("Failed to read key file: %v\n", err)
-		os.Exit(1)
+		fmt.Printf("Failed to parse private key: %v\n", err)
+		os.Exit(ExitBadArgs)
 	}
 
-	block, _ := pem.Decode(keyBytes)
-	if block == nil {
-		fmt.Println("Failed to decode PEM block in key file")
-		os.Exit(1)
-	}
-
-	privKey, err := x509.ParseECPrivateKey(block.Bytes)
+	// Fetch proposal to obtain canonical bundle digest and epoch
+	propResp, err := http.Get(fmt.Sprintf("%s/api/v1/authority/bundle/proposals", *authURL))
 	if err != nil {
-		// Try PKCS8
-		pkcs8Key, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err2 != nil {
-			fmt.Printf("Failed to parse private key: %v / %v\n", err, err2)
-			os.Exit(1)
-		}
-		var ok bool
-		privKey, ok = pkcs8Key.(*ecdsa.PrivateKey)
-		if !ok {
-			fmt.Println("Private key must be ECDSA P-256")
-			os.Exit(1)
+		fmt.Printf("Failed to query proposals: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer propResp.Body.Close()
+
+	var proposals []*trust.PolicyBundle
+	_ = json.NewDecoder(propResp.Body).Decode(&proposals)
+
+	var targetProp *trust.PolicyBundle
+	for _, p := range proposals {
+		if p.ProposalID == *proposalID {
+			targetProp = p
+			break
 		}
 	}
 
-	// Fetch active proposal to get its canonical BundleDigest
-	resp, err := http.Get(fmt.Sprintf("%s/api/v1/authority/bundle/active", *authURL))
-	if err != nil {
-		fmt.Printf("Failed to contact authority: %v\n", err)
-		os.Exit(1)
+	if targetProp == nil {
+		fmt.Printf("Proposal %q not found in authority\n", *proposalID)
+		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
 
-	// Compute signature over proposal digest
-	// Sign the proposal
-	sigHash := sha256.Sum256([]byte(*proposalID))
-	r, s, err := ecdsa.Sign(rand.Reader, privKey, sigHash[:])
+	// Recompute exact domain-separated signing hash
+	signingDigest := trust.ComputePolicySigningDigest(targetProp.TenantID, targetProp.Epoch, targetProp.BundleDigest)
+
+	r, s, err := ecdsa.Sign(rand.Reader, privKey, signingDigest[:])
 	if err != nil {
 		fmt.Printf("Failed to sign: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitSigFailed)
 	}
 
 	asn1Sig, err := asn1.Marshal(ecdsaSignature{R: r, S: s})
 	if err != nil {
 		fmt.Printf("Failed to encode signature: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitSigFailed)
 	}
 
 	payload := map[string]any{
@@ -249,12 +281,17 @@ func runPolicySign(args []string) {
 	signResp, err := http.Post(*authURL+"/api/v1/authority/bundle/sign", "application/json", bytes.NewReader(body))
 	if err != nil {
 		fmt.Printf("Failed to submit signature: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 	defer signResp.Body.Close()
 
 	resBytes, _ := io.ReadAll(signResp.Body)
-	fmt.Printf("Signature result: %s\n", string(resBytes))
+	if signResp.StatusCode != http.StatusOK {
+		fmt.Printf("Signature rejected (HTTP %d): %s\n", signResp.StatusCode, string(resBytes))
+		os.Exit(ExitSigFailed)
+	}
+
+	fmt.Printf("Signature recorded successfully for %s on proposal %s\n", *actorID, *proposalID)
 }
 
 func runPolicyActivate(args []string) {
@@ -265,7 +302,7 @@ func runPolicyActivate(args []string) {
 
 	if *proposalID == "" {
 		fmt.Println("Error: --proposal is required")
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 
 	payload := map[string]any{"proposal_id": *proposalID}
@@ -273,17 +310,17 @@ func runPolicyActivate(args []string) {
 	resp, err := http.Post(*authURL+"/api/v1/authority/bundle/activate", "application/json", bytes.NewReader(body))
 	if err != nil {
 		fmt.Printf("Failed to contact authority: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 	defer resp.Body.Close()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		fmt.Printf("Activation failed (HTTP %d): %s\n", resp.StatusCode, string(resBytes))
-		os.Exit(1)
+		os.Exit(ExitQuorum)
 	}
 
-	fmt.Printf("Bundle activated: %s\n", string(resBytes))
+	fmt.Printf("Bundle activated successfully: %s\n", string(resBytes))
 }
 
 func runPolicyStatus(args []string) {
@@ -294,10 +331,253 @@ func runPolicyStatus(args []string) {
 	resp, err := http.Get(*authURL + "/api/v1/authority/bundle/active")
 	if err != nil {
 		fmt.Printf("Failed to contact authority: %v\n", err)
-		os.Exit(1)
+		os.Exit(ExitBadArgs)
 	}
 	defer resp.Body.Close()
 
 	resBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Failed to get active bundle (HTTP %d): %s\n", resp.StatusCode, string(resBytes))
+		os.Exit(ExitBadArgs)
+	}
 	fmt.Printf("Active Policy Bundle:\n%s\n", string(resBytes))
+}
+
+func runPolicyList(args []string) {
+	fs := flag.NewFlagSet("policy-list", flag.ExitOnError)
+	authURL := fs.String("authority-url", "http://localhost:8086", "Authority service URL")
+	_ = fs.Parse(args)
+
+	resp, err := http.Get(*authURL + "/api/v1/authority/bundle/proposals")
+	if err != nil {
+		fmt.Printf("Failed to contact authority: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer resp.Body.Close()
+
+	resBytes, _ := io.ReadAll(resp.Body)
+	fmt.Printf("Policy Proposals:\n%s\n", string(resBytes))
+}
+
+func runRegistryList(args []string) {
+	fs := flag.NewFlagSet("registry-list", flag.ExitOnError)
+	authURL := fs.String("authority-url", "http://localhost:8086", "Authority service URL")
+	_ = fs.Parse(args)
+
+	resp, err := http.Get(*authURL + "/api/v1/authority/registry")
+	if err != nil {
+		fmt.Printf("Failed to contact authority: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer resp.Body.Close()
+
+	resBytes, _ := io.ReadAll(resp.Body)
+	fmt.Printf("Current Approver Registry:\n%s\n", string(resBytes))
+}
+
+func runRegistryPropose(args []string) {
+	fs := flag.NewFlagSet("registry-propose", flag.ExitOnError)
+	tenant := fs.String("tenant", "tenant-exchange-demo", "Tenant ID")
+	m := fs.Int("m", 2, "Proposed threshold M")
+	membersFile := fs.String("members-file", "", "JSON file containing proposed Authority members")
+	authURL := fs.String("authority-url", "http://localhost:8086", "Authority service URL")
+	_ = fs.Parse(args)
+
+	if *membersFile == "" {
+		fmt.Println("Error: --members-file is required")
+		os.Exit(ExitBadArgs)
+	}
+
+	data, err := os.ReadFile(*membersFile)
+	if err != nil {
+		fmt.Printf("Failed to read members file: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+
+	var members []struct {
+		ActorID     string `json:"actor_id"`
+		DisplayName string `json:"display_name"`
+		PublicKey   string `json:"public_key"`
+		IsActive    bool   `json:"is_active"`
+	}
+	if err := json.Unmarshal(data, &members); err != nil {
+		fmt.Printf("Invalid members JSON: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+
+	payload := map[string]any{
+		"tenant_id":  *tenant,
+		"proposed_m": *m,
+		"proposed_n": len(members),
+		"members":    members,
+	}
+
+	body, _ := json.Marshal(payload)
+	resp, err := http.Post(*authURL+"/api/v1/authority/registry/propose", "application/json", bytes.NewReader(body))
+	if err != nil {
+		fmt.Printf("Failed to contact authority: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer resp.Body.Close()
+
+	resBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusCreated {
+		fmt.Printf("Registry proposal failed (HTTP %d): %s\n", resp.StatusCode, string(resBytes))
+		os.Exit(ExitBadArgs)
+	}
+
+	fmt.Printf("Registry proposal submitted: %s\n", string(resBytes))
+}
+
+func runRegistrySign(args []string) {
+	fs := flag.NewFlagSet("registry-sign", flag.ExitOnError)
+	proposalID := fs.String("proposal", "", "Registry proposal ID")
+	actorID := fs.String("actor", "", "Signer Actor ID (must be active in CURRENT epoch)")
+	keyFile := fs.String("key-file", "", "Signer private key PEM")
+	authURL := fs.String("authority-url", "http://localhost:8086", "Authority service URL")
+	_ = fs.Parse(args)
+
+	if *proposalID == "" || *actorID == "" || *keyFile == "" {
+		fmt.Println("Error: --proposal, --actor, and --key-file are required")
+		os.Exit(ExitBadArgs)
+	}
+
+	privKey, err := parsePrivateKey(*keyFile)
+	if err != nil {
+		fmt.Printf("Failed to parse private key: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+
+	// Fetch proposals to get details for domain-separated hash
+	propResp, err := http.Get(fmt.Sprintf("%s/api/v1/authority/registry/proposals", *authURL))
+	if err != nil {
+		fmt.Printf("Failed to query registry proposals: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer propResp.Body.Close()
+
+	var proposals []*trust.RegistryProposal
+	_ = json.NewDecoder(propResp.Body).Decode(&proposals)
+
+	var targetProp *trust.RegistryProposal
+	for _, p := range proposals {
+		if p.ProposalID == *proposalID {
+			targetProp = p
+			break
+		}
+	}
+
+	if targetProp == nil {
+		fmt.Printf("Registry proposal %q not found\n", *proposalID)
+		os.Exit(ExitBadArgs)
+	}
+
+	signingDigest := trust.ComputeRegistrySigningDigest(targetProp.TenantID, targetProp.CurrentEpoch, targetProp.TargetEpoch, targetProp.ProposalDigest)
+
+	r, s, err := ecdsa.Sign(rand.Reader, privKey, signingDigest[:])
+	if err != nil {
+		fmt.Printf("Failed to sign: %v\n", err)
+		os.Exit(ExitSigFailed)
+	}
+
+	asn1Sig, err := asn1.Marshal(ecdsaSignature{R: r, S: s})
+	if err != nil {
+		fmt.Printf("Failed to encode signature: %v\n", err)
+		os.Exit(ExitSigFailed)
+	}
+
+	payload := map[string]any{
+		"proposal_id": *proposalID,
+		"actor_id":    *actorID,
+		"signature":   hex.EncodeToString(asn1Sig),
+	}
+	body, _ := json.Marshal(payload)
+	signResp, err := http.Post(*authURL+"/api/v1/authority/registry/sign", "application/json", bytes.NewReader(body))
+	if err != nil {
+		fmt.Printf("Failed to submit signature: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer signResp.Body.Close()
+
+	resBytes, _ := io.ReadAll(signResp.Body)
+	if signResp.StatusCode != http.StatusOK {
+		fmt.Printf("Signature rejected (HTTP %d): %s\n", signResp.StatusCode, string(resBytes))
+		os.Exit(ExitSigFailed)
+	}
+
+	fmt.Printf("Registry proposal signature recorded for %s\n", *actorID)
+}
+
+func runRegistryActivate(args []string) {
+	fs := flag.NewFlagSet("registry-activate", flag.ExitOnError)
+	proposalID := fs.String("proposal", "", "Registry proposal ID")
+	authURL := fs.String("authority-url", "http://localhost:8086", "Authority service URL")
+	_ = fs.Parse(args)
+
+	if *proposalID == "" {
+		fmt.Println("Error: --proposal is required")
+		os.Exit(ExitBadArgs)
+	}
+
+	payload := map[string]any{"proposal_id": *proposalID}
+	body, _ := json.Marshal(payload)
+	resp, err := http.Post(*authURL+"/api/v1/authority/registry/activate", "application/json", bytes.NewReader(body))
+	if err != nil {
+		fmt.Printf("Failed to contact authority: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer resp.Body.Close()
+
+	resBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Registry activation failed (HTTP %d): %s\n", resp.StatusCode, string(resBytes))
+		os.Exit(ExitQuorum)
+	}
+
+	fmt.Printf("Registry successfully activated to new epoch: %s\n", string(resBytes))
+}
+
+func runRegistryHistory(args []string) {
+	fs := flag.NewFlagSet("registry-history", flag.ExitOnError)
+	authURL := fs.String("authority-url", "http://localhost:8086", "Authority service URL")
+	_ = fs.Parse(args)
+
+	resp, err := http.Get(*authURL + "/api/v1/authority/registry/history")
+	if err != nil {
+		fmt.Printf("Failed to contact authority: %v\n", err)
+		os.Exit(ExitBadArgs)
+	}
+	defer resp.Body.Close()
+
+	resBytes, _ := io.ReadAll(resp.Body)
+	fmt.Printf("Registry Epoch History:\n%s\n", string(resBytes))
+}
+
+func parsePrivateKey(keyPath string) (*ecdsa.PrivateKey, error) {
+	keyBytes, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(keyBytes)
+	if block == nil {
+		return nil, fmt.Errorf("no PEM block found in %s", keyPath)
+	}
+
+	privKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err == nil {
+		return privKey, nil
+	}
+
+	pkcs8Key, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err2 == nil {
+		if ecKey, ok := pkcs8Key.(*ecdsa.PrivateKey); ok {
+			return ecKey, nil
+		}
+	}
+	return nil, fmt.Errorf("key must be ECDSA (errors: %v / %v)", err, err2)
+}
+
+func parseDigest(d ports.Digest) string {
+	return d.String()
 }

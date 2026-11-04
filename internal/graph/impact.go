@@ -173,6 +173,11 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 	if len(weakened) > 0 {
 		out.MonotonicReduction = false
 	}
+	structure, err := s.reductionStructure(after, delta)
+	if err != nil {
+		return Impact{}, err
+	}
+	out.MonotonicReduction = out.MonotonicReduction && structure
 	return out, nil
 }
 

@@ -9,6 +9,17 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Phase 4 — in progress (2026-11-05)
+
+Started only after Phase 3's core checks and handoff were committed/pushed.
+Earlier joint peer gates remain open. No Phase 5 work has started.
+
+- Added explicit all-identity `IsMonotonicReduction` proof and tightened ordinary
+  impact classification to share it. Deny/approval/protection removal, protective
+  membership removal, hidden asset deletion/relabeling and unknown node-property
+  changes cannot enter the reduction path. Restriction of an identity remains a
+  supported reduction. Focused and seeded graph/workflow regressions pass.
+
 ## Phase 3 — core implemented; joint acceptance pending (2026-11-05)
 
 See [the Phase 3 handoff](phase-3-handoff.md) for configuration, schema-6 upgrade,

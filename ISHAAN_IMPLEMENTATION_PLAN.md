@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 3 in progress on `main`, explicitly authorized on 2026-11-05. Phase 2 and earlier peer integration acceptance remain pending; advancing core work does not waive those gates. See [Ishaan changelog](docs/ishaan/changelog.md). Phases run sequentially.
+**Status:** Phase 3 core implementation and owned acceptance delivered; Phase 4 core work is in progress on `main` under the user's sequential continuation authorization. Earlier joint peer acceptance remains pending. See [Ishaan changelog](docs/ishaan/changelog.md). No Phase 5 work has started.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -204,7 +204,7 @@ on 2026-11-05 while these peer gates remain open.
 
 ### Ishaan's work
 
-- [ ] Implement `IsMonotonicReduction`: every affected identity's after-reach is a subset of before-reach and no safeguard is weakened. Removal of a deny rule, approval requirement or protective membership is not automatically a reduction. Unknown semantics cannot enter the fast path.
+- [x] Implement `IsMonotonicReduction`: every affected identity's after-reach is a subset of before-reach and no safeguard is weakened. Removal of a deny rule, approval requirement or protective membership is not automatically a reduction. Unknown semantics cannot enter the fast path.
 - [ ] Implement passkey-confirmed authorized responder commands for restriction, grant removal, service-permission removal and session termination. Bind the assertion to the exact containment action/plan and context through the peer verifier.
 - [ ] Persist and publish verified reductions on the priority containment subject without waiting for ordinary grant approvals. Revalidate the plan/context before dispatch and verify the result through the same durable evidence flow.
 - [ ] Implement weighted min-cut containment against a super-sink for tier-0 resources. Cut candidates must map to executable revocation operations; derived reachability edges cannot be presented as removable target grants. Account for shared grants and protected/non-removable edges.

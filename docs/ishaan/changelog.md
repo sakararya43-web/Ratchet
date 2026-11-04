@@ -86,6 +86,15 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
   object-shaped replay facts, bounded identifiers/content and known personal
   fields in encrypted records. Regression tests pass.
 
+### Executable core operation
+
+- `ratchetd` now performs real migrate, record-core-evidence, load-stream and
+  verify-chain operations. Its health listener exposes only implemented probes.
+- The process smoke passed: a PRD-file digest was stored, retried with one effect,
+  read and chain-verified by separate processes. Liveness and storage readiness
+  returned 200; overall decision readiness returned 503 because no graph or
+  verified bundle has been initialized. Unimplemented API paths remain absent.
+
 ### Scope gates
 
 Phase 1 has not started. Shared contract review remains a joint gate.

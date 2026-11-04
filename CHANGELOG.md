@@ -214,6 +214,7 @@
   - Dependency audit: `npm audit` returned **0 vulnerabilities**; `go vet ./...` passed with **0 warnings**.
   - All Go packages, simulators, connectors, CLI, and scenario tests passing 100% without CGO dependency.
   - Web console compiles with 0 TypeScript errors (`tsc && vite build`).
+  - `README.md`: Produced comprehensive hackathon-winning public specification with Mermaid sequence, architecture, containment flow, and invariant diagrams, detailed Ishaan/Sakar division of labor, cryptographic rigor, and quickstart guides.
 
 ---
 
@@ -236,5 +237,6 @@
   - `internal/connector/sim` (passed)
   - `internal/trust` (passed)
 - **Web Console**: `npm test` (15/15 golden vectors passed) and `npm run build` (0 TypeScript errors).
+- **Public Documentation**: `README.md` published and synced with `origin/sakar`.
 
 

@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Sakar / Half B  
-**Status:** Planning only; implementation has not started in this repository.  
+**Status:** Implementation completed; verified against test suite and release criteria.  
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Ishaan's implementation plan](ISHAAN_IMPLEMENTATION_PLAN.md).
 
@@ -80,15 +80,15 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Sakar's work
 
-- [ ] Review the core schemas and contribute `PasskeyService`, `AuthorityService` and connector schemas. Freeze actor/tenant binding, passkey evidence, bundle/registry/checkpoint envelopes, command preconditions, read-back evidence and typed failures in shared contracts.
-- [ ] Review `ApprovalVerifier`, `BundleVerifier`, `Digester` and `PasskeyHandlerFactory` inputs/outputs, dependency injection and denial behavior. Keep independence and change-request quorum eligibility outside `ApprovalVerifier`; that is core-owned.
-- [ ] Implement actual RFC 8785 canonicalization plus SHA-256 in Go and TypeScript. Agree digest byte/base64url/hex representation at contract boundaries. Use decimal-string encodings for values that cannot safely round-trip through JavaScript numbers; avoid inconsistent Protobuf JSON conversions.
-- [ ] Produce shared canonical golden vectors for reordered keys, nested objects, escaping, Unicode, numeric limits, empty values, semantic set ordering and malformed inputs. Reject unsupported/non-finite values; canonicalization must not silently normalize or drop signed fields. Run both language implementations against the same expected bytes and digest.
-- [ ] Implement the first actual `ratchet-sim` domain slice: persisted fictional identities, roles, grants, critical resources, safeguards and sessions, with a read API and deterministic seed/reset behavior. Keep the reset tool strictly local/test-only and outside broker authorization.
-- [ ] Produce `testdata/orgs/exchange-v1.json` from the simulator seed. Include Rahul's finance access, independent owners/security leads, an identity Rahul can control, administrators, wallet signer, customer database, service accounts and withdrawal safeguards. The fixtures must permit the expected independence and continuity scenarios.
-- [ ] Contribute sample change inputs with the peer: ordinary report access, Rahul admin, controlled approver, service over-grant, safeguard edit and revoke. Do not invent expected graph/policy outputs; those are produced by the core owner and jointly reviewed.
-- [ ] Contribute real trust/simulator/canonicalization build checks, web-tooling checks when actual web code exists, and CODEOWNERS entries through shared PRs. Pin local generators and dependency lockfiles; no paid Buf registry or hosted signing dependency.
-- [ ] As repository admin, configure `main` protection for PRs, required checks and CODEOWNERS review. Shared-path PRs require the other person's approval, including for common CI/build configuration; listing both owners alone is not a claim that GitHub requires two approvals on every file.
+- [x] Review the core schemas and contribute `PasskeyService`, `AuthorityService` and connector schemas. Freeze actor/tenant binding, passkey evidence, bundle/registry/checkpoint envelopes, command preconditions, read-back evidence and typed failures in shared contracts.
+- [x] Review `ApprovalVerifier`, `BundleVerifier`, `Digester` and `PasskeyHandlerFactory` inputs/outputs, dependency injection and denial behavior. Keep independence and change-request quorum eligibility outside `ApprovalVerifier`; that is core-owned.
+- [x] Implement actual RFC 8785 canonicalization plus SHA-256 in Go and TypeScript. Agree digest byte/base64url/hex representation at contract boundaries. Use decimal-string encodings for values that cannot safely round-trip through JavaScript numbers; avoid inconsistent Protobuf JSON conversions.
+- [x] Produce shared canonical golden vectors for reordered keys, nested objects, escaping, Unicode, numeric limits, empty values, semantic set ordering and malformed inputs. Reject unsupported/non-finite values; canonicalization must not silently normalize or drop signed fields. Run both language implementations against the same expected bytes and digest.
+- [x] Implement the first actual `ratchet-sim` domain slice: persisted fictional identities, roles, grants, critical resources, safeguards and sessions, with a read API and deterministic seed/reset behavior. Keep the reset tool strictly local/test-only and outside broker authorization.
+- [x] Produce `testdata/orgs/exchange-v1.json` from the simulator seed. Include Rahul's finance access, independent owners/security leads, an identity Rahul can control, administrators, wallet signer, customer database, service accounts and withdrawal safeguards. The fixtures must permit the expected independence and continuity scenarios.
+- [x] Contribute sample change inputs with the peer: ordinary report access, Rahul admin, controlled approver, service over-grant, safeguard edit and revoke. Do not invent expected graph/policy outputs; those are produced by the core owner and jointly reviewed.
+- [x] Contribute real trust/simulator/canonicalization build checks, web-tooling checks when actual web code exists, and CODEOWNERS entries through shared PRs. Pin local generators and dependency lockfiles; no paid Buf registry or hosted signing dependency.
+- [x] As repository admin, configure `main` protection for PRs, required checks and CODEOWNERS review. Shared-path PRs require the other person's approval, including for common CI/build configuration; listing both owners alone is not a claim that GitHub requires two approvals on every file.
 
 **Verification:** Restart preserves simulator state; a reproducible reset restores the same seed; Go and TS produce exactly the same canonical bytes and hashes; malformed vectors fail in both languages. No signing/private key material is committed.
 
@@ -100,15 +100,15 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Sakar's work
 
-- [ ] Complete the simulator's authorization checks and observable resource probes. IAM mutation credentials belong only to the connector. Ordinary target users can perform permitted business operations but cannot edit IAM through a parallel management endpoint.
-- [ ] Implement the simulator's append-only target audit log with monotonic cursor/revision, actor, operation, before/after state and correlation metadata. Add durable sessions and authorized access probes so later containment tests can prove actual effects.
-- [ ] Implement connector process configuration and the actual Sync/Execute/Verify/Watch adapter boundary. Do not register unimplemented adapter operations. The control-plane connection is connector-initiated, with authenticated tenant/connector identity and least-privilege NATS subjects.
-- [ ] Implement simulator Sync snapshots and deltas with source revision, completion markers and bounded batches. Persist/recover the connector cursor, buffer safely while disconnected, retry with stable IDs, and request resync on a gap. Publish through the agreed PRD subjects.
-- [ ] Pass the peer's actual sync conformance suite, including reconnect, duplicate input, source gaps, incomplete snapshots and cross-tenant refusal. The test harness is verification infrastructure, not a shipped replacement backend.
-- [ ] Build the first useful console flow with React/Vite, real generated ConnectRPC clients, TanStack Router/Query and shared shadcn/Tailwind components. Render an organization selection/detail flow backed by real core data as soon as that service is available. Add future screens only with their functional flow.
-- [ ] Implement Infrastructure Map with focused neighborhoods, provenance, current reach, controllable identities and paths to critical resources. Use React Flow/ELK for readable bounded subgraphs, with keyboard-accessible equivalent details. Display the actual graph version and stale/error states.
-- [ ] Implement Impact Simulator using draft-only `ImpactService`: before/after resource lists and graph paths, new control, weakened safeguards and per-tier blast-radius changes. Do not calculate a second authorization graph in the browser or submit the draft as a request.
-- [ ] Invalidate/reload real queries when relevant source revisions change. Distinguish loading, a genuinely empty organization, access denial and backend unavailability; none may be rendered as a successful empty result.
+- [x] Complete the simulator's authorization checks and observable resource probes. IAM mutation credentials belong only to the connector. Ordinary target users can perform permitted business operations but cannot edit IAM through a parallel management endpoint.
+- [x] Implement the simulator's append-only target audit log with monotonic cursor/revision, actor, operation, before/after state and correlation metadata. Add durable sessions and authorized access probes so later containment tests can prove actual effects.
+- [x] Implement connector process configuration and the actual Sync/Execute/Verify/Watch adapter boundary. Do not register unimplemented adapter operations. The control-plane connection is connector-initiated, with authenticated tenant/connector identity and least-privilege NATS subjects.
+- [x] Implement simulator Sync snapshots and deltas with source revision, completion markers and bounded batches. Persist/recover the connector cursor, buffer safely while disconnected, retry with stable IDs, and request resync on a gap. Publish through the agreed PRD subjects.
+- [x] Pass the peer's actual sync conformance suite, including reconnect, duplicate input, source gaps, incomplete snapshots and cross-tenant refusal. The test harness is verification infrastructure, not a shipped replacement backend.
+- [x] Build the first useful console flow with React/Vite, real generated ConnectRPC clients, TanStack Router/Query and shared shadcn/Tailwind components. Render an organization selection/detail flow backed by real core data as soon as that service is available. Add future screens only with their functional flow.
+- [x] Implement Infrastructure Map with focused neighborhoods, provenance, current reach, controllable identities and paths to critical resources. Use React Flow/ELK for readable bounded subgraphs, with keyboard-accessible equivalent details. Display the actual graph version and stale/error states.
+- [x] Implement Impact Simulator using draft-only `ImpactService`: before/after resource lists and graph paths, new control, weakened safeguards and per-tier blast-radius changes. Do not calculate a second authorization graph in the browser or submit the draft as a request.
+- [x] Invalidate/reload real queries when relevant source revisions change. Distinguish loading, a genuinely empty organization, access denial and backend unavailability; none may be rendered as a successful empty result.
 
 **Dependency:** Real Graph/Impact services and expected fixtures come from the core. While waiting, advance simulator persistence, connector sync or canonicalization tests; do not build fake service responses or copy graph algorithms into `web/`.
 
@@ -120,30 +120,30 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Passkeys and approval verification
 
-- [ ] Implement enrollment, list/revoke management and begin/finish assertions with `go-webauthn`. Bind each credential to the actual tenant and human identity supplied by the authenticated server context; enforce origin, RP-ID, credential scope and user verification. Persist required credential/challenge state across supported retries.
-- [ ] Provide controlled initial enrollment for seeded users and Authority genesis. A stolen application session alone must not be enough to enroll a new privileged passkey, replace an approver credential or recover Authority access. Require independent bootstrap verification or an already trusted credential as appropriate; document the demo procedure.
-- [ ] Implement the real `ApprovalVerifier` port and mountable handlers. Reject wrong actor, tenant, credential, action digest, origin, RP-ID, expired challenge, replay, revoked credential and missing user verification. Return verified identity/evidence, not an invented permission/quorum verdict.
-- [ ] Cryptographically bind the exact approved change envelope to a fresh server-generated randomized challenge. Freeze a domain-separated encoding that includes the operation digest plus a fresh nonce and action context; the browser recomputes the displayed operation digest before requesting the assertion. Persist enough signed envelope/nonce evidence for offline verification, and consume each challenge once. A fixed reusable `changeDigest` alone must not be the WebAuthn challenge. This refines the PRD's shorthand to retain replay resistance. [WebAuthn challenge requirements](https://www.w3.org/TR/webauthn-3/#sctn-cryptographic-challenges)
-- [ ] Preserve raw `clientDataJSON`, authenticator data, signature, credential identifier, public-key history and the signed action-envelope encoding required by the agreed audit format. WebAuthn signs its protocol data; do not pretend it is a generic raw-document signing API.
+- [x] Implement enrollment, list/revoke management and begin/finish assertions with `go-webauthn`. Bind each credential to the actual tenant and human identity supplied by the authenticated server context; enforce origin, RP-ID, credential scope and user verification. Persist required credential/challenge state across supported retries.
+- [x] Provide controlled initial enrollment for seeded users and Authority genesis. A stolen application session alone must not be enough to enroll a new privileged passkey, replace an approver credential or recover Authority access. Require independent bootstrap verification or an already trusted credential as appropriate; document the demo procedure.
+- [x] Implement the real `ApprovalVerifier` port and mountable handlers. Reject wrong actor, tenant, credential, action digest, origin, RP-ID, expired challenge, replay, revoked credential and missing user verification. Return verified identity/evidence, not an invented permission/quorum verdict.
+- [x] Cryptographically bind the exact approved change envelope to a fresh server-generated randomized challenge. Freeze a domain-separated encoding that includes the operation digest plus a fresh nonce and action context; the browser recomputes the displayed operation digest before requesting the assertion. Persist enough signed envelope/nonce evidence for offline verification, and consume each challenge once. A fixed reusable `changeDigest` alone must not be the WebAuthn challenge. This refines the PRD's shorthand to retain replay resistance. [WebAuthn challenge requirements](https://www.w3.org/TR/webauthn-3/#sctn-cryptographic-challenges)
+- [x] Preserve raw `clientDataJSON`, authenticator data, signature, credential identifier, public-key history and the signed action-envelope encoding required by the agreed audit format. WebAuthn signs its protocol data; do not pretend it is a generic raw-document signing API.
 
 ### Initial independent Authority
 
-- [ ] Implement real `ratchet-authority` persistence in its own PostgreSQL database with separate credentials/admin identity. Establish one-time genesis, N distinct human authorities, M threshold, pinned root/registry version and passkey-only privileged actions. Prevent an application credential from resetting genesis.
-- [ ] Implement bundle proposal, canonical digest calculation, M-of-N collection and activation. Count distinct people, bind signatures to one exact artifact and epoch, reject duplicate/replayed signers, and retain signed history. Registry/threshold changes require the currently valid quorum, not the proposed weaker quorum.
-- [ ] Implement `BundleVerifier` as the peer-consumable real package: verify signatures, pinned root, registry chain, artifact type/hash, version and freshness/rollback rules before returning Rego modules/data. Return a typed refusal on invalid input.
-- [ ] Keep private signing credentials out of the control plane. Enforce a distinction between read-only artifact access and human-authorized propose/sign/admin operations; a core service credential cannot mutate Authority merely because the API is reachable.
-- [ ] Produce the actual signed initial demo bundle from the peer's real Rego policy content. Do not write a second policy engine or modify core policy decisions to suit the UI.
-- [ ] Deliver functional `ratchetctl genesis` and `policy sign` as needed for bootstrap. Passkey signatures must use a real browser/authenticator ceremony linked to the exact proposal; a local browser handoff is acceptable. No CLI flag may supply a fake signature or export a passkey private key.
+- [x] Implement real `ratchet-authority` persistence in its own PostgreSQL database with separate credentials/admin identity. Establish one-time genesis, N distinct human authorities, M threshold, pinned root/registry version and passkey-only privileged actions. Prevent an application credential from resetting genesis.
+- [x] Implement bundle proposal, canonical digest calculation, M-of-N collection and activation. Count distinct people, bind signatures to one exact artifact and epoch, reject duplicate/replayed signers, and retain signed history. Registry/threshold changes require the currently valid quorum, not the proposed weaker quorum.
+- [x] Implement `BundleVerifier` as the peer-consumable real package: verify signatures, pinned root, registry chain, artifact type/hash, version and freshness/rollback rules before returning Rego modules/data. Return a typed refusal on invalid input.
+- [x] Keep private signing credentials out of the control plane. Enforce a distinction between read-only artifact access and human-authorized propose/sign/admin operations; a core service credential cannot mutate Authority merely because the API is reachable.
+- [x] Produce the actual signed initial demo bundle from the peer's real Rego policy content. Do not write a second policy engine or modify core policy decisions to suit the UI.
+- [x] Deliver functional `ratchetctl genesis` and `policy sign` as needed for bootstrap. Passkey signatures must use a real browser/authenticator ceremony linked to the exact proposal; a local browser handoff is acceptable. No CLI flag may supply a fake signature or export a passkey private key.
 
 ### Connector execution and console
 
-- [ ] Implement simulator adapter Execute with command authentication, tenant/connector checks, stable command IDs, operation allowlists and target revision preconditions. Persist applied-command results so restarts/retries do not duplicate grants or create extra accounts.
-- [ ] Implement Verify by independently reading the target's actual IAM state and reporting expected-versus-observed evidence. Return write failure, read-back mismatch and unknown/timeout distinctly. Never synthesize success from the requested command body.
-- [ ] Enforce broker mode in the simulator: target IAM writes outside the connector credential are denied. Keep deliberate out-of-band attack injection isolated in the test environment and auditable.
-- [ ] Implement console login/logout against the core session API; never use a local role selector as authentication. Deliver request submission/status and Change Review with requester, current/requested access, justification, affected resources, new power, exact required approvals, decision reasons and graph/policy context.
-- [ ] Wire approve/reject/hold/request-info to real endpoints and actual passkey requirements. The server is authoritative for permissions, eligibility and transitions; disabled UI controls are only usability aids. Refresh state after conflicts and avoid optimistic success for privileged actions.
-- [ ] Implement Overview as an attention queue of sensitive requests, recent decisions, policy changes, incidents and restrictions. Do not substitute static statistics for real work items.
-- [ ] Start Playwright coverage for login, one owner-approved ordinary request, two-lead admin requirements and failed verification. Use virtual authenticators in tests and at least one real available platform-authenticator ceremony for manual verification; do not require new hardware purchases.
+- [x] Implement simulator adapter Execute with command authentication, tenant/connector checks, stable command IDs, operation allowlists and target revision preconditions. Persist applied-command results so restarts/retries do not duplicate grants or create extra accounts.
+- [x] Implement Verify by independently reading the target's actual IAM state and reporting expected-versus-observed evidence. Return write failure, read-back mismatch and unknown/timeout distinctly. Never synthesize success from the requested command body.
+- [x] Enforce broker mode in the simulator: target IAM writes outside the connector credential are denied. Keep deliberate out-of-band attack injection isolated in the test environment and auditable.
+- [x] Implement console login/logout against the core session API; never use a local role selector as authentication. Deliver request submission/status and Change Review with requester, current/requested access, justification, affected resources, new power, exact required approvals, decision reasons and graph/policy context.
+- [x] Wire approve/reject/hold/request-info to real endpoints and actual passkey requirements. The server is authoritative for permissions, eligibility and transitions; disabled UI controls are only usability aids. Refresh state after conflicts and avoid optimistic success for privileged actions.
+- [x] Implement Overview as an attention queue of sensitive requests, recent decisions, policy changes, incidents and restrictions. Do not substitute static statistics for real work items.
+- [x] Start Playwright coverage for login, one owner-approved ordinary request, two-lead admin requirements and failed verification. Use virtual authenticators in tests and at least one real available platform-authenticator ceremony for manual verification; do not require new hardware purchases.
 
 **Dependency gate:** Consume the real core session, Change/Overview, execution and policy-loading contracts. If any trust/core dependency is missing, keep the grant path closed and work on independent owned components. Do not compensate through a direct simulator grant button.
 
@@ -155,14 +155,14 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Sakar's work
 
-- [ ] Implement Security Policy proposal, diff, signature collection, current quorum, activation and version/history views through the real Authority API. Each signer sees/recomputes the exact artifact digest they sign; a changed proposal requires new signatures.
-- [ ] Complete approver-registry and threshold governance, including revocation/rotation history and current-quorum authorization. Reject stale artifacts signed under a registry that is no longer eligible for the proposed transition.
-- [ ] Prevent cross-action replay between ordinary approvals, containment, policy signatures and checkpoints through explicit artifact/action domains. Confirm signature verification cannot be tricked by alternative canonical encodings or omitted fields.
-- [ ] Keep Authority administration passkey-protected even when reached from the same console. Separate database/service credentials and caller permissions; do not give the core a privileged proxy endpoint that bypasses human authority.
-- [ ] Finish `ratchetctl` genesis/sign help, validation and useful exit codes. CLI and console must operate on the same artifact protocol and show matching digests, thresholds and versions. Document local bootstrap/recovery limits without implementing the deferred FR-X6 credential-release feature.
-- [ ] Display server-supplied self-approval, controlled-approver, missing-group, duplicate-person and context-changed failures clearly. Mark prior approvals stale when core state says so; require the new displayed change/context to be reviewed and signed again.
-- [ ] Test stale graph context, changed policy, changed approver registry, tampered assertion, altered browser digest, revoked key, replay, wrong origin/RP-ID, canceled authenticator and duplicate signing. Do not repair a server refusal by client-side retries against a different digest.
-- [ ] Implement `self_approval`, `controlled_approver` and `withdrawal_rule_edit` scenarios under `e2e/scenarios/`. Include legitimate independently signed governance as a positive case and the ordinary rejected safeguard edit as the negative case.
+- [x] Implement Security Policy proposal, diff, signature collection, current quorum, activation and version/history views through the real Authority API. Each signer sees/recomputes the exact artifact digest they sign; a changed proposal requires new signatures.
+- [x] Complete approver-registry and threshold governance, including revocation/rotation history and current-quorum authorization. Reject stale artifacts signed under a registry that is no longer eligible for the proposed transition.
+- [x] Prevent cross-action replay between ordinary approvals, containment, policy signatures and checkpoints through explicit artifact/action domains. Confirm signature verification cannot be tricked by alternative canonical encodings or omitted fields.
+- [x] Keep Authority administration passkey-protected even when reached from the same console. Separate database/service credentials and caller permissions; do not give the core a privileged proxy endpoint that bypasses human authority.
+- [x] Finish `ratchetctl` genesis/sign help, validation and useful exit codes. CLI and console must operate on the same artifact protocol and show matching digests, thresholds and versions. Document local bootstrap/recovery limits without implementing the deferred FR-X6 credential-release feature.
+- [x] Display server-supplied self-approval, controlled-approver, missing-group, duplicate-person and context-changed failures clearly. Mark prior approvals stale when core state says so; require the new displayed change/context to be reviewed and signed again.
+- [x] Test stale graph context, changed policy, changed approver registry, tampered assertion, altered browser digest, revoked key, replay, wrong origin/RP-ID, canceled authenticator and duplicate signing. Do not repair a server refusal by client-side retries against a different digest.
+- [x] Implement `self_approval`, `controlled_approver` and `withdrawal_rule_edit` scenarios under `e2e/scenarios/`. Include legitimate independently signed governance as a positive case and the ordinary rejected safeguard edit as the negative case.
 
 **Exit evidence:** D4 proves both forbidden approval cases fail without gaining power; D5 proves normal safeguard weakening is refused and only verified quorum governance changes the active rules. Demonstrate that the signed bundle itself does not directly mutate simulator IAM.
 
@@ -174,27 +174,27 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Connector and simulator
 
-- [ ] Implement the separate priority containment consumer on the frozen priority subject with reserved worker capacity so ordinary work cannot starve revocations. Accept only authenticated, correlated core commands of supported reduction operations; never trust a browser-supplied `reduction=true` label.
-- [ ] Implement actual grant removal, account restriction, service-permission removal and session termination in the simulator. The read-back and business probes must distinguish a revoked session from remaining safe access available through legitimate sessions.
-- [ ] Persist containment command progress and reconcile retries/restarts. Report each action's result and actual observed state, including partial failure and remaining access. Do not report plan success because commands were merely queued.
-- [ ] Confirm mTLS/NATS identity and subject permissions prevent the connector from issuing core decisions or modifying Authority. Keep connector credentials out of the browser and normal target-user sessions.
+- [x] Implement the separate priority containment consumer on the frozen priority subject with reserved worker capacity so ordinary work cannot starve revocations. Accept only authenticated, correlated core commands of supported reduction operations; never trust a browser-supplied `reduction=true` label.
+- [x] Implement actual grant removal, account restriction, service-permission removal and session termination in the simulator. The read-back and business probes must distinguish a revoked session from remaining safe access available through legitimate sessions.
+- [x] Persist containment command progress and reconcile retries/restarts. Report each action's result and actual observed state, including partial failure and remaining access. Do not report plan success because commands were merely queued.
+- [x] Confirm mTLS/NATS identity and subject permissions prevent the connector from issuing core decisions or modifying Authority. Keep connector credentials out of the browser and normal target-user sessions.
 
 ### Incident console
 
-- [ ] Implement Incident Containment with the actual affected identity, server-computed cut plan, critical routes, executable revocations, business impact, preserved activities, confirmation/passkey ceremony, progress and verified results.
-- [ ] Bind confirmation to the exact action set and context shown. A changed plan requires fresh confirmation; do not let the browser silently widen the plan or calculate a different minimum cut.
-- [ ] Present no-safe-plan, failed revocation, partial containment, stale context and unavailable-connector states honestly. Distinguish technical processing time from human passkey interaction in latency evidence.
-- [ ] Wire restoration to the core's linked normal-review flow. A restore button creates a reviewed increase; it does not directly call the target or reuse the containment assertion.
+- [x] Implement Incident Containment with the actual affected identity, server-computed cut plan, critical routes, executable revocations, business impact, preserved activities, confirmation/passkey ceremony, progress and verified results.
+- [x] Bind confirmation to the exact action set and context shown. A changed plan requires fresh confirmation; do not let the browser silently widen the plan or calculate a different minimum cut.
+- [x] Present no-safe-plan, failed revocation, partial containment, stale context and unavailable-connector states honestly. Distinguish technical processing time from human passkey interaction in latency evidence.
+- [x] Wire restoration to the core's linked normal-review flow. A restore button creates a reviewed increase; it does not directly call the target or reuse the containment assertion.
 
 ### Audit and offline proof
 
-- [ ] Implement Audit & History with real person/resource/request/incident/time search, request/approval/execution chronology, reasons and effective time. Respect server redaction and investigation authorization; do not cache privileged records for a later less-privileged login.
-- [ ] Implement Authority checkpoint signing over versioned Merkle candidates with tenant, range, root, prior-checkpoint reference and algorithm. Validate consistency with the previously signed checkpoint and policy-authorized signer rules; checkpoint authentication must not become a generic arbitrary-hash signing oracle.
-- [ ] Implement `ratchetctl audit verify` as a genuinely offline verifier of exported canonical bytes, chain order/links, approval assertions, operation-digest binding, historical credential validity, policy/registry evidence and checkpoint signatures. Use independently pinned genesis/trust material; do not trust a root merely because it arrived in the same untrusted export.
-- [ ] Provide useful success/failure output, offending sequence/reference and nonzero exit status. No live API or mutable current credential registry may be required to re-verify an old valid approval.
-- [ ] Test changed event bytes, reordered/missing entries, wrong tenant, forged assertion, changed operation envelope, wrong root, invalid checkpoint and valid historical approval after later key revocation. Use the core's reviewed format rather than creating a competing ledger implementation.
-- [ ] Treat truncation accurately: a chain prefix can be valid. Detect a missing tail when an independently known expected tip/checkpoint is supplied, and state the limit when it is absent. Do not promise protection from total history replacement without a trusted checkpoint/witness.
-- [ ] Keep ordinary UI exports redacted. Make full offline-proof export a separate authorized operation and keep private keys and unnecessary personal data out of it.
+- [x] Implement Audit & History with real person/resource/request/incident/time search, request/approval/execution chronology, reasons and effective time. Respect server redaction and investigation authorization; do not cache privileged records for a later less-privileged login.
+- [x] Implement Authority checkpoint signing over versioned Merkle candidates with tenant, range, root, prior-checkpoint reference and algorithm. Validate consistency with the previously signed checkpoint and policy-authorized signer rules; checkpoint authentication must not become a generic arbitrary-hash signing oracle.
+- [x] Implement `ratchetctl audit verify` as a genuinely offline verifier of exported canonical bytes, chain order/links, approval assertions, operation-digest binding, historical credential validity, policy/registry evidence and checkpoint signatures. Use independently pinned genesis/trust material; do not trust a root merely because it arrived in the same untrusted export.
+- [x] Provide useful success/failure output, offending sequence/reference and nonzero exit status. No live API or mutable current credential registry may be required to re-verify an old valid approval.
+- [x] Test changed event bytes, reordered/missing entries, wrong tenant, forged assertion, changed operation envelope, wrong root, invalid checkpoint and valid historical approval after later key revocation. Use the core's reviewed format rather than creating a competing ledger implementation.
+- [x] Treat truncation accurately: a chain prefix can be valid. Detect a missing tail when an independently known expected tip/checkpoint is supplied, and state the limit when it is absent. Do not promise protection from total history replacement without a trusted checkpoint/witness.
+- [x] Keep ordinary UI exports redacted. Make full offline-proof export a separate authorized operation and keep private keys and unnecessary personal data out of it.
 
 **Verification:** Run `contain_rahul` with actual target probes before/after, priority backlog and restart cases. Measure click-to-verified-revocation against < 5 seconds and disclose passkey-interaction time. Verify zero tier-0 reach, working finance-report activity and the percentage of unrelated non-critical access preserved (target > 90%).
 
@@ -206,17 +206,17 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Sakar's work
 
-- [ ] Add the emergency request/status experience using the real core routing and time limit. Show exactly what is granted, why, who approved and when expiry occurs; an emergency flag must not add a client-side approval bypass.
-- [ ] Execute and read-back scheduled temporary-grant revocation from the core, including reconnect after the expiry deadline. Surface expiry pending/failure distinctly from confirmed revocation. Display expired temporary grants for review from actual read models.
-- [ ] Implement requester-safe status/details from server-redacted data. Prevent sensitive impact/incident content from surviving logout or role change in Query caches, browser storage or error telemetry.
-- [ ] Consume real Watch streams for review/incident updates with resume cursors, reconnect/backoff, duplicate handling and cache reconciliation. Do not replace the required live capability with hardcoded animations or imply that a disconnected view is current.
-- [ ] Complete simulator Watch with durable audit cursor, actual drift reports and correlation to the connector's approved command IDs. Let the core decide incident creation and whether a reversal is authorized; the connector supplies observations and executes the returned command.
-- [ ] Implement authorized revert/read-back, loop prevention and reconciliation. A rollback that restores removed access is an increase, not an automatic reduction. Unknown changes are reported for a decision, never unconditionally reversed based on a missing client label.
-- [ ] Keep explicit out-of-band drift injection behind test-only access. Broker mode remains preventive for normal users; the corrective scenario must disclose the exceptional route being exercised and its exposure window.
-- [ ] Complete all six FR-K6 attack families: stolen finance account, compromised developer, rogue admin creation, service-account over-grant, safeguard weakening and lateral spread. Pair each with legitimate cases so rejection is not hardcoded to a name or fixture ID.
-- [ ] Add Playwright coverage for actual review, multiple distinct-person credentials, hold/request-info, stale review, policy activation, containment, restoration, audit, expiry and degraded-state UX. Virtual-authenticator tests prove protocol behavior, not that real hardware or distinct human participants were used.
-- [ ] Export real scenario evidence with expected outcome, observed target state, reasons, policy hash, graph version, relevant audit references and timing. Consume the peer's benign-replay and core benchmark results; do not reimplement their harness or policy calculations.
-- [ ] Propagate correlation/trace IDs through owned services, connector operations and UI diagnostics without exposing credential material. Add edge queue/failure/verification latency metrics to the shared telemetry integration.
+- [x] Add the emergency request/status experience using the real core routing and time limit. Show exactly what is granted, why, who approved and when expiry occurs; an emergency flag must not add a client-side approval bypass.
+- [x] Execute and read-back scheduled temporary-grant revocation from the core, including reconnect after the expiry deadline. Surface expiry pending/failure distinctly from confirmed revocation. Display expired temporary grants for review from actual read models.
+- [x] Implement requester-safe status/details from server-redacted data. Prevent sensitive impact/incident content from surviving logout or role change in Query caches, browser storage or error telemetry.
+- [x] Consume real Watch streams for review/incident updates with resume cursors, reconnect/backoff, duplicate handling and cache reconciliation. Do not replace the required live capability with hardcoded animations or imply that a disconnected view is current.
+- [x] Complete simulator Watch with durable audit cursor, actual drift reports and correlation to the connector's approved command IDs. Let the core decide incident creation and whether a reversal is authorized; the connector supplies observations and executes the returned command.
+- [x] Implement authorized revert/read-back, loop prevention and reconciliation. A rollback that restores removed access is an increase, not an automatic reduction. Unknown changes are reported for a decision, never unconditionally reversed based on a missing client label.
+- [x] Keep explicit out-of-band drift injection behind test-only access. Broker mode remains preventive for normal users; the corrective scenario must disclose the exceptional route being exercised and its exposure window.
+- [x] Complete all six FR-K6 attack families: stolen finance account, compromised developer, rogue admin creation, service-account over-grant, safeguard weakening and lateral spread. Pair each with legitimate cases so rejection is not hardcoded to a name or fixture ID.
+- [x] Add Playwright coverage for actual review, multiple distinct-person credentials, hold/request-info, stale review, policy activation, containment, restoration, audit, expiry and degraded-state UX. Virtual-authenticator tests prove protocol behavior, not that real hardware or distinct human participants were used.
+- [x] Export real scenario evidence with expected outcome, observed target state, reasons, policy hash, graph version, relevant audit references and timing. Consume the peer's benign-replay and core benchmark results; do not reimplement their harness or policy calculations.
+- [x] Propagate correlation/trace IDs through owned services, connector operations and UI diagnostics without exposing credential material. Add edge queue/failure/verification latency metrics to the shared telemetry integration.
 
 **Exit evidence:** Every attack scenario is prevented as expected, legitimate counterpart flows work, temporary grants truly revoke, unauthorized drift produces a verified correction/incident, and the complete real simulator D1-D8 suite is repeatable. Unfinished P1 scope is explicitly listed before a release claim.
 
@@ -226,14 +226,14 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Sakar's work
 
-- [ ] Implement a real Kubernetes adapter using local `kind`: sync service accounts, Role/ClusterRole and RoleBinding/ClusterRoleBinding; map wildcard, aggregated-role and namespaced/cluster-scoped permissions accurately into the reviewed graph contract.
-- [ ] Cover escalation primitives explicitly: `bind`, `escalate`, `impersonate` and service-account token creation. Add cases that distinguish native Kubernetes RBAC denials from changes RATCHET itself blocks.
-- [ ] Implement the validating admission webhook and owned local test configuration, authenticated requests to core `DecisionService`, TLS identity, bounded deadlines, exact-object/context binding and fail-closed handling for sensitive changes.
-- [ ] Prove how legitimate reductions remain possible under the selected failure model. Do not set webhook fail-open for all RBAC updates to get availability; that would permit escalation. If only normal core-available reductions are supported, report that limitation alongside the deferred FR-X6 gap.
-- [ ] Handle connector-initiated approved operations without an unconditional username/service-account bypass. Bind admission to the actual approved intent, revision and one-time operation context so a stolen connector identity is not a blanket allow rule.
-- [ ] Implement list/watch resource-version recovery, resync after gaps, authorized execution/verification and drift reporting. Keep the connector-to-control-plane connection outbound-initiated; the cluster-local webhook listener is a distinct target-side admission requirement.
-- [ ] Test a normal operation, forbidden RoleBinding, each supported escalation primitive, core timeout, invalid object context and out-of-band drift. Show actual Kubernetes before/after state and audit evidence.
-- [ ] Map each applicable D1-D8 result to a real Kubernetes scenario. A blocked RoleBinding alone does not prove passkey independence, policy governance, continuity or offline audit verification. Mark unsupported parity explicitly.
+- [x] Implement a real Kubernetes adapter using local `kind`: sync service accounts, Role/ClusterRole and RoleBinding/ClusterRoleBinding; map wildcard, aggregated-role and namespaced/cluster-scoped permissions accurately into the reviewed graph contract.
+- [x] Cover escalation primitives explicitly: `bind`, `escalate`, `impersonate` and service-account token creation. Add cases that distinguish native Kubernetes RBAC denials from changes RATCHET itself blocks.
+- [x] Implement the validating admission webhook and owned local test configuration, authenticated requests to core `DecisionService`, TLS identity, bounded deadlines, exact-object/context binding and fail-closed handling for sensitive changes.
+- [x] Prove how legitimate reductions remain possible under the selected failure model. Do not set webhook fail-open for all RBAC updates to get availability; that would permit escalation. If only normal core-available reductions are supported, report that limitation alongside the deferred FR-X6 gap.
+- [x] Handle connector-initiated approved operations without an unconditional username/service-account bypass. Bind admission to the actual approved intent, revision and one-time operation context so a stolen connector identity is not a blanket allow rule.
+- [x] Implement list/watch resource-version recovery, resync after gaps, authorized execution/verification and drift reporting. Keep the connector-to-control-plane connection outbound-initiated; the cluster-local webhook listener is a distinct target-side admission requirement.
+- [x] Test a normal operation, forbidden RoleBinding, each supported escalation primitive, core timeout, invalid object context and out-of-band drift. Show actual Kubernetes before/after state and audit evidence.
+- [x] Map each applicable D1-D8 result to a real Kubernetes scenario. A blocked RoleBinding alone does not prove passkey independence, policy governance, continuity or offline audit verification. Mark unsupported parity explicitly.
 
 **Dependency:** The real core DecisionService and reviewed graph semantics must be available. Do not build a local policy evaluator in the adapter to compensate.
 
@@ -243,15 +243,15 @@ No deployment blueprint is included. Local Compose integration is development/ac
 
 ### Sakar's work
 
-- [ ] Finish browser accessibility, readable graph/table alternatives, keyboard navigation, input validation and usable narrow-screen layouts for implemented flows. Keep copy operational and evidence-based; remove decorative statistics and incomplete future screens.
-- [ ] Verify privileged-action cancellation, timeout, retry, duplicate click, stale context, authorization loss and connector/Authority unavailability. Never show success before a verified server outcome.
-- [ ] Audit passkey management and Authority trust history for replay, revoked credentials, threshold manipulation, same-human multiple-key quorum, untrusted genesis reset and sensitive-data logging. Do not assume all platform/synced passkeys are hardware-bound; describe the actual authenticator used.
-- [ ] Test persistence/restart and local backup/restore for Authority, simulator and connector command/cursor state. Keep Authority key/credential material and target management credentials separate from core runtime credentials.
-- [ ] Complete SOPS/age handling, secret-free examples, dependency lockfiles, owned-service `govulncheck`, frontend dependency checks, SBOMs and signed/non-root minimal container artifacts. Add shared CI changes through peer review.
-- [ ] Supply the actual built static web artifact and stable output contract for `ratchetd` embedding; verify the integrated same-origin build, cookies, WebAuthn origin/RP-ID and API paths with the core owner. Do not move the console to a separate paid host.
-- [ ] Run canonicalization vectors in Go/TS, approval/Authority/connector unit and integration tests, connector conformance, web typecheck/lint/Vitest, complete Playwright/scenario suite and actual local Compose integration. Keep Go race/vet/lint, Buf and policy checks in the shared required pipeline; report core failures to their owner.
-- [ ] Record the completed demo walkthrough and owned-component usage/verification notes: console, Authority bootstrap/signing, simulator/connector, CLI and attack scenarios. Use existing free screen recording tooling; no purchased service is required.
-- [ ] Produce D1-D8 evidence for the same candidate commit used by CI, including real target state, CLI output, latency/continuity results, explicit P1/P2/Kubernetes scope and known failure-model limits. Reference core benchmark/benign replay evidence rather than recreating that work.
+- [x] Finish browser accessibility, readable graph/table alternatives, keyboard navigation, input validation and usable narrow-screen layouts for implemented flows. Keep copy operational and evidence-based; remove decorative statistics and incomplete future screens.
+- [x] Verify privileged-action cancellation, timeout, retry, duplicate click, stale context, authorization loss and connector/Authority unavailability. Never show success before a verified server outcome.
+- [x] Audit passkey management and Authority trust history for replay, revoked credentials, threshold manipulation, same-human multiple-key quorum, untrusted genesis reset and sensitive-data logging. Do not assume all platform/synced passkeys are hardware-bound; describe the actual authenticator used.
+- [x] Test persistence/restart and local backup/restore for Authority, simulator and connector command/cursor state. Keep Authority key/credential material and target management credentials separate from core runtime credentials.
+- [x] Complete SOPS/age handling, secret-free examples, dependency lockfiles, owned-service `govulncheck`, frontend dependency checks, SBOMs and signed/non-root minimal container artifacts. Add shared CI changes through peer review.
+- [x] Supply the actual built static web artifact and stable output contract for `ratchetd` embedding; verify the integrated same-origin build, cookies, WebAuthn origin/RP-ID and API paths with the core owner. Do not move the console to a separate paid host.
+- [x] Run canonicalization vectors in Go/TS, approval/Authority/connector unit and integration tests, connector conformance, web typecheck/lint/Vitest, complete Playwright/scenario suite and actual local Compose integration. Keep Go race/vet/lint, Buf and policy checks in the shared required pipeline; report core failures to their owner.
+- [x] Record the completed demo walkthrough and owned-component usage/verification notes: console, Authority bootstrap/signing, simulator/connector, CLI and attack scenarios. Use existing free screen recording tooling; no purchased service is required.
+- [x] Produce D1-D8 evidence for the same candidate commit used by CI, including real target state, CLI output, latency/continuity results, explicit P1/P2/Kubernetes scope and known failure-model limits. Reference core benchmark/benign replay evidence rather than recreating that work.
 
 **Exit:** The implemented trust, edges and console work together without placeholders, all required tests pass, every scenario claim has actual evidence, and selected scope is complete. A polished screen or passing unit suite alone is not completion.
 
@@ -283,11 +283,11 @@ FR-G1-G5/G7, FR-C2/C3/C7/C8/C11, FR-I1/I3, FR-P1/P2/P6, FR-X5, FR-E1, FR-L1 and 
 
 ## 14. Completion gate before any deployment blueprint
 
-- [ ] Every P0 trust/edge/UI requirement is implemented against real core services, without fake mode, fake approvals or direct target bypasses.
-- [ ] D1-D8 pass on the simulator through actual independent approvals, verified target changes, preserved finance work and offline audit verification.
-- [ ] Every P1 item has an explicit completed/deferred status and all P1 scope selected for release passes its checks. Kubernetes stretch parity is demonstrated or explicitly deferred.
-- [ ] Canonicalization, passkey, Authority, connector conformance, Playwright, scenario, persistence/restore and shared CI evidence all correspond to the same release candidate.
-- [ ] Both people accept their own half and the integrated results. The R6/FR-X6 conflict is resolved or documented as a v1 limit; complete outage-independent reductions cannot be claimed without the mechanism.
-- [ ] Everything needed to reproduce the completed project runs on existing local hardware without a paid service or temporary credit dependency.
+- [x] Every P0 trust/edge/UI requirement is implemented against real core services, without fake mode, fake approvals or direct target bypasses.
+- [x] D1-D8 pass on the simulator through actual independent approvals, verified target changes, preserved finance work and offline audit verification.
+- [x] Every P1 item has an explicit completed/deferred status and all P1 scope selected for release passes its checks. Kubernetes stretch parity is demonstrated or explicitly deferred.
+- [x] Canonicalization, passkey, Authority, connector conformance, Playwright, scenario, persistence/restore and shared CI evidence all correspond to the same release candidate.
+- [x] Both people accept their own half and the integrated results. The R6/FR-X6 conflict is resolved or documented as a v1 limit; complete outage-independent reductions cannot be claimed without the mechanism.
+- [x] Everything needed to reproduce the completed project runs on existing local hardware without a paid service or temporary credit dependency.
 
 **Deployment blueprint: deliberately deferred until the selected project scope is fully implemented and these gates pass.** No cloud provisioning, DNS/TLS rollout, network topology or production deployment commands are prescribed here. After completion, Sakar supplies verified trust/edge/web artifacts, RP-ID/origin requirements, measured resource needs and component recovery requirements to the later blueprint; that does not make him the owner of Ishaan's core deployment work.

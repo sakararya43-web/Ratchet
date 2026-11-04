@@ -122,6 +122,16 @@ func TestSignedIngestGapRecoveryReplayAndPrivacy(t *testing.T) {
 	if err != nil || same.Version() != first.Version() {
 		t.Fatal("duplicate advanced graph")
 	}
+	repeated := proto.Clone(message).(*v1.SignedGraphSync)
+	repeated.Envelope.MessageId = uuid.NewString()
+	repeated.Envelope.CorrelationId = uuid.NewString()
+	if err := l.ingestor.Handle(l.ctx, l.tenant, sign(t, l, repeated)); err != nil {
+		t.Fatal(err)
+	}
+	again, err := l.registry.Get(l.ctx, l.tenant, 1)
+	if err != nil || again.Version() != first.Version() {
+		t.Fatal("unchanged authoritative revision advanced graph")
+	}
 	gap := &v1.SignedGraphSync{Envelope: &v1.ConnectorEnvelope{SchemaVersion: 1, TenantId: l.tenant, ConnectorId: "source", MessageId: uuid.NewString(), CorrelationId: uuid.NewString(), SourceRevision: 12}, Payload: &v1.SignedGraphSync_Delta{Delta: &v1.GraphDelta{TenantId: l.tenant, ConnectorId: "source", FromRevision: 11, ToRevision: 12}}}
 	gapRaw := sign(t, l, gap)
 	if err := l.ingestor.Handle(l.ctx, l.tenant, gapRaw); err != nil {
@@ -174,6 +184,18 @@ func TestSignedIngestGapRecoveryReplayAndPrivacy(t *testing.T) {
 	if err := l.ingestor.Handle(l.ctx, l.tenant, sign(t, l, changed)); !errors.Is(err, eventstore.ErrIdempotencyConflict) {
 		t.Fatalf("conflicting ID: %v", err)
 	}
+	valid := &v1.SignedGraphSync{Envelope: &v1.ConnectorEnvelope{SchemaVersion: 1, TenantId: l.tenant, ConnectorId: "source", MessageId: uuid.NewString(), CorrelationId: uuid.NewString(), SourceRevision: 13}, Payload: &v1.SignedGraphSync_Delta{Delta: &v1.GraphDelta{TenantId: l.tenant, ConnectorId: "source", FromRevision: 12, ToRevision: 13, EdgesAdded: []*v1.GraphEdge{{Source: "user:a", Target: "role:r", Kind: "ASSIGNED"}}}}}
+	if err := l.ingestor.Handle(l.ctx, l.tenant, sign(t, l, valid)); err != nil {
+		t.Fatal(err)
+	}
+	latest, err := l.registry.Get(l.ctx, l.tenant, current.Version()+1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reach, err := latest.Reach("user:a")
+	if err != nil || reach.ByTier[0] != 1 {
+		t.Fatal("valid ordered delta did not apply")
+	}
 }
 
 func TestCrossTenantForgeryIncompleteAndMissingNodesRejected(t *testing.T) {
@@ -184,7 +206,7 @@ func TestCrossTenantForgeryIncompleteAndMissingNodesRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	m = snapshot(l)
-	raw := sign(t, l, m)
+	sign(t, l, m)
 	m.Signature[0] ^= 1
 	raw, err := protojson.Marshal(m)
 	if err != nil {
@@ -231,6 +253,30 @@ func TestJetStreamDeliveryRestartAndLostPublishAck(t *testing.T) {
 	if before == nil {
 		t.Fatal("real NATS consumer did not ingest")
 	}
+	func() {
+		url := os.Getenv("RATCHET_NATS_URL")
+		if url == "" {
+			url = "nats://127.0.0.1:54222"
+		}
+		nc, err := nats.Connect(url)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer nc.Close()
+		js, err := nc.JetStream()
+		if err != nil {
+			t.Fatal(err)
+		}
+		until := time.Now().Add(3 * time.Second)
+		for time.Now().Before(until) {
+			info, err := js.ConsumerInfo(bus.StreamName(l.tenant, "INGEST"), "core-ingest-v1")
+			if err == nil && info.AckFloor.Stream >= 1 {
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		t.Fatal("consumer ACK was not persisted before restart")
+	}()
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatal(err)

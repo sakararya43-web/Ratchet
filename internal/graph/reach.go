@@ -91,6 +91,13 @@ func (s *Snapshot) analyze(identity string) (analysis, error) {
 		}
 	}
 	for p := range a.powers {
+		if p.Action == "*" && !denies[Power{p.NodeID, "*"}] {
+			for deny := range denies {
+				if deny.NodeID == p.NodeID {
+					return analysis{}, fmt.Errorf("%w: wildcard grant with partial deny needs explicit action expansion", ErrInvalid)
+				}
+			}
+		}
 		if denies[p] || denies[Power{p.NodeID, "*"}] {
 			delete(a.powers, p)
 		}
@@ -273,6 +280,10 @@ func (s *Snapshot) Neighbourhood(id string, depth, limit int) (Data, bool, error
 	}
 	for _, e := range s.edges {
 		if seen[s.index[e.Source]] && seen[s.index[e.Target]] {
+			if len(d.Edges) >= 10000 {
+				truncated = true
+				break
+			}
 			d.Edges = append(d.Edges, cloneEdge(e))
 		}
 	}

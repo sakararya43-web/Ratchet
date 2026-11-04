@@ -81,6 +81,19 @@ Only Phase 1 work is in progress. No later phase has started.
   `phase-1-benchmark.txt`: approximately 0.98 s/op and 208 MB/op on one CPU.
   The eventual 100 ms impact target is not achieved; optimization is still due.
 
+### Recovery and complete affected-identity reporting
+
+- Revalidating the same durable graph version restores availability after a
+  transient database read failure, without accepting version regression.
+- Healthy same-revision snapshots with a new message ID now persist a dedup
+  receipt without producing a new graph event/version or outbox publication.
+- Action-only revocations report removed powers/control even if resource counts
+  stay constant. Partial denies against wildcard grants require explicit action
+  expansion; analysis refuses an authority set it cannot represent exactly.
+- Added regression coverage for these cases, valid ordered deltas, persisted
+  JetStream acknowledgement cursors and metadata-before-possession traversal.
+- Neighborhoods cap returned edges at 10,000 with explicit truncation.
+
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance

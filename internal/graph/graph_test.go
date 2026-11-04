@@ -123,4 +123,10 @@ func TestRegistryVersionWaitAndConcurrentSimulations(t *testing.T) {
 	if _, err := registry.Get(context.Background(), "tenant", 0); !errors.Is(err, graph.ErrUnavailable) {
 		t.Fatal("invalidated graph served")
 	}
+	if err := registry.Publish("tenant", s); err != nil {
+		t.Fatal("durable revalidation of same generation failed:", err)
+	}
+	if restored, err := registry.Get(context.Background(), "tenant", 12); err != nil || restored.Version() != 12 {
+		t.Fatal("revalidated generation unavailable:", err)
+	}
 }

@@ -454,16 +454,18 @@ func (x *SimulateChangeResponse) GetImpact() *ImpactDiff {
 }
 
 type IdentityImpact struct {
-	state                   protoimpl.MessageState `protogen:"open.v1"`
-	IdentityId              string                 `protobuf:"bytes,1,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
-	NewResources            []*ResourceSummary     `protobuf:"bytes,2,rep,name=new_resources,json=newResources,proto3" json:"new_resources,omitempty"`
-	NewControlledIdentities []string               `protobuf:"bytes,3,rep,name=new_controlled_identities,json=newControlledIdentities,proto3" json:"new_controlled_identities,omitempty"`
-	NewTier0Routes          []*GraphRoute          `protobuf:"bytes,4,rep,name=new_tier0_routes,json=newTier0Routes,proto3" json:"new_tier0_routes,omitempty"`
-	SafeguardsWeakened      []*SafeguardSummary    `protobuf:"bytes,5,rep,name=safeguards_weakened,json=safeguardsWeakened,proto3" json:"safeguards_weakened,omitempty"`
-	BlastRadiusDelta        map[string]int32       `protobuf:"bytes,6,rep,name=blast_radius_delta,json=blastRadiusDelta,proto3" json:"blast_radius_delta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	NewPowers               []*AccessPower         `protobuf:"bytes,7,rep,name=new_powers,json=newPowers,proto3" json:"new_powers,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	IdentityId                  string                 `protobuf:"bytes,1,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
+	NewResources                []*ResourceSummary     `protobuf:"bytes,2,rep,name=new_resources,json=newResources,proto3" json:"new_resources,omitempty"`
+	NewControlledIdentities     []string               `protobuf:"bytes,3,rep,name=new_controlled_identities,json=newControlledIdentities,proto3" json:"new_controlled_identities,omitempty"`
+	NewTier0Routes              []*GraphRoute          `protobuf:"bytes,4,rep,name=new_tier0_routes,json=newTier0Routes,proto3" json:"new_tier0_routes,omitempty"`
+	SafeguardsWeakened          []*SafeguardSummary    `protobuf:"bytes,5,rep,name=safeguards_weakened,json=safeguardsWeakened,proto3" json:"safeguards_weakened,omitempty"`
+	BlastRadiusDelta            map[string]int32       `protobuf:"bytes,6,rep,name=blast_radius_delta,json=blastRadiusDelta,proto3" json:"blast_radius_delta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	NewPowers                   []*AccessPower         `protobuf:"bytes,7,rep,name=new_powers,json=newPowers,proto3" json:"new_powers,omitempty"`
+	RemovedPowers               []*AccessPower         `protobuf:"bytes,8,rep,name=removed_powers,json=removedPowers,proto3" json:"removed_powers,omitempty"`
+	RemovedControlledIdentities []string               `protobuf:"bytes,9,rep,name=removed_controlled_identities,json=removedControlledIdentities,proto3" json:"removed_controlled_identities,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *IdentityImpact) Reset() {
@@ -541,6 +543,20 @@ func (x *IdentityImpact) GetBlastRadiusDelta() map[string]int32 {
 func (x *IdentityImpact) GetNewPowers() []*AccessPower {
 	if x != nil {
 		return x.NewPowers
+	}
+	return nil
+}
+
+func (x *IdentityImpact) GetRemovedPowers() []*AccessPower {
+	if x != nil {
+		return x.RemovedPowers
+	}
+	return nil
+}
+
+func (x *IdentityImpact) GetRemovedControlledIdentities() []string {
+	if x != nil {
+		return x.RemovedControlledIdentities
 	}
 	return nil
 }
@@ -641,7 +657,7 @@ const file_ratchet_v1_impact_proto_rawDesc = "" +
 	"\x11min_graph_version\x18\x06 \x01(\x03R\x0fminGraphVersion\x125\n" +
 	"\x06intent\x18\a \x01(\v2\x1d.ratchet.v1.ExactChangeIntentR\x06intent\"H\n" +
 	"\x16SimulateChangeResponse\x12.\n" +
-	"\x06impact\x18\x01 \x01(\v2\x16.ratchet.v1.ImpactDiffR\x06impact\"\x9d\x04\n" +
+	"\x06impact\x18\x01 \x01(\v2\x16.ratchet.v1.ImpactDiffR\x06impact\"\xa1\x05\n" +
 	"\x0eIdentityImpact\x12\x1f\n" +
 	"\videntity_id\x18\x01 \x01(\tR\n" +
 	"identityId\x12@\n" +
@@ -651,7 +667,9 @@ const file_ratchet_v1_impact_proto_rawDesc = "" +
 	"\x13safeguards_weakened\x18\x05 \x03(\v2\x1c.ratchet.v1.SafeguardSummaryR\x12safeguardsWeakened\x12^\n" +
 	"\x12blast_radius_delta\x18\x06 \x03(\v20.ratchet.v1.IdentityImpact.BlastRadiusDeltaEntryR\x10blastRadiusDelta\x126\n" +
 	"\n" +
-	"new_powers\x18\a \x03(\v2\x17.ratchet.v1.AccessPowerR\tnewPowers\x1aC\n" +
+	"new_powers\x18\a \x03(\v2\x17.ratchet.v1.AccessPowerR\tnewPowers\x12>\n" +
+	"\x0eremoved_powers\x18\b \x03(\v2\x17.ratchet.v1.AccessPowerR\rremovedPowers\x12B\n" +
+	"\x1dremoved_controlled_identities\x18\t \x03(\tR\x1bremovedControlledIdentities\x1aC\n" +
 	"\x15BlastRadiusDeltaEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\">\n" +
@@ -700,13 +718,14 @@ var file_ratchet_v1_impact_proto_depIdxs = []int32{
 	1,  // 9: ratchet.v1.IdentityImpact.safeguards_weakened:type_name -> ratchet.v1.SafeguardSummary
 	9,  // 10: ratchet.v1.IdentityImpact.blast_radius_delta:type_name -> ratchet.v1.IdentityImpact.BlastRadiusDeltaEntry
 	7,  // 11: ratchet.v1.IdentityImpact.new_powers:type_name -> ratchet.v1.AccessPower
-	4,  // 12: ratchet.v1.ImpactService.SimulateChange:input_type -> ratchet.v1.SimulateChangeRequest
-	5,  // 13: ratchet.v1.ImpactService.SimulateChange:output_type -> ratchet.v1.SimulateChangeResponse
-	13, // [13:14] is the sub-list for method output_type
-	12, // [12:13] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	7,  // 12: ratchet.v1.IdentityImpact.removed_powers:type_name -> ratchet.v1.AccessPower
+	4,  // 13: ratchet.v1.ImpactService.SimulateChange:input_type -> ratchet.v1.SimulateChangeRequest
+	5,  // 14: ratchet.v1.ImpactService.SimulateChange:output_type -> ratchet.v1.SimulateChangeResponse
+	14, // [14:15] is the sub-list for method output_type
+	13, // [13:14] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_impact_proto_init() }

@@ -63,6 +63,8 @@ message IdentityImpact {
   repeated SafeguardSummary safeguards_weakened = 5;
   map<string, int32> blast_radius_delta = 6;
   repeated AccessPower new_powers = 7;
+  repeated AccessPower removed_powers = 8;
+  repeated string removed_controlled_identities = 9;
 }
 
 message AccessPower {

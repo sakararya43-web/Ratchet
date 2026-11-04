@@ -126,6 +126,15 @@ func (s *Store) IngestGraph(ctx context.Context, input GraphInput, key []byte) (
 			if oldHash != newHash {
 				return GraphReceipt{}, ErrIdempotencyConflict
 			}
+			if !current.resync {
+				if _, err := tx.Exec(ctx, `INSERT INTO ratchet.ingest_receipts(tenant_id,message_id,connector_id,input_digest,graph_version,outcome) VALUES($1,$2,$3,$4,$5,'applied')`, input.TenantID, input.MessageID, input.ConnectorID, digest.Bytes(), current.version); err != nil {
+					return GraphReceipt{}, err
+				}
+				if err := tx.Commit(ctx); err != nil {
+					return GraphReceipt{}, err
+				}
+				return GraphReceipt{Version: current.version, Duplicate: true}, nil
+			}
 		}
 		candidate := sourceGraph{id: input.ConnectorID, revision: input.ToRevision, data: next.Data()}
 		merged := slices.Clone(sources)

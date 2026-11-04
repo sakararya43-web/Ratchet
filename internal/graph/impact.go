@@ -8,13 +8,15 @@ import (
 )
 
 type IdentityImpact struct {
-	IdentityID    string      `json:"identity_id"`
-	NewResources  []Node      `json:"new_resources"`
-	NewControlled []string    `json:"new_controlled_identities"`
-	NewPowers     []Power     `json:"new_powers"`
-	NewRoutes     []Route     `json:"new_tier0_routes"`
-	Weakened      []Node      `json:"safeguards_weakened"`
-	BlastDelta    map[int]int `json:"blast_radius_delta"`
+	IdentityID        string      `json:"identity_id"`
+	NewResources      []Node      `json:"new_resources"`
+	NewControlled     []string    `json:"new_controlled_identities"`
+	NewPowers         []Power     `json:"new_powers"`
+	RemovedPowers     []Power     `json:"removed_powers,omitempty"`
+	RemovedControlled []string    `json:"removed_controlled_identities,omitempty"`
+	NewRoutes         []Route     `json:"new_tier0_routes"`
+	Weakened          []Node      `json:"safeguards_weakened"`
+	BlastDelta        map[int]int `json:"blast_radius_delta"`
 }
 type Impact struct {
 	Version            int64            `json:"graph_version"`
@@ -101,6 +103,20 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 				item.NewControlled = append(item.NewControlled, id)
 			}
 		}
+		currentP := map[Power]bool{}
+		for _, p := range current.Powers {
+			currentP[p] = true
+		}
+		for _, p := range old.Powers {
+			if !currentP[p] && !currentP[Power{p.NodeID, "*"}] {
+				item.RemovedPowers = append(item.RemovedPowers, p)
+			}
+		}
+		for _, id := range old.Controlled {
+			if !slices.Contains(current.Controlled, id) {
+				item.RemovedControlled = append(item.RemovedControlled, id)
+			}
+		}
 		for id := range newA.weakened {
 			if !oldA.weakened[id] {
 				sg := after.nodes[after.index[id]]
@@ -139,7 +155,7 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 				}
 			}
 		}
-		changed := len(item.NewPowers) > 0 || len(item.NewControlled) > 0 || len(item.NewRoutes) > 0 || len(item.Weakened) > 0
+		changed := len(item.NewPowers) > 0 || len(item.NewControlled) > 0 || len(item.NewRoutes) > 0 || len(item.Weakened) > 0 || len(item.RemovedPowers) > 0 || len(item.RemovedControlled) > 0
 		for _, d := range item.BlastDelta {
 			changed = changed || d != 0
 		}

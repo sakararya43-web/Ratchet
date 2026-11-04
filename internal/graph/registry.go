@@ -43,8 +43,12 @@ func (r *Registry) Publish(tenant string, s *Snapshot) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	t := r.tenant(tenant)
-	if old := t.current.Load(); old != nil && old.snapshot.version >= s.version {
-		return fmt.Errorf("%w: graph version regression", ErrInvalid)
+	if old := t.current.Load(); old != nil {
+		// A successful durable reload can restore the same generation after a
+		// transient read failure. Healthy generations still require advancement.
+		if old.snapshot.version > s.version || (old.snapshot.version == s.version && old.ready) {
+			return fmt.Errorf("%w: graph version regression", ErrInvalid)
+		}
 	}
 	t.current.Store(&generation{snapshot: s, ready: true})
 	close(t.changed)

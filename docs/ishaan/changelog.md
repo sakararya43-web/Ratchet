@@ -27,6 +27,14 @@ Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 - Reuse only exact production trust/store/verifier dependencies and the passkey
   store/verifier needed for actual conformance checks. No seed-key helpers or
   simulated-assertion handler is imported into the core runtime.
+- Added real OPA 1.22 prepared change/authorization queries. Only the peer's
+  BundleVerifier can admit modules/data, against an explicitly pinned genesis.
+  Unsupported registry epochs are refused until verified history is available.
+  Network, random and wall-clock builtins are unavailable to policy compilation.
+  Real signed-bundle tests verify owner approval, two security leads, safeguard
+  rejection, authorized reduction, permission denial and invalid replacement.
+- Reused byte-identical trust production files and passkey store/verifier from
+  `9662c46`; no peer-owned file was rewritten and no seed-key runtime was imported.
 
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 

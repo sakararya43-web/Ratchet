@@ -34,15 +34,35 @@ type RatchetEvent struct {
 	RecordedAt       pgtype.Timestamptz
 }
 
+type RatchetGraphSource struct {
+	TenantID        string
+	ConnectorID     string
+	SourceRevision  int64
+	GraphVersion    int64
+	PublicGraph     []byte
+	PrivateRecordID pgtype.UUID
+	NeedsResync     bool
+}
+
+type RatchetIngestReceipt struct {
+	TenantID     string
+	MessageID    pgtype.UUID
+	ConnectorID  string
+	InputDigest  []byte
+	GraphVersion int64
+	Outcome      string
+}
+
 type RatchetOutbox struct {
-	TenantID    string
-	EventID     pgtype.UUID
-	Sequence    int64
-	Subject     string
-	Payload     []byte
-	CreatedAt   pgtype.Timestamptz
-	DeliveredAt pgtype.Timestamptz
-	Attempts    int32
+	TenantID      string
+	EventID       pgtype.UUID
+	Sequence      int64
+	Subject       string
+	Payload       []byte
+	CreatedAt     pgtype.Timestamptz
+	DeliveredAt   pgtype.Timestamptz
+	Attempts      int32
+	NextAttemptAt pgtype.Timestamptz
 }
 
 type RatchetPrivateRecord struct {

@@ -40,6 +40,20 @@ Only Phase 1 work is in progress. No later phase has started.
   isolation, malformed input, concurrent simulations and stale-read tests pass.
 - Simple path enumeration has explicit bounds; an incomplete impact is an error.
 
+### Durable source state and outbox delivery
+
+- Added schema version 2 for source revisions, immutable ingest receipts,
+  durable resync quarantine and retry timing. Event append can now participate
+  in the same PostgreSQL transaction as source state updates.
+- Complete snapshots and exact-base deltas are validated before publication.
+  Public authority facts are replayable from the hash chain; display data is
+  encrypted separately. Conflicting source ownership and reused message IDs
+  are refused. Source merges are atomic across connectors.
+- Outbox delivery holds a per-tenant lock through durable broker acknowledgement,
+  keeps stable event IDs, persists bounded backoff and exposes backlog statistics.
+- PostgreSQL/NATS integration verifies atomic ingest, privacy, replay, persistent
+  gap quarantine, duplicate repair delivery and recovery from a lost publish ACK.
+
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance

@@ -82,6 +82,22 @@ func New(pool *pgxpool.Pool, digester ports.Digester) (*Store, error) {
 // Append serializes all streams of one tenant until commit. It never publishes
 // directly to the bus; the outbox is inserted in the same transaction.
 func (s *Store) Append(ctx context.Context, command Command) (Receipt, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return Receipt{}, fmt.Errorf("begin append: %w", err)
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
+	receipt, err := s.appendTx(ctx, tx, command)
+	if err != nil {
+		return Receipt{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Receipt{}, fmt.Errorf("commit append (retry same command ID if outcome uncertain): %w", err)
+	}
+	return receipt, nil
+}
+
+func (s *Store) appendTx(ctx context.Context, tx pgx.Tx, command Command) (Receipt, error) {
 	if err := validate(command); err != nil {
 		return Receipt{}, err
 	}
@@ -89,11 +105,6 @@ func (s *Store) Append(ctx context.Context, command Command) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, fmt.Errorf("%w: canonical command: %v", ErrInvalid, err)
 	}
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return Receipt{}, fmt.Errorf("begin append: %w", err)
-	}
-	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 	q := storedb.New(tx)
 	if err := q.SetTenant(ctx, command.TenantID); err != nil {
 		return Receipt{}, err
@@ -175,9 +186,6 @@ func (s *Store) Append(ctx context.Context, command Command) (Receipt, error) {
 	}
 	if err := q.AdvanceTenantHead(ctx, storedb.AdvanceTenantHeadParams{TenantID: command.TenantID, Sequence: receipt.LastSequence, Hash: previous.Bytes()}); err != nil {
 		return Receipt{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return Receipt{}, fmt.Errorf("commit append (retry same command ID if outcome uncertain): %w", err)
 	}
 	return receipt, nil
 }

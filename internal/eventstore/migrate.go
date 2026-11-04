@@ -15,7 +15,7 @@ import (
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-const SchemaVersion int64 = 1
+const SchemaVersion int64 = 2
 
 // Migrate is an explicit administrative operation. The serving process must use
 // a separate runtime DSN and never keeps the migration credentials in its pool.
@@ -33,6 +33,17 @@ func Migrate(ctx context.Context, dsn string) error {
 	if role != "ratchet_migrator" || privileged {
 		return errors.New("migrations require the non-superuser ratchet_migrator role")
 	}
+	lock, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = lock.Close() }()
+	if _, err := lock.ExecContext(ctx, `SELECT pg_advisory_lock(hashtext(current_database()),319735)`); err != nil {
+		return err
+	}
+	defer func() {
+		_, _ = lock.ExecContext(context.Background(), `SELECT pg_advisory_unlock(hashtext(current_database()),319735)`)
+	}()
 	files, err := fs.Sub(migrationFiles, "migrations")
 	if err != nil {
 		return err

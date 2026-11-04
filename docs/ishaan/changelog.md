@@ -14,6 +14,11 @@
 The user explicitly authorized the next phase after Phase 1's core handoff.
 Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 
+- A real PostgreSQL/River regression stops the original workflow worker, creates
+  a fresh instance with the same verified dependencies, and recovers the existing
+  execution attempt through read-only probes. Exactly one original write remains;
+  request/command identity and Executing state survive. Linux race acceptance passes.
+
 - Extend CI lint to the implemented domain, policy and workflow packages and
   declare their existing dependencies as direct imports without changing versions.
 - Final core verification passes: full Linux integration/race suite, affected

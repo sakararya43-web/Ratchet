@@ -332,7 +332,7 @@ func signedResult(t *testing.T, result workflow.ExecutionResult, key ed25519.Pri
 
 // This is a real-cryptography protocol fixture, not a browser passkey ceremony
 // or the unsafe peer handler. Production mounting remains separately gated.
-func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed25519.PrivateKey) {
+func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed25519.PrivateKey, func() *workflow.Service) {
 	t.Helper()
 	sys := setup(t)
 	credentials := approval.NewCredentialStore()
@@ -353,10 +353,14 @@ func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed2
 		t.Fatal(err)
 	}
 	execution, connectorKey := signCapability(t, sys.tenant)
-	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, execution)
-	if err != nil {
-		t.Fatal(err)
+	open := func() *workflow.Service {
+		service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, execution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return service
 	}
+	service := open()
 	start(t, service, sys.ctx)
 	created, err := service.Submit(sys.ctx, workflow.Actor{TenantID: sys.tenant, ID: "user:requester"}, workflow.Submit{Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: "user:requester", Access: "role:finance"}, Justification: "Finance reporting access for the daily report", CommandID: uuid.New()})
 	if err != nil {
@@ -368,10 +372,10 @@ func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed2
 		t.Fatal(err)
 	}
 	c = waitState(t, sys, c.ID, domain.Executing)
-	return sys, service, c, connectorKey
+	return sys, service, c, connectorKey, open
 }
 func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.T) {
-	sys, service, c, connectorKey := readyExecution(t)
+	sys, service, c, connectorKey, _ := readyExecution(t)
 	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, CorrelationID: c.CorrelationID, EnvelopeDigest: c.Digest, Success: true}
 	wrongCorrelation := result
 	wrongCorrelation.CorrelationID = uuid.NewString()
@@ -452,7 +456,7 @@ func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.
 }
 
 func TestVerifiedRefusalRecordsFailedWithoutInventingApplication(t *testing.T) {
-	sys, service, c, key := readyExecution(t)
+	sys, service, c, key, _ := readyExecution(t)
 	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, CorrelationID: c.CorrelationID, EnvelopeDigest: c.Digest, Success: false, ReadBackVerified: true, ObservedTenant: sys.tenant, ObservedTarget: c.Intent.Target, ObservedRoles: []string{}, ObservedRevision: 10, ObservedAt: time.Now().UTC()}
 	result.ObservationDigest, _ = canon.New().Digest(struct {
 		Tenant, Target string
@@ -466,6 +470,45 @@ func TestVerifiedRefusalRecordsFailedWithoutInventingApplication(t *testing.T) {
 	failed := waitState(t, sys, c.ID, domain.Failed)
 	if len(failed.Facts) == 0 {
 		t.Fatal("verified refusal evidence lost")
+	}
+}
+
+func TestReplacementWorkerRecoversUncertainExecutionWithoutWritingAgain(t *testing.T) {
+	sys, original, c, key, reopen := readyExecution(t)
+	stop, cancel := context.WithTimeout(sys.ctx, 5*time.Second)
+	defer cancel()
+	if err := original.Stop(stop); err != nil {
+		t.Fatal(err)
+	}
+	replacement := reopen()
+	start(t, replacement, sys.ctx)
+	ack := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, CorrelationID: c.CorrelationID, EnvelopeDigest: c.Digest, Success: true}
+	if err := replacement.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, ack, key)); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		var writes, probes int64
+		err := sys.store.WithTenantTx(sys.ctx, sys.tenant, func(tx pgx.Tx, _ time.Time) error {
+			return tx.QueryRow(sys.ctx, `SELECT count(*) FILTER (WHERE NOT (convert_from(payload,'UTF8')::jsonb->>'verify_only')::boolean),count(*) FILTER (WHERE (convert_from(payload,'UTF8')::jsonb->>'verify_only')::boolean) FROM ratchet.outbox WHERE tenant_id=$1 AND subject=$2`, sys.tenant, "ratchet."+sys.tenant+".exec.source").Scan(&writes, &probes)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if writes != 1 {
+			t.Fatalf("recovery produced %d write commands", writes)
+		}
+		if probes > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("fresh worker did not recover the durable execution attempt")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	current, err := sys.store.ReadChange(sys.ctx, sys.tenant, c.ID)
+	if err != nil || current.State != domain.Executing || current.ExecutionID != c.ExecutionID {
+		t.Fatal("recovery invented completion or changed command identity", err)
 	}
 }
 

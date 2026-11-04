@@ -18,6 +18,7 @@ type Registry struct {
 	Epoch  int64
 	Digest ports.Digest
 	Proof  []byte
+	Root   ports.Digest
 	store  *trust.Store
 }
 
@@ -124,5 +125,5 @@ func VerifyRegistry(raw []byte, root ports.Digest, tenant string) (*Registry, er
 	if err != nil {
 		return nil, err
 	}
-	return &Registry{Epoch: g.Epoch, Digest: digest, Proof: append([]byte(nil), raw...), store: store}, nil
+	return &Registry{Epoch: g.Epoch, Digest: digest, Proof: append([]byte(nil), raw...), Root: root, store: store}, nil
 }

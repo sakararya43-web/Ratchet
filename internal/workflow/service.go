@@ -307,8 +307,8 @@ func ownersFor(a *policy.Active, result graph.Impact) []string {
 	return out
 }
 func factsFor(ctx context.Context, snapshot *graph.Snapshot, a *policy.Active, c domain.Change, result graph.Impact) policy.Facts {
-	memberships, _ := groups(snapshot, c.Requester)
-	f := policy.Facts{SchemaVersion: 1, GraphVersion: snapshot.Version(), Actor: c.Requester, Operation: "assess", Complete: true, Intent: c.Intent, Reduction: result.MonotonicReduction, Owners: ownersFor(a, result), Impact: result, Responder: a.Authorize(ctx, policy.Facts{Actor: c.Requester, Operation: "reduce", Groups: memberships}) == nil}
+	memberships, err := groups(snapshot, c.Requester)
+	f := policy.Facts{SchemaVersion: 2, GraphVersion: snapshot.Version(), RegistryEpoch: a.RegistryEpoch, RegistryDigest: a.RegistryDigest.String(), Actor: c.Requester, Operation: "assess", Groups: memberships, Complete: err == nil, Intent: c.Intent, Reduction: result.MonotonicReduction, Owners: ownersFor(a, result), Impact: result, Responder: a.Authorize(ctx, policy.Facts{Actor: c.Requester, Operation: "reduce", Groups: memberships}) == nil}
 	for _, n := range result.Weakened {
 		if n.Tier == 0 {
 			f.Tier0Weakening = true
@@ -355,7 +355,7 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return hold(c, now, "policy evaluation unavailable")
 		}
-		envelope := &domain.Envelope{FormatVersion: 1, TenantID: c.TenantID, RequestID: c.ID, Revision: c.Revision + 2, Requester: c.Requester, Intent: c.Intent, GraphVersion: snapshot.Version(), PolicyDigest: a.Hash, ExpiresAt: now.Add(15 * time.Minute), PrivateReference: c.PrivateReference, PrivateDigest: c.PrivateDigest}
+		envelope := &domain.Envelope{FormatVersion: 2, TenantID: c.TenantID, RequestID: c.ID, Revision: c.Revision + 2, Requester: c.Requester, Intent: c.Intent, GraphVersion: snapshot.Version(), PolicyDigest: a.Hash, RegistryEpoch: a.RegistryEpoch, RegistryDigest: a.RegistryDigest, ExpiresAt: now.Add(15 * time.Minute), PrivateReference: c.PrivateReference, PrivateDigest: c.PrivateDigest}
 		envelope.ImpactDigest, err = canon.New().Digest(result)
 		if err != nil {
 			return nil, err
@@ -364,10 +364,11 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return nil, err
 		}
-		replayFacts, err := json.Marshal(struct {
-			Evaluator string       `json:"evaluator"`
-			Input     policy.Facts `json:"input"`
-		}{"opa-1.22.0/ratchet-facts-v1", facts})
+		graphDigest, err := canon.New().Digest(snapshot.Data())
+		if err != nil {
+			return nil, err
+		}
+		replayFacts, err := json.Marshal(recordedFacts{Evaluator: evaluatorVersion, Input: facts, GraphDigest: graphDigest})
 		if err != nil {
 			return nil, err
 		}
@@ -463,7 +464,7 @@ func (s *Service) Approve(ctx context.Context, actor Actor, request string, id u
 		if err != nil {
 			return nil, err
 		}
-		if c.Envelope == nil || c.Digest != expected || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != a.Hash {
+		if c.Envelope == nil || c.Digest != expected || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != a.Hash || c.Envelope.RegistryEpoch != a.RegistryEpoch || c.Envelope.RegistryDigest != a.RegistryDigest {
 			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
 		}
 		result, delta, err := impact(snapshot, c.Intent)
@@ -565,7 +566,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return hold(c, now, "verified policy unavailable before dispatch")
 		}
-		if c.Envelope == nil || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != a.Hash || !now.Before(c.Envelope.ExpiresAt) {
+		if c.Envelope == nil || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != a.Hash || c.Envelope.RegistryEpoch != a.RegistryEpoch || c.Envelope.RegistryDigest != a.RegistryDigest || !now.Before(c.Envelope.ExpiresAt) {
 			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
 		}
 		result, delta, err := impact(snapshot, c.Intent)

@@ -16,6 +16,9 @@ import (
 )
 
 func governed(t *testing.T) (*trust.Store, ports.Digest, []*ecdsa.PrivateKey, []trust.AuthorityMember) {
+	return governedTenant(t, "tenant")
+}
+func governedTenant(t *testing.T, tenant string) (*trust.Store, ports.Digest, []*ecdsa.PrivateKey, []trust.AuthorityMember) {
 	t.Helper()
 	store, err := trust.NewStore("")
 	if err != nil {
@@ -35,7 +38,7 @@ func governed(t *testing.T) (*trust.Store, ports.Digest, []*ecdsa.PrivateKey, []
 		keys = append(keys, key)
 		members = append(members, trust.AuthorityMember{ActorID: id, PublicKey: pub, IsActive: true})
 	}
-	g, err := store.InitGenesis("tenant", 2, 2, members[:2])
+	g, err := store.InitGenesis(tenant, 2, 2, members[:2])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,11 +46,15 @@ func governed(t *testing.T) (*trust.Store, ports.Digest, []*ecdsa.PrivateKey, []
 }
 func rotation(t *testing.T, store *trust.Store, keys []*ecdsa.PrivateKey, members []trust.AuthorityMember) {
 	t.Helper()
-	p, err := store.ProposeRegistryChange("tenant", 1, 1, members[2:])
+	g, err := store.GetGenesis()
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest := trust.ComputeRegistrySigningDigest("tenant", 1, 2, p.ProposalDigest)
+	p, err := store.ProposeRegistryChange(g.TenantID, 1, 1, members[2:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := trust.ComputeRegistrySigningDigest(g.TenantID, 1, 2, p.ProposalDigest)
 	for i := range 2 {
 		sig, err := ecdsa.SignASN1(rand.Reader, keys[i], digest[:])
 		if err != nil {

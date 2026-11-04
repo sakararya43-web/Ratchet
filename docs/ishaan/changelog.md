@@ -11,6 +11,16 @@
 
 ## Phase 3 — in progress (2026-11-05)
 
+- Approval envelope v2 binds registry epoch/digest. Assessment facts v2 bind the
+  exact public graph digest and actor memberships. Historical graph reconstruction
+  verifies the complete contiguous tenant prefix and uses no private display data.
+- Deterministic replay verifies a pinned assessment hash, the independently
+  pinned genesis, historical registry signatures, signed bundle, graph/impact,
+  derived facts and final decision. Tampered graph/policy/root/event/proof fail;
+  later context updates do not rewrite the original assessment.
+- Actual database tests prove old signed-bundle rollback refusal, verified
+  rotation invalidation, durable restart floors and offline last-valid restore.
+
 The user explicitly authorized Phase 3 and sequential continuation through later
 phases. Phase 2's actual peer passkey/transport/precondition exit gates remain
 open; no runtime substitute or ownership exception is introduced.

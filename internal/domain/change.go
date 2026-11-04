@@ -106,6 +106,8 @@ type Envelope struct {
 	GraphVersion     int64        `json:"graph_version"`
 	ImpactDigest     ports.Digest `json:"impact_digest"`
 	PolicyDigest     ports.Digest `json:"policy_bundle_hash"`
+	RegistryEpoch    int64        `json:"registry_epoch,omitempty"`
+	RegistryDigest   ports.Digest `json:"registry_digest,omitempty"`
 	ExpiresAt        time.Time    `json:"expires_at"`
 	PrivateReference string       `json:"private_record_reference"`
 	PrivateDigest    ports.Digest `json:"private_content_digest"`

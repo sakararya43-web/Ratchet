@@ -24,6 +24,8 @@ var ErrInvalid = errors.New("invalid verified policy")
 type Facts struct {
 	SchemaVersion  int           `json:"schema_version"`
 	GraphVersion   int64         `json:"graph_version"`
+	RegistryEpoch  int64         `json:"registry_epoch,omitempty"`
+	RegistryDigest string        `json:"registry_digest,omitempty"`
 	Actor          string        `json:"actor"`
 	Operation      string        `json:"operation"`
 	Groups         []string      `json:"actor_groups"`
@@ -42,6 +44,7 @@ type Active struct {
 	RegistryEpoch  int64
 	RegistryDigest ports.Digest
 	TrustProof     []byte
+	Root           ports.Digest
 	change, auth   rego.PreparedEvalQuery
 	data           map[string]any
 }
@@ -146,7 +149,7 @@ func prepareRegistry(ctx context.Context, registry *Registry, tenant string, raw
 	if err != nil {
 		return nil, fmt.Errorf("%w: authorization query cannot compile", ErrInvalid)
 	}
-	candidate := &Active{Hash: verified.BundleDigest, Version: verified.BundleVersion, RegistryEpoch: registry.Epoch, RegistryDigest: registry.Digest, TrustProof: append([]byte(nil), registry.Proof...), change: change, auth: auth, data: verified.Data}
+	candidate := &Active{Hash: verified.BundleDigest, Version: verified.BundleVersion, RegistryEpoch: registry.Epoch, RegistryDigest: registry.Digest, TrustProof: append([]byte(nil), registry.Proof...), Root: registry.Root, change: change, auth: auth, data: verified.Data}
 	if _, err := candidate.Decision(ctx, Facts{SchemaVersion: 1}); err != nil {
 		return nil, fmt.Errorf("%w: required structured decision query unavailable", ErrInvalid)
 	}

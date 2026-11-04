@@ -120,6 +120,20 @@ Only Phase 1 work is in progress. No later phase has started.
   ordered outbox behind an oversized event. A real PostgreSQL regression proves
   failed oversized appends leave no event, outbox item or consumed chain position.
 
+### Executable peer conformance
+
+- Added a reusable snapshot/model validator and a separate `peerintegration`
+  suite that boots the actual peer simulator and calls its actual HTTP adapter.
+  Default core tests do not require importing unavailable peer implementations.
+- The isolated combined run against `origin/sakar` at `9662c46` fails five
+  genuine acceptance checks: completeness/envelope, declared safeguard semantics,
+  dangling permission targets (`policy`, `audit`, `iam`), all three omitted target
+  sessions and missing grant identities. No expected-failure assertion hides this.
+- Peer-owned CLI transport still logs sync messages instead of publishing them.
+  Live connector-to-core D3 acceptance and joint fixture review remain pending.
+- Updated policy-fact candidates to include removed powers on role revocation.
+  Fixture updates still require joint review; no policy decision is hardcoded.
+
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance

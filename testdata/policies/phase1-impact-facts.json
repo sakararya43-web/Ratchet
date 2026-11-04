@@ -144,6 +144,16 @@
             "new_resources": [],
             "new_controlled_identities": [],
             "new_powers": [],
+            "removed_powers": [
+              {
+                "node_id": "res:daily-exchange-ledger",
+                "action": "read"
+              },
+              {
+                "node_id": "res:finance-reports",
+                "action": "read"
+              }
+            ],
             "new_tier0_routes": [],
             "safeguards_weakened": [],
             "blast_radius_delta": {

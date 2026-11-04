@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -125,6 +126,32 @@ func (s *Sessions) Routes() http.Handler {
 	mux.Handle("POST /logout", s.Require(http.HandlerFunc(s.logout)))
 	return mux
 }
+func (s *Sessions) allowLogin(remote string, now time.Time) bool {
+	address, _, err := net.SplitHostPort(remote)
+	if err != nil {
+		address = remote
+	}
+	bucket := sha256.Sum256([]byte(address))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.attempts[bucket]; !exists && len(s.attempts) >= 10000 {
+		for k, v := range s.attempts {
+			if now.Sub(v.at) > time.Minute {
+				delete(s.attempts, k)
+			}
+		}
+		if len(s.attempts) >= 10000 {
+			return false
+		}
+	}
+	entry := s.attempts[bucket]
+	if now.Sub(entry.at) > time.Minute {
+		entry = rateEntry{at: now}
+	}
+	entry.count++
+	s.attempts[bucket] = entry
+	return entry.count <= 5
+}
 func (s *Sessions) login(w http.ResponseWriter, r *http.Request) {
 	if r.TLS == nil || r.Header.Get("Origin") != s.origin {
 		http.Error(w, "same-origin HTTPS required", http.StatusForbidden)
@@ -132,26 +159,7 @@ func (s *Sessions) login(w http.ResponseWriter, r *http.Request) {
 	}
 	// Bound both online guessing and concurrent Argon2 memory use. No passwords
 	// or bearer tokens appear in the rate-limit map or log output.
-	address := strings.Split(r.RemoteAddr, ":")[0]
-	bucket := sha256.Sum256([]byte(address))
-	s.mu.Lock()
-	entry := s.attempts[bucket]
-	now := time.Now()
-	if now.Sub(entry.at) > time.Minute {
-		entry = rateEntry{at: now}
-	}
-	entry.count++
-	s.attempts[bucket] = entry
-	if len(s.attempts) > 10000 {
-		for k, v := range s.attempts {
-			if now.Sub(v.at) > time.Minute {
-				delete(s.attempts, k)
-			}
-		}
-	}
-	refused := entry.count > 5 || len(s.attempts) > 10000
-	s.mu.Unlock()
-	if refused {
+	if !s.allowLogin(r.RemoteAddr, time.Now()) {
 		http.Error(w, "login rate limit", http.StatusTooManyRequests)
 		return
 	}

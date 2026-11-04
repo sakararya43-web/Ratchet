@@ -14,6 +14,11 @@
 The user explicitly authorized the next phase after Phase 1's core handoff.
 Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 
+- Keep the login limiter at a strict 10,000 peer buckets even under unknown-peer
+  traffic; expired buckets recover capacity. Parse IPv6 peer addresses correctly
+  while keeping a single host's source ports in the same bucket. Bounds and IPv6
+  independence regressions pass, including Linux race execution.
+
 - Persist another delayed read-only probe whenever reconciliation finds an
   execution still pending. Losing a verification reply no longer ends recovery;
   terminal state stops subsequent probes. The real-job test checks a scheduled

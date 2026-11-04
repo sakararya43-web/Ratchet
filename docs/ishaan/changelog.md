@@ -9,12 +9,12 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Phase 1 — in progress (2026-11-04)
+## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 
 The user explicitly authorized starting the next phase after the Phase 0 handoff.
 This supersedes the instruction to wait before starting Phase 1; it does not
 constitute Sakar's approval or resolve the recorded peer audit test failure.
-Only Phase 1 work is in progress. No later phase has started.
+Only Phase 1 work is authorized by this execution record. No later phase has started.
 
 ### Scope and live integration observations
 
@@ -133,6 +133,20 @@ Only Phase 1 work is in progress. No later phase has started.
   Live connector-to-core D3 acceptance and joint fixture review remain pending.
 - Updated policy-fact candidates to include removed powers on role revocation.
   Fixture updates still require joint review; no policy decision is hardcoded.
+
+### CI and final checks
+
+- Extended core CI to vet all present packages, lint graph/bus/conformance,
+  run the full real-dependency race suite and fix the independent reference seed.
+  Actual adapter conformance runs when the peer simulator source is integrated.
+- Marked directly imported NATS and Rapid dependencies correctly; retained the
+  peer's existing dependency set for the combined build.
+- Final real-dependency Linux race suite passes. Scoped lint reports zero issues;
+  module verification and the new-process append/retry/read/chain/readiness smoke
+  pass. Contract compatibility and regeneration checks pass without generated diff.
+- The corrected combined-source race run passes core and peer packages except
+  the same four previously reproduced peer historical-credential audit failures.
+  Tagged actual-adapter conformance fails separately and remains an explicit gate.
 
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 

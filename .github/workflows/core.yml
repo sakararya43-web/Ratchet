@@ -56,13 +56,13 @@ jobs:
       - name: Verify modules and core code
         run: |
           go mod verify
-          go vet ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./proto/...
+          go vet ./...
           go test -race ./...
       - name: Core lint
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
-          args: --config .golangci-core.yml ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/...
+          args: --config .golangci-core.yml ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./internal/graph/... ./internal/bus/... ./internal/connector/conformance/...
       - name: Start real local dependencies
         shell: pwsh
         run: ./scripts/core-env.ps1
@@ -72,10 +72,16 @@ jobs:
         shell: pwsh
         run: |
           . ./scripts/core-env-load.ps1
-          go test -race -tags=integration -count=1 -timeout=3m ./internal/eventstore/...
+          $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
+          go test -race -tags=integration -count=1 -timeout=3m ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: New-process persistence and readiness smoke
         run: sh scripts/core-smoke.sh
+      - name: Independent graph reference regression
+        run: go test ./internal/graph -count=1 -rapid.seed=20261104 -rapid.checks=200
+      - name: Actual connector conformance when peer code is integrated
+        if: ${{ hashFiles('cmd/ratchet-sim/domain/model.go') != '' }}
+        run: go test -race -tags=peerintegration -count=1 ./internal/connector/conformance
       - name: Dependency diagnostics on failure
         if: failure()
         run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml logs --no-color --tail=100

@@ -3,6 +3,8 @@ package workflow
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +36,7 @@ type Service struct {
 	jobs       *river.Client[pgx.Tx]
 	approvals  ports.ApprovalVerifier
 	executions map[string]*Execution
+	tenants    map[string]bool
 }
 type JobArgs struct {
 	Tenant    string `json:"tenant_id"`
@@ -50,6 +53,9 @@ type worker struct {
 }
 
 func (w *worker) Work(ctx context.Context, j *river.Job[JobArgs]) error {
+	if !w.service.tenants[j.Args.Tenant] {
+		return river.JobCancel(ErrPermission)
+	}
 	if j.Args.Operation == "assess" {
 		return w.service.Assess(ctx, j.Args)
 	}
@@ -61,20 +67,28 @@ func (w *worker) Work(ctx context.Context, j *river.Job[JobArgs]) error {
 	}
 	return river.JobCancel(domain.ErrInvalid)
 }
-func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, execution ...*Execution) (*Service, error) {
-	if pool == nil || store == nil || policies == nil || len(key) != 32 {
+func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, tenants []string, execution ...*Execution) (*Service, error) {
+	if pool == nil || store == nil || policies == nil || len(key) != 32 || len(tenants) == 0 {
 		return nil, domain.ErrInvalid
 	}
-	s := &Service{Store: store, Policies: policies, key: append([]byte(nil), key...), approvals: approvals, executions: map[string]*Execution{}}
+	s := &Service{Store: store, Policies: policies, key: append([]byte(nil), key...), approvals: approvals, executions: map[string]*Execution{}, tenants: map[string]bool{}}
+	queues := map[string]river.QueueConfig{}
+	for _, tenant := range tenants {
+		if tenant == "" || s.tenants[tenant] {
+			return nil, domain.ErrInvalid
+		}
+		s.tenants[tenant] = true
+		queues[tenantQueue(tenant)] = river.QueueConfig{MaxWorkers: 4}
+	}
 	for _, e := range execution {
-		if e == nil || s.executions[e.Tenant] != nil {
+		if e == nil || s.executions[e.Tenant] != nil || !s.tenants[e.Tenant] {
 			return nil, domain.ErrInvalid
 		}
 		s.executions[e.Tenant] = e
 	}
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &worker{service: s})
-	jobs, err := river.NewClient(riverpgxv5.New(pool), &river.Config{Schema: "ratchet_jobs", Workers: workers, Queues: map[string]river.QueueConfig{"core": {MaxWorkers: 4}}})
+	jobs, err := river.NewClient(riverpgxv5.New(pool), &river.Config{Schema: "ratchet_jobs", Workers: workers, Queues: queues})
 	if err != nil {
 		return nil, err
 	}
@@ -83,15 +97,22 @@ func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, k
 }
 func (s *Service) Start(ctx context.Context) error { return s.jobs.Start(ctx) }
 func (s *Service) Ready(context.Context) error {
-	if s.approvals == nil || len(s.executions) == 0 {
+	if s.approvals == nil || len(s.executions) != len(s.tenants) {
 		return ErrDependency
 	}
 	return nil
 }
 func (s *Service) Stop(ctx context.Context) error { return s.jobs.Stop(ctx) }
 func (s *Service) enqueue(ctx context.Context, tx pgx.Tx, args JobArgs) error {
-	_, err := s.jobs.InsertTx(ctx, tx, args, &river.InsertOpts{Queue: "core", MaxAttempts: 10, UniqueOpts: river.UniqueOpts{ByArgs: true}})
+	if !s.tenants[args.Tenant] {
+		return ErrPermission
+	}
+	_, err := s.jobs.InsertTx(ctx, tx, args, &river.InsertOpts{Queue: tenantQueue(args.Tenant), MaxAttempts: 10, UniqueOpts: river.UniqueOpts{ByArgs: true}})
 	return err
+}
+func tenantQueue(tenant string) string {
+	hash := sha256.Sum256([]byte(tenant))
+	return "r_" + hex.EncodeToString(hash[:24])
 }
 func groups(snapshot *graph.Snapshot, actor string) ([]string, error) {
 	n, err := snapshot.Node(actor)
@@ -125,6 +146,9 @@ func (s *Service) active(ctx context.Context, tx pgx.Tx, tenant string) (*policy
 	return a, nil
 }
 func (s *Service) context(ctx context.Context, tx pgx.Tx, actor Actor, operation string, owners []string) (*graph.Snapshot, *policy.Active, error) {
+	if !s.tenants[actor.TenantID] {
+		return nil, nil, ErrPermission
+	}
 	snapshot, err := s.Store.GraphWithin(ctx, tx, actor.TenantID, s.key)
 	if err != nil {
 		return nil, nil, err
@@ -151,6 +175,7 @@ type Submit struct {
 	Justification   string
 	CommandID       uuid.UUID
 	MinGraphVersion int64
+	CorrelationID   string
 }
 
 func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain.Change, error) {
@@ -158,6 +183,15 @@ func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain
 		return domain.Change{}, err
 	}
 	if len(strings.TrimSpace(input.Justification)) < 10 || len(input.Justification) > 4000 || input.CommandID == uuid.Nil {
+		return domain.Change{}, domain.ErrInvalid
+	}
+	if input.MinGraphVersion < 0 || input.MinGraphVersion > 1<<53-1 {
+		return domain.Change{}, domain.ErrInvalid
+	}
+	if input.CorrelationID == "" {
+		input.CorrelationID = input.CommandID.String()
+	}
+	if id, err := uuid.Parse(input.CorrelationID); err != nil || id == uuid.Nil {
 		return domain.Change{}, domain.ErrInvalid
 	}
 	privateDigest, err := canon.New().Digest(struct {
@@ -173,10 +207,12 @@ func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain
 		return domain.Change{}, err
 	}
 	digest, err := canon.New().Digest(struct {
-		Actor         Actor
-		Intent        domain.Intent
-		PrivateDigest ports.Digest
-	}{actor, input.Intent, privateDigest})
+		Actor           Actor
+		Intent          domain.Intent
+		PrivateDigest   ports.Digest
+		MinGraphVersion int64
+		CorrelationID   string
+	}{actor, input.Intent, privateDigest, input.MinGraphVersion, input.CorrelationID})
 	if err != nil {
 		return domain.Change{}, err
 	}
@@ -201,7 +237,7 @@ func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain
 				return nil, err
 			}
 		}
-		events, err := domain.Decide(current, domain.Command{Kind: "SUBMIT", At: now, Submission: &domain.Change{ID: requestID, TenantID: actor.TenantID, Requester: actor.ID, Intent: input.Intent, PrivateReference: private.ID.String(), PrivateDigest: privateDigest}})
+		events, err := domain.Decide(current, domain.Command{Kind: "SUBMIT", At: now, Submission: &domain.Change{ID: requestID, CorrelationID: input.CorrelationID, TenantID: actor.TenantID, Requester: actor.ID, Intent: input.Intent, PrivateReference: private.ID.String(), PrivateDigest: privateDigest}})
 		if err != nil {
 			return nil, err
 		}
@@ -572,7 +608,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return nil, err
 		}
-		_, err = s.jobs.InsertTx(ctx, tx, JobArgs{c.TenantID, c.ID, c.Revision + 1, "reconcile"}, &river.InsertOpts{Queue: "core", ScheduledAt: now.Add(20 * time.Second), MaxAttempts: 10, UniqueOpts: river.UniqueOpts{ByArgs: true}})
+		_, err = s.jobs.InsertTx(ctx, tx, JobArgs{c.TenantID, c.ID, c.Revision + 1, "reconcile"}, &river.InsertOpts{Queue: tenantQueue(c.TenantID), ScheduledAt: now.Add(20 * time.Second), MaxAttempts: 10, UniqueOpts: river.UniqueOpts{ByArgs: true}})
 		return events, err
 	})
 	if errors.Is(err, eventstore.ErrVersionConflict) {

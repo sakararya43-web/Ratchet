@@ -119,6 +119,7 @@ type Approval struct {
 }
 type Change struct {
 	ID               string          `json:"request_id"`
+	CorrelationID    string          `json:"correlation_id,omitempty"`
 	TenantID         string          `json:"tenant_id"`
 	Requester        string          `json:"requester"`
 	Intent           Intent          `json:"intent"`

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/sakararya43-web/Ratchet/internal/domain"
 )
 
 func (s *Service) Position(ctx context.Context, actor Actor, request string) (int64, error) {
@@ -17,6 +18,50 @@ func (s *Service) Position(ctx context.Context, actor Actor, request string) (in
 		return tx.QueryRow(ctx, `SELECT event_position FROM ratchet.change_projection WHERE tenant_id=$1 AND request_id=$2::uuid`, actor.TenantID, request).Scan(&position)
 	})
 	return position, err
+}
+
+func (s *Service) Attention(ctx context.Context, actor Actor) ([]domain.Change, bool, error) {
+	result := []domain.Change{}
+	truncated := false
+	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, _ time.Time) error {
+		if _, _, err := s.context(ctx, tx, actor, "view", nil); err != nil {
+			return err
+		}
+		// Filter before the limit so historical executions cannot hide pending work.
+		rows, err := tx.Query(ctx, `SELECT request_id::text FROM ratchet.change_projection WHERE tenant_id=$1 AND
+ (state IN ('SUBMITTED','ASSESSED','ALLOWED','AWAITING_APPROVAL','HELD','APPROVED','EXECUTING','FAILED') OR (state='REJECTED' AND updated_at>clock_timestamp()-interval '7 days'))
+ ORDER BY CASE state WHEN 'FAILED' THEN 0 WHEN 'HELD' THEN 1 WHEN 'EXECUTING' THEN 2 WHEN 'AWAITING_APPROVAL' THEN 3 WHEN 'REJECTED' THEN 5 ELSE 4 END,updated_at DESC,request_id LIMIT 201`, actor.TenantID)
+		if err != nil {
+			return err
+		}
+		ids := []string{}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			ids = append(ids, id)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		if len(ids) > 200 {
+			ids = ids[:200]
+			truncated = true
+		}
+		for _, id := range ids {
+			c, err := s.Store.ChangeWithin(ctx, tx, actor.TenantID, id)
+			if err != nil {
+				return err
+			}
+			result = append(result, c)
+		}
+		return nil
+	})
+	return result, truncated, err
 }
 
 // Rebuild reconstructs the read model from verified immutable evidence, never

@@ -164,7 +164,7 @@ func waitState(t *testing.T, sys system, id string, state domain.State) domain.C
 }
 func TestRealRiverAssessmentIdempotencyContextAndProjectionRecovery(t *testing.T) {
 	sys := setup(t)
-	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, nil)
+	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, nil, []string{sys.tenant})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,6 +195,16 @@ func TestRealRiverAssessmentIdempotencyContextAndProjectionRecovery(t *testing.T
 	}
 	if id == "" {
 		t.Fatal("no committed request")
+	}
+	changed := input
+	changed.CorrelationID = uuid.NewString()
+	if _, err := service.Submit(sys.ctx, actor, changed); !errors.Is(err, eventstore.ErrIdempotencyConflict) {
+		t.Fatal("idempotency key accepted a different correlation", err)
+	}
+	changed = input
+	changed.MinGraphVersion = 1
+	if _, err := service.Submit(sys.ctx, actor, changed); !errors.Is(err, eventstore.ErrIdempotencyConflict) {
+		t.Fatal("idempotency key accepted different consistency requirements", err)
 	}
 	start(t, service, sys.ctx)
 	c := waitState(t, sys, id, domain.AwaitingApproval)
@@ -343,7 +353,7 @@ func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed2
 		t.Fatal(err)
 	}
 	execution, connectorKey := signCapability(t, sys.tenant)
-	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, verifier, execution)
+	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, execution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +372,12 @@ func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed2
 }
 func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.T) {
 	sys, service, c, connectorKey := readyExecution(t)
-	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, EnvelopeDigest: c.Digest, Success: true}
+	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, CorrelationID: c.CorrelationID, EnvelopeDigest: c.Digest, Success: true}
+	wrongCorrelation := result
+	wrongCorrelation.CorrelationID = uuid.NewString()
+	if err := service.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, wrongCorrelation, connectorKey)); !errors.Is(err, workflow.ErrPermission) {
+		t.Fatal("wrong correlation accepted", err)
+	}
 	if err := service.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, result, connectorKey)); err != nil {
 		t.Fatal(err)
 	}
@@ -388,6 +403,7 @@ func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.
 	}
 	result.MessageID = uuid.NewString()
 	result.ReadBackVerified = true
+	result.AppliedAt = c.UpdatedAt.Add(time.Microsecond)
 	result.ObservedTenant = sys.tenant
 	result.ObservedTarget = "user:requester"
 	result.ObservedRoles = []string{"role:admin"}
@@ -426,7 +442,7 @@ func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.
 
 func TestVerifiedRefusalRecordsFailedWithoutInventingApplication(t *testing.T) {
 	sys, service, c, key := readyExecution(t)
-	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, EnvelopeDigest: c.Digest, Success: false, ReadBackVerified: true, ObservedTenant: sys.tenant, ObservedTarget: c.Intent.Target, ObservedRoles: []string{}, ObservedRevision: 10, ObservedAt: time.Now().UTC()}
+	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, CorrelationID: c.CorrelationID, EnvelopeDigest: c.Digest, Success: false, ReadBackVerified: true, ObservedTenant: sys.tenant, ObservedTarget: c.Intent.Target, ObservedRoles: []string{}, ObservedRevision: 10, ObservedAt: time.Now().UTC()}
 	result.ObservationDigest, _ = canon.New().Digest(struct {
 		Tenant, Target string
 		Roles          []string
@@ -439,5 +455,45 @@ func TestVerifiedRefusalRecordsFailedWithoutInventingApplication(t *testing.T) {
 	failed := waitState(t, sys, c.ID, domain.Failed)
 	if len(failed.Facts) == 0 {
 		t.Fatal("verified refusal evidence lost")
+	}
+}
+
+func TestIndependentWorkerInstancesConsumeOnlyTheirTenantQueues(t *testing.T) {
+	a, b := setup(t), setup(t)
+	first, err := workflow.New(a.pool, a.store, a.engine, a.key, nil, []string{a.tenant})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := workflow.New(b.pool, b.store, b.engine, b.key, nil, []string{b.tenant})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start(t, first, a.ctx)
+	start(t, second, b.ctx)
+	type expected struct {
+		sys system
+		id  string
+	}
+	requests := []expected{}
+	for range 8 {
+		for _, item := range []struct {
+			sys     system
+			service *workflow.Service
+		}{{a, first}, {b, second}} {
+			c, err := item.service.Submit(item.sys.ctx, workflow.Actor{TenantID: item.sys.tenant, ID: "user:requester"}, workflow.Submit{Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: "user:requester", Access: "role:finance"}, Justification: "Independent tenant reporting business request", CommandID: uuid.New()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			requests = append(requests, expected{item.sys, c.ID})
+		}
+	}
+	for _, request := range requests {
+		c := waitState(t, request.sys, request.id, domain.AwaitingApproval)
+		if c.Decision.Quorum != 1 {
+			t.Fatal("foreign worker evaluated tenant policy")
+		}
+	}
+	if err := first.Authorize(a.ctx, workflow.Actor{TenantID: b.tenant, ID: "user:requester"}, "view"); !errors.Is(err, workflow.ErrPermission) {
+		t.Fatal("foreign service tenant accepted", err)
 	}
 }

@@ -153,7 +153,7 @@ func (a *ChangeAPI) SubmitChange(ctx context.Context, r *connect.Request[v1.Subm
 	if err != nil {
 		return nil, changeError(err)
 	}
-	c, err := a.service.Submit(ctx, p, workflow.Submit{Intent: intent, Justification: r.Msg.Justification, CommandID: id, MinGraphVersion: r.Msg.Mutation.MinGraphVersion})
+	c, err := a.service.Submit(ctx, p, workflow.Submit{Intent: intent, Justification: r.Msg.Justification, CommandID: id, MinGraphVersion: r.Msg.Mutation.MinGraphVersion, CorrelationID: r.Msg.Mutation.CorrelationId})
 	if err != nil {
 		return nil, changeError(err)
 	}
@@ -310,7 +310,7 @@ func (a *ChangeAPI) GetAttentionItems(ctx context.Context, r *connect.Request[v1
 	if err != nil {
 		return nil, err
 	}
-	changes, _, _, err := a.service.List(ctx, p, 0, 200, "", 0)
+	changes, truncated, err := a.service.Attention(ctx, p)
 	if err != nil {
 		return nil, changeError(err)
 	}
@@ -327,7 +327,7 @@ func (a *ChangeAPI) GetAttentionItems(ctx context.Context, r *connect.Request[v1
 		response.AttentionItems = append(response.AttentionItems, &v1.AttentionItem{ItemId: c.ID, ItemType: "PENDING_CHANGE", Title: string(c.State) + ": " + c.Intent.Kind, Description: strings.Join(c.Decision.Reasons, "; "), Severity: "review", EntityId: c.ID, CreatedAt: view.CreatedAt})
 	}
 	res := connect.NewResponse(response)
-	if len(changes) == 200 {
+	if truncated {
 		res.Header().Set("X-Ratchet-Truncated", "true")
 	}
 	return res, nil

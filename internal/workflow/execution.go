@@ -65,6 +65,7 @@ type PreparedCommand struct {
 	Connector        string            `json:"connector_id"`
 	CommandID        string            `json:"command_id"`
 	RequestID        string            `json:"request_id"`
+	CorrelationID    string            `json:"correlation_id"`
 	ExpectedRevision int64             `json:"expected_target_revision"`
 	ExpectedRoles    []string          `json:"expected_roles"`
 	BeforeRoles      []string          `json:"before_roles"`
@@ -72,6 +73,7 @@ type PreparedCommand struct {
 	EnvelopeDigest   ports.Digest      `json:"approved_envelope_digest"`
 	Approvals        []domain.Approval `json:"approvals"`
 	Deadline         time.Time         `json:"deadline"`
+	DispatchedAt     time.Time         `json:"dispatched_at"`
 	Signature        []byte            `json:"signature"`
 }
 
@@ -131,6 +133,11 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	roles = slices.Compact(roles)
 	cmd = PreparedCommand{SchemaVersion: 1, Tenant: c.TenantID, Connector: e.Connector, CommandID: id, RequestID: c.ID, ExpectedRevision: revision, ExpectedRoles: roles, Envelope: c.Envelope, EnvelopeDigest: c.Digest, Approvals: c.Approvals, Deadline: c.Envelope.ExpiresAt}
 	cmd.MessageID = id
+	cmd.CorrelationID = c.CorrelationID
+	if cmd.CorrelationID == "" {
+		cmd.CorrelationID = c.ID
+	}
+	cmd.DispatchedAt = now
 	cmd.BeforeRoles = beforeRoles
 	digest, err := signingDigest("RATCHET_EXEC_COMMAND_V1", cmd)
 	if err != nil {
@@ -165,6 +172,7 @@ type ExecutionResult struct {
 	MessageID         string       `json:"message_id"`
 	CommandID         string       `json:"command_id"`
 	RequestID         string       `json:"request_id"`
+	CorrelationID     string       `json:"correlation_id"`
 	EnvelopeDigest    ports.Digest `json:"approved_envelope_digest"`
 	Success           bool         `json:"success"`
 	ReadBackVerified  bool         `json:"read_back_verified"`
@@ -173,6 +181,7 @@ type ExecutionResult struct {
 	ObservedRoles     []string     `json:"observed_roles"`
 	ObservedRevision  int64        `json:"observed_revision"`
 	ObservedAt        time.Time    `json:"observed_at"`
+	AppliedAt         time.Time    `json:"applied_at"`
 	ObservationDigest ports.Digest `json:"observation_digest"`
 	Signature         []byte       `json:"signature"`
 }
@@ -213,7 +222,7 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		if err := json.Unmarshal(commandRaw, &command); err != nil {
 			return nil, err
 		}
-		if c.State != domain.Executing || c.ExecutionID != r.CommandID || r.RequestID != command.RequestID || r.EnvelopeDigest != command.EnvelopeDigest {
+		if c.State != domain.Executing || c.ExecutionID != r.CommandID || r.RequestID != command.RequestID || r.CorrelationID != command.CorrelationID || r.EnvelopeDigest != command.EnvelopeDigest {
 			return nil, ErrPermission
 		}
 		// Uncertain application stays EXECUTING for reconciliation. It is never
@@ -244,11 +253,11 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		if err != nil {
 			return nil, err
 		}
-		if r.ObservedTenant != tenant || r.ObservedTarget != c.Intent.Target || r.ObservedAt.Before(c.UpdatedAt) || r.ObservedAt.After(now.Add(time.Minute)) || r.ObservedAt.After(command.Deadline) || observedDigest != r.ObservationDigest {
+		if r.ObservedTenant != tenant || r.ObservedTarget != c.Intent.Target || r.ObservedAt.Before(command.DispatchedAt) || r.ObservedAt.After(now.Add(time.Minute)) || observedDigest != r.ObservationDigest {
 			return nil, ErrPermission
 		}
 		if !r.Success {
-			if r.ObservedRevision != command.ExpectedRevision || !slices.Equal(roles, command.BeforeRoles) {
+			if !r.AppliedAt.IsZero() || r.ObservedRevision != command.ExpectedRevision || !slices.Equal(roles, command.BeforeRoles) {
 				return nil, ErrPermission
 			}
 			events, err := domain.Decide(c, domain.Command{Kind: "EXECUTION_FAILED", At: now, ExecutionID: r.CommandID, Reason: "connector refused change; unchanged state independently observed"})
@@ -262,7 +271,7 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 			events[0].Change.Facts = facts
 			return events, nil
 		}
-		if r.ObservedRevision != command.ExpectedRevision+1 || !slices.Equal(roles, command.ExpectedRoles) {
+		if !applicationTimeValid(command, r) || r.ObservedRevision != command.ExpectedRevision+1 || !slices.Equal(roles, command.ExpectedRoles) {
 			return nil, ErrPermission
 		}
 		events, err := domain.Decide(c, domain.Command{Kind: "VERIFIED", At: now, ExecutionID: r.CommandID, Verified: true})
@@ -280,6 +289,10 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		return ErrDependency
 	}
 	return err
+}
+
+func applicationTimeValid(command PreparedCommand, result ExecutionResult) bool {
+	return !result.AppliedAt.IsZero() && !result.AppliedAt.Before(command.DispatchedAt) && !result.AppliedAt.After(command.Deadline) && !result.AppliedAt.After(result.ObservedAt)
 }
 
 func (s *Service) Reconcile(ctx context.Context, args JobArgs) error {

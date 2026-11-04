@@ -14,6 +14,20 @@
 The user explicitly authorized the next phase after Phase 1's core handoff.
 Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 
+- Isolated River workers and job insertion to explicitly configured tenant queues.
+  Schema version 5 migrates existing jobs from the shared queue; old workers must
+  stop before migration. A real two-instance regression verifies independent
+  assessment and rejects cross-tenant authorization.
+- Recover configured graphs before starting workers; an incorrect existing graph
+  decryption key now refuses startup. Attention projections filter before their
+  limit, so completed history cannot hide pending requests.
+- Bind submission consistency requirements and correlation IDs to idempotency;
+  preserve correlation in signed commands/results and reject mismatched evidence.
+  Record dispatch/application time separately so delayed reconciliation can prove
+  an on-time application without admitting a late write.
+- Native PostgreSQL/River/TLS acceptance passes for workflow, policy, storage,
+  console and sessions after these fixes. Scoped lint reports zero issues.
+
 - Added a pure event-producing change state machine covering submission,
   assessment, approval, holds/reassessment, rejection, execution, failure, expiry
   and verified revocation. Distinct-human/credential counting, context invalidation

@@ -3,6 +3,7 @@ package workflow
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
@@ -41,5 +42,22 @@ func TestBasicApprovalIndependenceUsesBeforeAndProposedControl(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestLateReadbackCanProveTimelyApplication(t *testing.T) {
+	start := time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)
+	command := PreparedCommand{DispatchedAt: start, Deadline: start.Add(time.Minute)}
+	result := ExecutionResult{AppliedAt: start.Add(time.Second), ObservedAt: start.Add(2 * time.Minute)}
+	if !applicationTimeValid(command, result) {
+		t.Fatal("timely application rejected because reconciliation was late")
+	}
+	result.AppliedAt = start.Add(90 * time.Second)
+	if applicationTimeValid(command, result) {
+		t.Fatal("late application accepted")
+	}
+	result.AppliedAt = time.Time{}
+	if applicationTimeValid(command, result) {
+		t.Fatal("unproved application time accepted")
 	}
 }

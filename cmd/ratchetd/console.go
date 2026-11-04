@@ -162,9 +162,25 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	if len(tenants) == 0 {
 		return errors.New("at least one tenant required")
 	}
+	for tenant := range tenants {
+		snapshot, err := store.CurrentGraph(parent, tenant, graphKey)
+		if errors.Is(err, graph.ErrUnavailable) || errors.Is(err, eventstore.ErrResyncRequired) {
+			continue
+		}
+		if err != nil {
+			return errors.New("configured tenant graph cannot be recovered with this key")
+		}
+		if err := registry.Publish(tenant, snapshot); err != nil {
+			return err
+		}
+	}
 	// The actual peer factory fails the documented session/origin conformance.
 	// No flag can enable it. Passkey routes remain absent until the peer fixes it.
-	service, err := workflow.New(pool, store, engine, graphKey, nil)
+	tenantIDs := []string{}
+	for tenant := range tenants {
+		tenantIDs = append(tenantIDs, tenant)
+	}
+	service, err := workflow.New(pool, store, engine, graphKey, nil, tenantIDs)
 	if err != nil {
 		return err
 	}

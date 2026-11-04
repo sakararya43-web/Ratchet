@@ -3,10 +3,13 @@
 Prepared 2026-11-04. Ishaan's code is on `main`; Sakar's branch remains untouched
 at `9662c4692d583332a669d34ccf6eb23afee6df80`.
 
-Status: core implementation and local acceptance evidence are delivered.
-**Joint contract approval is outstanding. Phase 0 is not signed off, and Phase 1
-has not started.** This file proposes the agreement; it does not represent
-Sakar's approval.
+Status at the original handoff: core implementation and local acceptance evidence
+were delivered. **Joint contract approval was outstanding, Phase 0 was not signed
+off and Phase 1 had not started.** This file proposes the agreement; it does not represent
+Sakar's approval. Subsequent update: the user explicitly authorized Phase 1 despite
+these outstanding gates. Its core implementation and remaining acceptance work
+are recorded in [Phase 1 handoff](phase-1-handoff.md); this paragraph preserves
+the original Phase 0 signoff status.
 
 ## Proposed shared agreement
 

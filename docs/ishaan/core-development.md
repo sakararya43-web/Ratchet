@@ -1,7 +1,8 @@
 # Phase 0 core development
 
-This is a real PostgreSQL-backed evidence operation. It does not grant access or
-expose the future change/graph services. Their schemas are declarations only.
+This page describes the Phase 0 PostgreSQL-backed evidence operation. Phase 1
+now adds actual graph/impact services; see [its runtime handoff](phase-1-handoff.md).
+Change, approval and execution workflows remain later work.
 All work stays on `main`. See `changelog.md` before continuing the next phase.
 
 ## Local acceptance on Windows
@@ -28,8 +29,9 @@ The generated `.local/core.env` is private, ignored and must stay with the volum
 Existing credentials are never overwritten. The default PostgreSQL port is 55434;
 set `RATCHET_POSTGRES_PORT` in that file before starting if it is occupied.
 NATS listens on localhost port 54222 with JetStream and a persistent data volume.
-This Phase 0 bus is local infrastructure only; it accepts no target credentials
-and provides no production tenant-authenticated transport yet.
+The Phase 1 runtime authenticates connector input with pinned Ed25519 keys and
+requires mutual TLS for graph readers. Local Compose remains development
+infrastructure; remote broker use requires TLS and credentials.
 
 `ratchet_migrator` owns core schema objects but is neither superuser nor a
 BYPASSRLS role. `ratchet_runtime` cannot rewrite/truncate events, receipts or

@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 1 in progress on `main`, explicitly authorized by the user after the Phase 0 handoff. Outstanding joint-review items remain recorded in [Ishaan changelog](docs/ishaan/changelog.md). No later phase has started.
+**Status:** Phase 1 core implemented on `main`; actual peer-connector acceptance and shared review remain pending. See [Phase 1 handoff](docs/ishaan/phase-1-handoff.md) and [Ishaan changelog](docs/ishaan/changelog.md). No later phase has started.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -82,9 +82,11 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 privacy separation, role restrictions, process operations and local checks are
 implemented. Contract freeze/agreement remains pending peer review. The isolated
 combined test run also reproduces an existing peer audit-fixture failure on
-untouched `origin/sakar`. Do not sign off Phase 0 or start Phase 1 until the
-[handoff gates](docs/ishaan/phase-0-handoff.md) are resolved. The user's instruction
-overrides the topic-branch rule: all Ishaan changes are committed on `main` only.
+untouched `origin/sakar`. Phase 0 remains unsigned until the
+[handoff gates](docs/ishaan/phase-0-handoff.md) are resolved. The user subsequently
+explicitly authorized starting Phase 1 with these joint gates outstanding; this
+does not imply peer approval. The user's instruction overrides the topic-branch
+rule: all Ishaan changes are committed on `main` only.
 
 ### Ishaan's work
 
@@ -110,18 +112,26 @@ overrides the topic-branch rule: all Ishaan changes are committed on `main` only
 
 **Requirements:** FR-G1-G5, FR-G7, FR-I1; core API support for FR-G6 and FR-I2.
 
+**Execution record (2026-11-04):** Core operations and verification are implemented
+without runtime fakes. Real PostgreSQL/JetStream/TLS acceptance passes. Shared
+fixtures remain review candidates and the actual peer adapter fails five
+conformance checks; its executable also lacks actual NATS publication. The
+[handoff](docs/ishaan/phase-1-handoff.md) records exact evidence and owner actions.
+Phase 1 is not signed off and Phase 2 has not started. The first 100k-edge impact
+baseline is 1.38 s/op; the 100 ms target remains unmet and is scheduled for Phase 5.
+
 ### Ishaan's work
 
-- [ ] Implement the outbox-to-JetStream relay with durable acknowledgement, stable message IDs, retry/backoff and observable backlog. Mark delivery only after acknowledgement; tolerate replay. Exactly-once business effects come from durable idempotency, not a claim of exactly-once transport.
-- [ ] Implement ingestion authorization and consumers for actual connector snapshots/deltas. Deduplicate input, check source ordering, reject cross-tenant or malformed data, and atomically expose a completed snapshot. Detect gaps and request/respect resync rather than silently dropping edges.
-- [ ] Build the typed graph for humans, service accounts, groups, roles, permissions, resources, safeguards, sessions and credentials. Preserve access provenance and resource tiers 0-3.
-- [ ] Implement takeover inheritance, role-modification self-grant semantics and safeguard-protection semantics. `ControlSet` must account for control powers acquired through memberships and roles, not only directly attached takeover edges. Handle cycles and transitive control safely.
-- [ ] Implement immutable CSR snapshots, delta application and isolated proposed-change overlays. Publish versions atomically; one query cannot mix graph generations. Version results from their applied event position.
-- [ ] Deliver `Reach`, `PathsTo`, `ControlSet` and `ImpactDiff`. Analyze every identity affected by the change, including identities other than the requester. Return new resources, controllable identities, tier-0 paths, weakened safeguards and blast-radius changes by tier.
-- [ ] Implement `GraphService` node details, focused neighborhoods, provenance and bounded/paginated paths; implement draft-only `ImpactService`. Simulation must not submit a request, publish an execution command, mutate target state or advance the graph.
-- [ ] Support bounded `min_version` waits and explicit stale/unavailable responses. Do not make an escalation decision against a replica known to be behind the required revision.
+- [x] Implement the outbox-to-JetStream relay with durable acknowledgement, stable message IDs, retry/backoff and observable backlog. Mark delivery only after acknowledgement; tolerate replay. Exactly-once business effects come from durable idempotency, not a claim of exactly-once transport.
+- [x] Implement ingestion authorization and consumers for actual connector snapshots/deltas. Deduplicate input, check source ordering, reject cross-tenant or malformed data, and atomically expose a completed snapshot. Detect gaps and request/respect resync rather than silently dropping edges.
+- [x] Build the typed graph for humans, service accounts, groups, roles, permissions, resources, safeguards, sessions and credentials. Preserve access provenance and resource tiers 0-3.
+- [x] Implement takeover inheritance, role-modification self-grant semantics and safeguard-protection semantics. `ControlSet` must account for control powers acquired through memberships and roles, not only directly attached takeover edges. Handle cycles and transitive control safely.
+- [x] Implement immutable CSR snapshots, delta application and isolated proposed-change overlays. Publish versions atomically; one query cannot mix graph generations. Version results from their applied event position.
+- [x] Deliver `Reach`, `PathsTo`, `ControlSet` and `ImpactDiff`. Analyze every identity affected by the change, including identities other than the requester. Return new resources, controllable identities, tier-0 paths, weakened safeguards and blast-radius changes by tier.
+- [x] Implement `GraphService` node details, focused neighborhoods, provenance and bounded/paginated paths; implement draft-only `ImpactService`. Simulation must not submit a request, publish an execution command, mutate target state or advance the graph.
+- [x] Support bounded `min_version` waits and explicit stale/unavailable responses. Do not make an escalation decision against a replica known to be behind the required revision.
 - [ ] Produce reviewed expected impact fixtures from the real seeded exchange and policy fact inputs. Keep fixture updates in shared PRs.
-- [ ] Extend connector conformance coverage for sync, snapshot completeness, duplicate messages, delta gaps, tenant isolation and reconnect/replay.
+- [x] Extend connector conformance coverage for sync, snapshot completeness, duplicate messages, delta gaps, tenant isolation and reconnect/replay.
 
 **Verification:** Compare optimized queries with an independent test-only reference traversal on random cyclic organizations. Include indirect role administration, service-account takeover, missing nodes, multi-identity impact and concurrent simulations. Record a first reproducible 100k-edge benchmark with dataset seed and hardware.
 

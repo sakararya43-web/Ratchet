@@ -147,6 +147,10 @@ Only Phase 1 work is authorized by this execution record. No later phase has sta
 - The corrected combined-source race run passes core and peer packages except
   the same four previously reproduced peer historical-credential audit failures.
   Tagged actual-adapter conformance fails separately and remains an explicit gate.
+- Updated the implementation checklist and [Phase 1 handoff](phase-1-handoff.md)
+  with runtime configuration, signing bytes, supported semantics, bounds, measured
+  performance and exact peer fixes. Shared approval and live D3 are still open;
+  no subsequent phase or Sakar-owned implementation was started or changed.
 
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 

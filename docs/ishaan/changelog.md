@@ -80,6 +80,12 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
   RLS prevents cross-tenant reads/writes; elevated migration credentials fail
   the runtime role check. A test cleanup-order deadlock was fixed before rerun.
 
+### Replay input validation
+
+- Reject unsafe JSON integers before canonicalization can round them; require
+  object-shaped replay facts, bounded identifiers/content and known personal
+  fields in encrypted records. Regression tests pass.
+
 ### Scope gates
 
 Phase 1 has not started. Shared contract review remains a joint gate.

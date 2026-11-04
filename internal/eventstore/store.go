@@ -2,11 +2,13 @@
 package eventstore
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +27,8 @@ var (
 	ErrIdempotencyConflict = errors.New("command ID reused for different intent")
 	ErrIntegrity           = errors.New("stored evidence integrity failure")
 	token                  = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
+	streamToken            = regexp.MustCompile(`^[a-zA-Z0-9_:/-]{1,200}$`)
+	eventToken             = regexp.MustCompile(`^[A-Z][a-zA-Z0-9_]{0,99}$`)
 )
 
 type Event struct {
@@ -311,21 +315,26 @@ func decodeRow(d ports.Digester, row storedb.RatchetEvent) (StoredEvent, error) 
 }
 
 func validate(command Command) error {
-	if !token.MatchString(command.TenantID) || command.ID == uuid.Nil || command.ActorReference == uuid.Nil || command.StreamID == "" || len(command.StreamID) > 200 || command.ExpectedVersion < 0 || len(command.Events) == 0 || len(command.Events) > 1000 {
+	if !token.MatchString(command.TenantID) || command.ID == uuid.Nil || command.ActorReference == uuid.Nil || !streamToken.MatchString(command.StreamID) || command.ExpectedVersion < 0 || command.ExpectedVersion > ledger.MaxSafeInteger || len(command.Events) == 0 || len(command.Events) > 1000 {
 		return ErrInvalid
 	}
 	for _, event := range command.Events {
-		if event.Type == "" || len(event.Type) > 100 || !json.Valid(event.Facts) || len(event.Facts) > 1<<20 {
+		if !eventToken.MatchString(event.Type) || (event.Action != "" && !eventToken.MatchString(event.Action)) || (event.TargetReference != "" && !streamToken.MatchString(event.TargetReference)) || !json.Valid(event.Facts) || len(event.Facts) > 1<<20 {
 			return ErrInvalid
 		}
 		var facts any
-		if err := json.Unmarshal(event.Facts, &facts); err != nil {
+		decoder := json.NewDecoder(bytes.NewReader(event.Facts))
+		decoder.UseNumber()
+		if err := decoder.Decode(&facts); err != nil {
+			return ErrInvalid
+		}
+		if _, ok := facts.(map[string]any); !ok {
 			return ErrInvalid
 		}
 		if err := checkPrivateFields(facts); err != nil {
 			return err
 		}
-		if event.Private != nil && (event.Private.ID == uuid.Nil || event.Private.KeyReference == "" || len(event.Private.Ciphertext) < 28) {
+		if event.Private != nil && (event.Private.ID == uuid.Nil || event.Private.KeyReference == "" || len(event.Private.Ciphertext) < 28 || len(event.Private.Ciphertext) > 1<<20) {
 			return ErrInvalid
 		}
 	}
@@ -349,6 +358,18 @@ func checkPrivateFields(v any) error {
 		for _, child := range value {
 			if err := checkPrivateFields(child); err != nil {
 				return err
+			}
+		}
+	case json.Number:
+		if !strings.ContainsAny(value.String(), ".eE") {
+			n, err := strconv.ParseInt(value.String(), 10, 64)
+			if err != nil || n > ledger.MaxSafeInteger || n < -ledger.MaxSafeInteger {
+				return fmt.Errorf("%w: encode large integers as decimal strings", ErrInvalid)
+			}
+		} else {
+			n, err := strconv.ParseFloat(value.String(), 64)
+			if err != nil || n > float64(ledger.MaxSafeInteger) || n < -float64(ledger.MaxSafeInteger) {
+				return fmt.Errorf("%w: fact number exceeds canonical range", ErrInvalid)
 			}
 		}
 	}

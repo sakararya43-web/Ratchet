@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 0 core implementation delivered on `main`; joint contract acceptance and integrated verification remain pending. See [Ishaan changelog](docs/ishaan/changelog.md) and [Phase 0 handoff](docs/ishaan/phase-0-handoff.md). Later phases have not started.
+**Status:** Phase 1 in progress on `main`, explicitly authorized by the user after the Phase 0 handoff. Outstanding joint-review items remain recorded in [Ishaan changelog](docs/ishaan/changelog.md). No later phase has started.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 

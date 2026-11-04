@@ -9,6 +9,37 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Phase 1 — in progress (2026-11-04)
+
+The user explicitly authorized starting the next phase after the Phase 0 handoff.
+This supersedes the instruction to wait before starting Phase 1; it does not
+constitute Sakar's approval or resolve the recorded peer audit test failure.
+Only Phase 1 work is in progress. No later phase has started.
+
+### Scope and live integration observations
+
+- Implement core relay, authenticated ingest, immutable graph, graph/impact APIs,
+  connector conformance, golden impact data and reproducible first benchmarks.
+- `origin/sakar` remains at `9662c46`. Its connector executable only logs messages;
+  the adapter's graph conversion emits dangling permission targets and omits
+  session/provenance data. These are peer-owned integration issues, not reasons
+  to silently discard edges or invent a successful connector sync.
+- Core graph code rejects malformed/unsupported semantics and keeps simulation
+  isolated from shared state. Joint fixture/contract review stays explicit.
+
+### Immutable graph analysis
+
+- Added typed, validated forward/reverse CSR snapshots with stable edge identity,
+  copied provenance and isolated proposed views. Versioned registry publication
+  is atomic; invalidated/stale generations are never returned as current.
+- Reach/control analysis handles membership, role inheritance, transitive
+  takeover, role administration and resource-action denies. Impact compares
+  every identity's powers and critical routes; protective-rule removal is
+  classified as weakening even without a new currently reachable resource.
+- Cyclic-control, indirect self-grant, multi-beneficiary impact, simulation
+  isolation, malformed input, concurrent simulations and stale-read tests pass.
+- Simple path enumeration has explicit bounds; an incomplete impact is an error.
+
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance

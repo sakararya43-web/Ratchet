@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -34,6 +35,9 @@ func main() {
 func run(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return errors.New("usage: ratchetd migrate|record-core-evidence|load-stream|verify-chain|serve")
+	}
+	if args[0] == "graph-serve" {
+		return runGraph(ctx, args[1:], out)
 	}
 	if args[0] == "migrate" {
 		if len(args) != 1 {
@@ -136,9 +140,16 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 }
 
 func serve(ctx context.Context, address string, handler http.Handler, out io.Writer) error {
+	return serveTransport(ctx, address, handler, out, nil)
+}
+
+func serveTransport(ctx context.Context, address string, handler http.Handler, out io.Writer, security *tls.Config) error {
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
+	}
+	if security != nil {
+		listener = tls.NewListener(listener, security)
 	}
 	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second}
 	finished := make(chan error, 1)

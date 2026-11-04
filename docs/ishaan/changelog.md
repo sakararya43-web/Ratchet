@@ -78,7 +78,8 @@ Only Phase 1 work is in progress. No later phase has started.
   The peer ordinary fixture references a missing `user:finance-intern`, so the
   additional core scenario uses the existing finance assistant explicitly.
 - First 100k-edge benchmark is recorded with hardware, command and dataset in
-  `phase-1-benchmark.txt`: approximately 0.98 s/op and 208 MB/op on one CPU.
+  `phase-1-benchmark.txt`: approximately 1.38 s/op and 220 MB/op on one CPU
+  after complete removed-authority reporting (initial baseline was 0.98 s/op).
   The eventual 100 ms impact target is not achieved; optimization is still due.
 
 ### Recovery and complete affected-identity reporting
@@ -93,6 +94,24 @@ Only Phase 1 work is in progress. No later phase has started.
 - Added regression coverage for these cases, valid ordered deltas, persisted
   JetStream acknowledgement cursors and metadata-before-possession traversal.
 - Neighborhoods cap returned edges at 10,000 with explicit truncation.
+
+### Authenticated graph and simulation runtime
+
+- Added real Connect Graph/Impact handlers over immutable snapshots: node
+  provenance, focused neighborhoods, paged reach/paths and exact draft impact.
+- Verified client TLS certificates map to server-configured actor/tenant bindings.
+  Cursor HMACs bind query scope, tenant and graph version. Header impersonation,
+  tenant crossover, tampered cursors and stale-context pagination are refused.
+- Added `ratchetd graph-serve`: PostgreSQL source recovery, authenticated connector
+  ingestion, durable relay, refresh/invalidation and HTTPS service lifecycle.
+  Private configuration supplies keys, connector pins and certificates; remote
+  NATS requires TLS/credentials. Metrics expose the authenticated reader's tenant.
+- Readiness remains unavailable for escalation until the later policy dependency
+  actually exists. Graph/simulation do real work without mounting empty services.
+- Native TLS tests and Linux `go test -race -tags=integration ./...` passed with
+  real PostgreSQL 17/NATS 2.11. The runtime harness proves signed ingestion through
+  live APIs and unchanged graph version after simulation; it is not a substitute
+  for the peer's actual connector acceptance gate.
 
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 

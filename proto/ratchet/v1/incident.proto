@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+import "ratchet/v1/common.proto";
+import "ratchet/v1/containment.proto";
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+service IncidentService {
+  rpc ListIncidents(ListIncidentsRequest) returns (ListIncidentsResponse);
+  rpc GetIncident(GetIncidentRequest) returns (GetIncidentResponse);
+  rpc WatchIncidents(WatchIncidentsRequest) returns (stream WatchIncidentsResponse);
+}
+
+message Incident {
+  string incident_id = 1;
+  string tenant_id = 2;
+  string title = 3;
+  string severity = 4; // LOW, MEDIUM, HIGH, CRITICAL
+  string status = 5; // OPEN, CONTAINING, CONTAINED, RESOLVED
+  string affected_identity = 6;
+  string root_cause_type = 7; // DRIFT, SUSPICIOUS_ESCALATION, MANUAL_CONTAINMENT
+  ContainmentPlan containment_plan = 8;
+  repeated string actions_taken = 9;
+  string opened_at = 10;
+  string contained_at = 11;
+  string resolved_at = 12;
+}
+
+message ListIncidentsRequest {
+  string tenant_id = 1;
+  string status_filter = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListIncidentsResponse {
+  repeated Incident incidents = 1;
+  string next_page_token = 2;
+}
+
+message GetIncidentRequest {
+  string tenant_id = 1;
+  string incident_id = 2;
+}
+
+message GetIncidentResponse {
+  Incident incident = 1;
+}
+
+message WatchIncidentsRequest {
+  string tenant_id = 1;
+  WatchCursor cursor = 2;
+}
+
+message WatchIncidentsResponse {
+  Incident incident = 1;
+  string cursor = 2;
+}

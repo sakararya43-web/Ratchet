@@ -1,0 +1,15 @@
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+  ignore_only:
+    # Preserve the peer's published DecisionRequest/DecisionResponse names.
+    RPC_REQUEST_STANDARD_NAME:
+      - proto/ratchet/v1/decision.proto
+    RPC_RESPONSE_STANDARD_NAME:
+      - proto/ratchet/v1/decision.proto
+breaking:
+  use:
+    - FILE

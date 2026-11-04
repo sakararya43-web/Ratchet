@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+service AuthorityService {
+  rpc GetActiveBundle(GetActiveBundleRequest) returns (GetActiveBundleResponse);
+  rpc GetApproverRegistry(GetApproverRegistryRequest) returns (GetApproverRegistryResponse);
+  rpc ProposeBundle(ProposeBundleRequest) returns (ProposeBundleResponse);
+  rpc SignBundle(SignBundleRequest) returns (SignBundleResponse);
+  rpc ActivateBundle(ActivateBundleRequest) returns (ActivateBundleResponse);
+  rpc SignCheckpoint(SignCheckpointRequest) returns (SignCheckpointResponse);
+}
+
+message AuthorityMember {
+  string actor_id = 1;
+  string display_name = 2;
+  string enrolled_at = 3;
+  string credential_id = 4;
+  bool is_active = 5;
+}
+
+message PasskeySignatureEnvelope {
+  string actor_id = 1;
+  string credential_id = 2;
+  string signature = 3; // base64 / hex
+  string signed_at = 4;
+  string client_data_json = 5;
+  string authenticator_data = 6;
+}
+
+message PolicyBundleProposal {
+  string proposal_id = 1;
+  string bundle_version = 2;
+  string bundle_digest = 3; // 64-char hex of canonical bundle content
+  string proposed_by = 4;
+  string proposed_at = 5;
+  string description = 6;
+  map<string, string> modules = 7;
+  string data_json = 8;
+  repeated PasskeySignatureEnvelope signatures = 9;
+  string status = 10; // PROPOSED, READY, ACTIVATED, REJECTED
+}
+
+message GetActiveBundleRequest {
+  string tenant_id = 1;
+}
+
+message GetActiveBundleResponse {
+  string bundle_version = 1;
+  string bundle_digest = 2;
+  map<string, string> modules = 3;
+  string data_json = 4;
+  repeated PasskeySignatureEnvelope signatures = 5;
+  string activated_at = 6;
+}
+
+message GetApproverRegistryRequest {
+  string tenant_id = 1;
+}
+
+message GetApproverRegistryResponse {
+  int32 threshold_m = 1;
+  int32 total_n = 2;
+  int64 registry_epoch = 3;
+  repeated AuthorityMember members = 4;
+}
+
+message ProposeBundleRequest {
+  string tenant_id = 1;
+  string proposed_by = 2;
+  string bundle_version = 3;
+  string description = 4;
+  map<string, string> modules = 5;
+  string data_json = 6;
+}
+
+message ProposeBundleResponse {
+  string proposal_id = 1;
+  string bundle_digest = 2;
+  int32 required_signatures = 3;
+}
+
+message SignBundleRequest {
+  string tenant_id = 1;
+  string proposal_id = 2;
+  PasskeySignatureEnvelope signature = 3;
+}
+
+message SignBundleResponse {
+  bool success = 1;
+  int32 total_collected = 2;
+  int32 required = 3;
+  bool is_ready_for_activation = 4;
+}
+
+message ActivateBundleRequest {
+  string tenant_id = 1;
+  string proposal_id = 2;
+  string activated_by = 3;
+}
+
+message ActivateBundleResponse {
+  bool activated = 1;
+  string active_bundle_digest = 2;
+}
+
+message CheckpointCandidate {
+  string tenant_id = 1;
+  int64 start_sequence = 2;
+  int64 end_sequence = 3;
+  string merkle_root = 4;
+  string previous_checkpoint_digest = 5;
+  string created_at = 6;
+}
+
+message SignCheckpointRequest {
+  string tenant_id = 1;
+  CheckpointCandidate candidate = 2;
+  PasskeySignatureEnvelope signature = 3;
+}
+
+message SignCheckpointResponse {
+  bool signed = 1;
+  string checkpoint_digest = 2;
+}

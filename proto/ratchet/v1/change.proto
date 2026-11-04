@@ -1,0 +1,142 @@
+syntax = "proto3";
+
+package ratchet.v1;
+
+import "ratchet/v1/common.proto";
+
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
+service ChangeService {
+  rpc SubmitChange(SubmitChangeRequest) returns (SubmitChangeResponse);
+  rpc GetChange(GetChangeRequest) returns (GetChangeResponse);
+  rpc ListChanges(ListChangesRequest) returns (ListChangesResponse);
+  rpc ApproveChange(ApproveChangeRequest) returns (ApproveChangeResponse);
+  rpc RejectChange(RejectChangeRequest) returns (RejectChangeResponse);
+  rpc HoldChange(HoldChangeRequest) returns (HoldChangeResponse);
+  rpc RequestMoreInfo(RequestMoreInfoRequest) returns (RequestMoreInfoResponse);
+  rpc WatchChanges(WatchChangesRequest) returns (stream WatchChangesResponse);
+}
+
+message ChangeRequest {
+  string request_id = 1;
+  string tenant_id = 2;
+  string kind = 3; // ROLE_ASSIGN, ROLE_REVOKE, CREATE_ACCOUNT, MODIFY_SAFEGUARD
+  string target_identity = 4;
+  string requested_access = 5;
+  string justification = 6;
+  string requested_by = 7;
+  bool emergency = 8;
+  int64 time_limit_seconds = 9;
+  string status = 10; // SUBMITTED, ASSESSED, ALLOWED, AWAITING_APPROVAL, HELD, REJECTED, EXECUTING, EXECUTED, FAILED
+  string change_digest = 11;
+  int64 graph_version = 12;
+  repeated string required_approver_groups = 13;
+  int32 required_quorum = 14;
+  repeated string decision_reasons = 15;
+  string created_at = 16;
+  string updated_at = 17;
+  ChangeKind typed_kind = 18;
+  ChangeState state = 19;
+  int64 revision = 20;
+  ApprovalEnvelope approval_envelope = 21;
+  string policy_bundle_hash = 22;
+}
+
+message SubmitChangeRequest {
+  string tenant_id = 1;
+  string kind = 2;
+  string target_identity = 3;
+  string requested_access = 4;
+  string justification = 5;
+  string requested_by = 6;
+  bool emergency = 7;
+  int64 time_limit_seconds = 8;
+  MutationContext mutation = 9;
+  ExactChangeIntent intent = 10;
+}
+
+message SubmitChangeResponse {
+  ChangeRequest request = 1;
+}
+
+message GetChangeRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+}
+
+message GetChangeResponse {
+  ChangeRequest request = 1;
+}
+
+message ListChangesRequest {
+  string tenant_id = 1;
+  string status_filter = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListChangesResponse {
+  repeated ChangeRequest requests = 1;
+  string next_page_token = 2;
+}
+
+message ApproveChangeRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+  string approver_id = 3;
+  string assertion_response_json = 4;
+  MutationContext mutation = 5;
+  string approved_envelope_digest = 6;
+}
+
+message ApproveChangeResponse {
+  bool approved = 1;
+  ChangeRequest request = 2;
+}
+
+message RejectChangeRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+  string rejecter_id = 3;
+  string reason = 4;
+  MutationContext mutation = 5;
+}
+
+message RejectChangeResponse {
+  bool rejected = 1;
+  ChangeRequest request = 2;
+}
+
+message HoldChangeRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+  string actor_id = 3;
+  string reason = 4;
+  MutationContext mutation = 5;
+}
+
+message HoldChangeResponse {
+  ChangeRequest request = 1;
+}
+
+message RequestMoreInfoRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+  string actor_id = 3;
+  string question = 4;
+  MutationContext mutation = 5;
+}
+
+message RequestMoreInfoResponse {
+  ChangeRequest request = 1;
+}
+
+message WatchChangesRequest {
+  string tenant_id = 1;
+  WatchCursor cursor = 2;
+}
+
+message WatchChangesResponse {
+  ChangeRequest request = 1;
+  string cursor = 2;
+}

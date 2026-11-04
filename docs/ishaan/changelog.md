@@ -32,6 +32,18 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
 - [ ] Real persisted `ratchetd` operation and honest readiness.
 - [ ] Local PostgreSQL/NATS Compose, actual core CI, Buf baseline and compatibility checks.
 
+### Contract increment
+
+- Added the eight core service definitions inherited from the peer, with additive
+  typed kinds/states/decisions, mutation context, graph bounds, watch cursors,
+  approval envelope, multi-identity impact and connector evidence metadata.
+- Recorded authenticated caller rules, privacy, errors, five fixed subjects,
+  approval/replay facts and byte-level audit-v1 chain encoding in
+  `phase-0-contracts.md`. Peer agreement is still outstanding.
+- Captured the original peer descriptors at `testdata/contracts/sakar-v1.binpb`.
+  Buf 1.75.0 lint and FILE compatibility against that baseline pass. The existing
+  DecisionRequest/Response names have a file-scoped naming-rule exception.
+
 ### Scope gates
 
 Phase 1 has not started. Shared contract review remains a joint gate.

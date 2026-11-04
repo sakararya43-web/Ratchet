@@ -11,6 +11,12 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Added executable graph effects for complete role revocation, service permission
+  removal by original grant ID, session termination and account restriction.
+  Shared grant/binding effects are applied together. Protected/non-removable
+  targets and grants are refused; arbitrary derived edges are not target actions.
+  Applying a complete action set re-proves the all-identity reduction invariant.
+
 Started only after Phase 3's core checks and handoff were committed/pushed.
 Earlier joint peer gates remain open. No Phase 5 work has started.
 

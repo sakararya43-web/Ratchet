@@ -14,6 +14,20 @@
 The user explicitly authorized the next phase after Phase 1's core handoff.
 Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 
+- Extend CI lint to the implemented domain, policy and workflow packages and
+  declare their existing dependencies as direct imports without changing versions.
+- Final core verification passes: full Linux integration/race suite, affected
+  post-fix race acceptance, module verification, vet, zero-issue lint, Buf lint
+  and peer/Phase-1 compatibility, generated SQL/protobuf reproduction, actionlint
+  and the real new-process persistence/readiness smoke.
+- Added actual peer approval/target conformance cases. Against unchanged
+  `9662c46`, five passkey checks fail (origin, RP, ceremony, COSE key, sessionless
+  factory) and stale-revision execution changes actual persisted IAM. Duplicate
+  commands, mismatched read-back refusal and lost-ack target recovery pass.
+- The combined core/peer race suite compiles both halves and reproduces four
+  inherited audit-fixture failures. The raw merge still has shared add/add
+  conflicts. Neither a fully green merge nor Phase 2 exit acceptance is claimed.
+
 - Keep the login limiter at a strict 10,000 peer buckets even under unknown-peer
   traffic; expired buckets recover capacity. Parse IPv6 peer addresses correctly
   while keeping a single host's source ports in the same bucket. Bounds and IPv6

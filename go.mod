@@ -4,11 +4,17 @@ go 1.27.3
 
 require (
 	connectrpc.com/connect v1.19.1
+	github.com/fxamacker/cbor/v2 v2.9.4
+	github.com/go-webauthn/webauthn v0.18.2
 	github.com/google/uuid v1.6.0
 	github.com/gowebpki/jcs v1.0.2
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/nats-io/nats.go v1.49.0
+	github.com/open-policy-agent/opa v1.22.0
 	github.com/pressly/goose/v3 v3.29.0
+	github.com/riverqueue/river v0.51.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.51.0
+	golang.org/x/crypto v0.58.0
 	google.golang.org/protobuf v1.36.12
 	pgregory.net/rapid v1.2.0
 )
@@ -17,9 +23,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/go-webauthn/webauthn v0.18.2 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/gobwas/glob v1.0.0 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
@@ -39,11 +43,8 @@ require (
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/nats-io/nkeys v0.4.12 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
-	github.com/open-policy-agent/opa v1.22.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/riverqueue/river v0.51.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.51.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.51.0 // indirect
 	github.com/riverqueue/river/rivershared v0.51.0 // indirect
 	github.com/riverqueue/river/rivertype v0.51.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
@@ -62,7 +63,6 @@ require (
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect

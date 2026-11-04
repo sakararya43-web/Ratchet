@@ -45,10 +45,13 @@ func (b *Broker) EnsureTenant(ctx context.Context, tenant string) error {
 	if !tenantToken.MatchString(tenant) {
 		return eventstore.ErrInvalid
 	}
-	for _, kind := range []string{"EVENTS", "INGEST"} {
+	for _, kind := range []string{"EVENTS", "INGEST", "RESULTS"} {
 		subject := "ratchet." + tenant + ".changes.>"
 		if kind == "INGEST" {
 			subject = "ratchet." + tenant + ".ingest.sync"
+		}
+		if kind == "RESULTS" {
+			subject = "ratchet." + tenant + ".exec.results"
 		}
 		config := &nats.StreamConfig{Name: StreamName(tenant, kind), Subjects: []string{subject}, Storage: nats.FileStorage, Retention: nats.LimitsPolicy, MaxMsgSize: 1 << 20, MaxAge: 24 * time.Hour, Duplicates: 2 * time.Minute}
 		old, err := b.js.StreamInfo(config.Name, nats.Context(ctx))
@@ -103,14 +106,20 @@ func (b *Broker) Relay(ctx context.Context, store *eventstore.Store, tenant stri
 // Consume uses an explicit-ack durable consumer. The handler commits its durable
 // business effect before AckSync; a lost ACK can only repeat an idempotent input.
 func (b *Broker) Consume(ctx context.Context, tenant string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
+	return b.consume(ctx, tenant, "INGEST", "ingest.sync", "core-ingest-v1", handler, logger)
+}
+func (b *Broker) ConsumeResults(ctx context.Context, tenant string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
+	return b.consume(ctx, tenant, "RESULTS", "exec.results", "core-results-v1", handler, logger)
+}
+func (b *Broker) consume(ctx context.Context, tenant, kind, suffix, durable string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
 	if handler == nil || logger == nil || !tenantToken.MatchString(tenant) {
 		return eventstore.ErrInvalid
 	}
-	stream := StreamName(tenant, "INGEST")
-	if _, err := b.js.AddConsumer(stream, &nats.ConsumerConfig{Durable: "core-ingest-v1", FilterSubject: "ratchet." + tenant + ".ingest.sync", AckPolicy: nats.AckExplicitPolicy, MaxAckPending: 1, AckWait: 30 * time.Second}, nats.Context(ctx)); err != nil {
+	stream := StreamName(tenant, kind)
+	if _, err := b.js.AddConsumer(stream, &nats.ConsumerConfig{Durable: durable, FilterSubject: "ratchet." + tenant + "." + suffix, AckPolicy: nats.AckExplicitPolicy, MaxAckPending: 1, AckWait: 30 * time.Second}, nats.Context(ctx)); err != nil {
 		return err
 	}
-	sub, err := b.js.PullSubscribe("ratchet."+tenant+".ingest.sync", "core-ingest-v1", nats.Bind(stream, "core-ingest-v1"))
+	sub, err := b.js.PullSubscribe("ratchet."+tenant+"."+suffix, durable, nats.Bind(stream, durable))
 	if err != nil {
 		return err
 	}
@@ -149,4 +158,24 @@ func (b *Broker) Consume(ctx context.Context, tenant string, handler func(contex
 			}
 		}
 	}
+}
+
+func (b *Broker) EnsureExecution(ctx context.Context, tenant, connector string) error {
+	if !tenantToken.MatchString(tenant) || !tenantToken.MatchString(connector) || connector == "results" {
+		return eventstore.ErrInvalid
+	}
+	name := StreamName(tenant, "EXEC_"+StreamName(connector, "KEY"))
+	subject := "ratchet." + tenant + ".exec." + connector
+	old, err := b.js.StreamInfo(name, nats.Context(ctx))
+	if err == nil {
+		if len(old.Config.Subjects) != 1 || old.Config.Subjects[0] != subject || old.Config.Storage != nats.FileStorage {
+			return eventstore.ErrInvalid
+		}
+		return nil
+	}
+	if !errors.Is(err, nats.ErrStreamNotFound) {
+		return err
+	}
+	_, err = b.js.AddStream(&nats.StreamConfig{Name: name, Subjects: []string{subject}, Storage: nats.FileStorage, Retention: nats.LimitsPolicy, MaxMsgSize: 1 << 20, MaxAge: 24 * time.Hour, Duplicates: 2 * time.Minute}, nats.Context(ctx))
+	return err
 }

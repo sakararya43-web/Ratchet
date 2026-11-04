@@ -62,7 +62,11 @@ func (s *Store) GraphWithin(ctx context.Context, tx pgx.Tx, tenant string, key [
 		}
 		version = max(version, source.version)
 	}
-	return mergeSources(version, sources)
+	merged, err := mergeSources(version, sources)
+	if err != nil {
+		return nil, err
+	}
+	return graph.Build(version, publicGraph(merged.Data()))
 }
 func (s *Store) ChangeWithin(ctx context.Context, tx pgx.Tx, tenant, id string) (domain.Change, error) {
 	rows, err := storedb.New(tx).LoadStream(ctx, storedb.LoadStreamParams{TenantID: tenant, StreamID: "change:" + id})

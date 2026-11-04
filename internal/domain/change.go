@@ -118,37 +118,42 @@ type Approval struct {
 	VerifiedAt   time.Time                `json:"verified_at"`
 }
 type Change struct {
-	ID               string       `json:"request_id"`
-	TenantID         string       `json:"tenant_id"`
-	Requester        string       `json:"requester"`
-	Intent           Intent       `json:"intent"`
-	State            State        `json:"state"`
-	Revision         int64        `json:"revision"`
-	Decision         Decision     `json:"decision"`
-	Envelope         *Envelope    `json:"approval_envelope,omitempty"`
-	Digest           ports.Digest `json:"change_digest"`
-	Approvals        []Approval   `json:"approvals"`
-	CreatedAt        time.Time    `json:"created_at"`
-	UpdatedAt        time.Time    `json:"updated_at"`
-	PrivateReference string       `json:"private_record_reference"`
-	PrivateDigest    ports.Digest `json:"private_content_digest"`
-	ExecutionID      string       `json:"execution_id,omitempty"`
+	ID               string          `json:"request_id"`
+	TenantID         string          `json:"tenant_id"`
+	Requester        string          `json:"requester"`
+	Intent           Intent          `json:"intent"`
+	State            State           `json:"state"`
+	Revision         int64           `json:"revision"`
+	Decision         Decision        `json:"decision"`
+	Facts            json.RawMessage `json:"decision_facts,omitempty"`
+	Envelope         *Envelope       `json:"approval_envelope,omitempty"`
+	Digest           ports.Digest    `json:"change_digest"`
+	Approvals        []Approval      `json:"approvals"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	PrivateReference string          `json:"private_record_reference"`
+	PrivateDigest    ports.Digest    `json:"private_content_digest"`
+	ExecutionID      string          `json:"execution_id,omitempty"`
+	ReviewReference  string          `json:"review_private_reference,omitempty"`
 }
 type Event struct {
 	Type   string `json:"type"`
 	Change Change `json:"change"`
 }
 type Command struct {
-	Kind        string
-	At          time.Time
-	Submission  *Change
-	Decision    Decision
-	Envelope    *Envelope
-	Digest      ports.Digest
-	Approval    *Approval
-	Reason      string
-	ExecutionID string
-	Verified    bool
+	Kind             string
+	At               time.Time
+	Submission       *Change
+	Decision         Decision
+	Envelope         *Envelope
+	Digest           ports.Digest
+	Approval         *Approval
+	Reason           string
+	ExecutionID      string
+	Verified         bool
+	Facts            json.RawMessage
+	PrivateReference string
+	PrivateDigest    ports.Digest
 }
 
 func clone(c Change) Change {
@@ -205,6 +210,17 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 		return nil, ErrTransition
 	}
 	switch cmd.Kind {
+	case "PROVIDE_CONTEXT":
+		if !slices.Contains([]State{Submitted, Held, AwaitingApproval}, current.State) || cmd.PrivateReference == "" || cmd.PrivateDigest.IsZero() {
+			return nil, ErrTransition
+		}
+		next.PrivateReference = cmd.PrivateReference
+		next.PrivateDigest = cmd.PrivateDigest
+		next.Approvals = nil
+		next.Envelope = nil
+		next.Digest = ports.Digest{}
+		next.Decision = Decision{}
+		return []Event{emit("ChangeContextProvided", Submitted)}, nil
 	case "ASSESS":
 		if !slices.Contains([]State{Submitted, Held, Assessed, AwaitingApproval, Allowed, Approved}, current.State) {
 			return nil, ErrTransition
@@ -213,6 +229,7 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 			return nil, err
 		}
 		next.Decision = cmd.Decision
+		next.Facts = cmd.Facts
 		next.Envelope = cmd.Envelope
 		next.Digest = cmd.Digest
 		next.Approvals = nil
@@ -259,6 +276,9 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 		next.Envelope = nil
 		next.Digest = ports.Digest{}
 		next.Decision = Decision{Outcome: "HOLD", Reasons: []string{cmd.Reason}}
+		if cmd.PrivateReference != "" {
+			next.ReviewReference = cmd.PrivateReference
+		}
 		if cmd.Kind == "REJECT" {
 			next.Decision.Outcome = "REJECT"
 			return []Event{emit("ChangeRejected", Rejected)}, nil
@@ -292,6 +312,11 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 		}
 		next.Decision.Reasons = append(next.Decision.Reasons, cmd.Reason)
 		return []Event{emit("ChangeExecutionFailed", Failed)}, nil
+	case "RECONCILE":
+		if current.State != Executing || cmd.ExecutionID != current.ExecutionID {
+			return nil, ErrTransition
+		}
+		return []Event{emit("ChangeReconciliationRequested", Executing)}, nil
 	case "REVOKE_VERIFIED":
 		if current.State != Executed || !cmd.Verified {
 			return nil, ErrTransition

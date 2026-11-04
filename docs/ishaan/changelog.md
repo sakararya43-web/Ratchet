@@ -51,6 +51,20 @@ Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 - The real TLS/database login test passes for login, forged headers, CSRF failure,
   logout invalidation and expired-session refusal. Accounts require explicit admin
   provisioning with private passwords; no default login password is shipped.
+- Added actual River assessment/guard/reconciliation workers and full replayable
+  policy fact sheets. Tenant-serialized checks revalidate graph/policy context,
+  distinct approvers, current group eligibility, requester control and benefit.
+  Context changes clear approvals; private added context triggers reassessment.
+- Added signed connector capability, bound command and signed read-back processing.
+  Dispatch/outbox/evidence commit atomically; uncertain writes queue signed
+  VERIFY_ONLY reconciliation instead of repeating the write. Missing conformant
+  dependencies keep requests in review. No enable-unsafe flag exists.
+- Real PostgreSQL/River tests pass for eight concurrent duplicate submissions,
+  owner-assessment requirements, missing-verifier refusal, encrypted context,
+  hold/context/reassessment, projection rebuild and chain verification. Ephemeral
+  real-key protocol fixtures also pass approval, guarded staging, write-ACK refusal,
+  read-only reconciliation, mismatched read-back rejection and duplicate evidence.
+  These fixtures are not browser enrollment or real peer target acceptance.
 
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 

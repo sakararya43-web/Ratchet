@@ -8,6 +8,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type RatchetChangeProjection struct {
+	TenantID      string
+	RequestID     pgtype.UUID
+	EventPosition int64
+	State         string
+	UpdatedAt     pgtype.Timestamptz
+	Document      []byte
+}
+
 type RatchetCommandReceipt struct {
 	TenantID      string
 	CommandID     pgtype.UUID
@@ -16,6 +25,21 @@ type RatchetCommandReceipt struct {
 	FirstSequence int64
 	LastSequence  int64
 	StreamVersion int64
+}
+
+type RatchetConsoleSession struct {
+	TenantID  string
+	TokenHash []byte
+	ActorID   string
+	ExpiresAt pgtype.Timestamptz
+}
+
+type RatchetConsoleUser struct {
+	TenantID     string
+	ActorID      string
+	Salt         []byte
+	PasswordHash []byte
+	Disabled     bool
 }
 
 type RatchetEvent struct {
@@ -32,6 +56,18 @@ type RatchetEvent struct {
 	PreviousHash     []byte
 	Hash             []byte
 	RecordedAt       pgtype.Timestamptz
+}
+
+type RatchetExecutionAttempt struct {
+	TenantID       string
+	CommandID      pgtype.UUID
+	RequestID      pgtype.UUID
+	ConnectorID    string
+	SourceRevision int64
+	EnvelopeDigest []byte
+	ExpectedRoles  []byte
+	Deadline       pgtype.Timestamptz
+	CommandPayload []byte
 }
 
 type RatchetGraphSource struct {
@@ -65,6 +101,14 @@ type RatchetOutbox struct {
 	NextAttemptAt pgtype.Timestamptz
 }
 
+type RatchetPolicyArtifact struct {
+	TenantID      string
+	Version       string
+	Digest        []byte
+	RawBundle     []byte
+	EventPosition int64
+}
+
 type RatchetPrivateRecord struct {
 	TenantID     string
 	RecordID     pgtype.UUID
@@ -77,4 +121,12 @@ type RatchetTenantHead struct {
 	TenantID string
 	Sequence int64
 	Hash     []byte
+}
+
+type RatchetWorkflowReceipt struct {
+	TenantID    string
+	CommandID   pgtype.UUID
+	RequestID   pgtype.UUID
+	InputDigest []byte
+	Document    []byte
 }

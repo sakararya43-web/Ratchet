@@ -25,13 +25,15 @@ func TestOfflineVerifier_Comprehensive(t *testing.T) {
 	authKey2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	authBytes2, _ := x509.MarshalPKIXPublicKey(&authKey2.PublicKey)
 
+	baseTime := time.Date(2026, 11, 3, 10, 0, 0, 0, time.UTC)
+
 	genesis := trust.GenesisState{
 		TenantID:   "tenant-demo",
 		Epoch:      1,
 		ThresholdM: 2,
 		Members: []trust.AuthorityMember{
-			{ActorID: "user:sec-lead-1", DisplayName: "Lead 1", PublicKey: authBytes1, EnrolledAt: time.Now().Add(-24 * time.Hour), IsActive: true},
-			{ActorID: "user:sec-lead-2", DisplayName: "Lead 2", PublicKey: authBytes2, EnrolledAt: time.Now().Add(-24 * time.Hour), IsActive: true},
+			{ActorID: "user:sec-lead-1", DisplayName: "Lead 1", PublicKey: authBytes1, EnrolledAt: baseTime.Add(-48 * time.Hour), IsActive: true},
+			{ActorID: "user:sec-lead-2", DisplayName: "Lead 2", PublicKey: authBytes2, EnrolledAt: baseTime.Add(-48 * time.Hour), IsActive: true},
 		},
 	}
 
@@ -44,13 +46,12 @@ func TestOfflineVerifier_Comprehensive(t *testing.T) {
 			TenantID:   "tenant-demo",
 			ActorID:    "user:sec-lead-1",
 			PublicKey:  userBytes,
-			EnrolledAt: time.Now().Add(-12 * time.Hour),
+			EnrolledAt: baseTime.Add(-24 * time.Hour),
 			IsRevoked:  false,
 		},
 	}
 
 	// 3. Build a sequence of 5 events
-	baseTime := time.Date(2026, 11, 3, 10, 0, 0, 0, time.UTC)
 	var events []AuditEvent
 	var currentHash ports.Digest
 

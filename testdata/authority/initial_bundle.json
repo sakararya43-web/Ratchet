@@ -1,5 +1,5 @@
 {
-  "proposal_id": "prop-v1.0.0-1793808814",
+  "proposal_id": "prop-v1.0.0-1793809156",
   "tenant_id": "tenant-exchange-demo",
   "bundle_version": "v1.0.0",
   "description": "RATCHET Production Security Policy Bundle v1.0.0",
@@ -52,16 +52,16 @@
   "signatures": [
     {
       "actor_id": "user:sec-lead-1",
-      "signature": "MEQCIEIY8dZc0xBhfdFnjRKBAaTqhGqkPyIqeufSTZIVP47WAiAWG6TUQrXu4yIjMBsup71BloxHHyW961Lw9786irgqiQ==",
-      "signed_at": "2026-11-04T16:13:34.7031044Z"
+      "signature": "MEUCIQDL2Afkdy9W9ZaTeeec0A5jx4J4yc8VFOP+r6Zv8Ju6wgIgKx/TosfdjBxJH0RjPNIHsXugGsLBoJmfoLdqoeyVmIM=",
+      "signed_at": "2026-11-04T16:19:16.4342685Z"
     },
     {
       "actor_id": "user:sec-lead-2",
-      "signature": "MEYCIQDKJtelxdoPbCI7b+RaV6Vb3l9Ge+umIYcKJljXYZWrgAIhAOAoGSFvoefev/487UUoriEaLUnlwWm0TxxtbHfixZd9",
-      "signed_at": "2026-11-04T16:13:34.704682Z"
+      "signature": "MEUCIDivuzkhyUGU64fRnGfYOvtPdHJUL70vYZg9pZeefwmKAiEA4hXQQE32wHuLdvnMqDrsIF7TlUks7WmUl9A5wK3Pwa0=",
+      "signed_at": "2026-11-04T16:19:16.4353158Z"
     }
   ],
   "status": "ACTIVE",
-  "proposed_at": "2026-11-04T16:13:34.7020471Z",
-  "activated_at": "2026-11-04T16:13:34.7052003Z"
+  "proposed_at": "2026-11-04T16:19:16.4332117Z",
+  "activated_at": "2026-11-04T16:19:16.436366Z"
 }

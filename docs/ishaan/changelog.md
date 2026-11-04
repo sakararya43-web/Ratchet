@@ -44,6 +44,13 @@ Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 - Signed policy activations are durably versioned and hash-chained. Restart reload
   re-verifies the persisted artifact; invalid replacements cannot erase a valid one.
 - Full existing PostgreSQL acceptance passes after the schema upgrade.
+- Added password-authenticated console sessions backed by real PostgreSQL and
+  Argon2id hashes. Secure/HttpOnly/SameSite cookies, exact HTTPS Origin checks,
+  CSRF tokens, DB-time expiration, logout, password-rotation revocation and bounded
+  password work protect the session boundary. No caller-ID header authenticates.
+- The real TLS/database login test passes for login, forged headers, CSRF failure,
+  logout invalidation and expired-session refusal. Accounts require explicit admin
+  provisioning with private passwords; no default login password is shipped.
 
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 

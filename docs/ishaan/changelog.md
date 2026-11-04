@@ -95,6 +95,16 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
   returned 200; overall decision readiness returned 503 because no graph or
   verified bundle has been initialized. Unimplemented API paths remain absent.
 
+### Generated clients and full race run
+
+- Generated Go Protobuf and Connect bindings from the actual v1 schemas using
+  local generators (Protobuf 1.36.12 / Connect 1.19.1). No RPC is mounted by
+  generation alone.
+- Reused the peer root `.gitignore` unchanged and isolated development artifacts
+  behind `.local/.gitignore`, avoiding a competing root ignore file on merge.
+- Full Linux `go test -race -tags=integration -count=1 ./...` passed against the
+  real Compose PostgreSQL instance; canonical vectors and all core tests passed.
+
 ### Scope gates
 
 Phase 1 has not started. Shared contract review remains a joint gate.

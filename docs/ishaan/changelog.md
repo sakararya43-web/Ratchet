@@ -14,6 +14,12 @@
 The user explicitly authorized the next phase after Phase 1's core handoff.
 Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 
+- Persist another delayed read-only probe whenever reconciliation finds an
+  execution still pending. Losing a verification reply no longer ends recovery;
+  terminal state stops subsequent probes. The real-job test checks a scheduled
+  successor bound to the newly committed workflow revision. Linux race checks
+  pass for workflow, sessions and the full console runtime after this change.
+
 - Verify both required prepared-query contracts before activating a signed
   bundle: a structured valid change decision must exist, and authorization must
   explicitly deny an empty identity/context. Signed unrelated modules or an

@@ -110,6 +110,10 @@ func (s *Service) enqueue(ctx context.Context, tx pgx.Tx, args JobArgs) error {
 	_, err := s.jobs.InsertTx(ctx, tx, args, &river.InsertOpts{Queue: tenantQueue(args.Tenant), MaxAttempts: 10, UniqueOpts: river.UniqueOpts{ByArgs: true}})
 	return err
 }
+func (s *Service) scheduleReconciliation(ctx context.Context, tx pgx.Tx, c domain.Change, now time.Time) error {
+	_, err := s.jobs.InsertTx(ctx, tx, JobArgs{c.TenantID, c.ID, c.Revision + 1, "reconcile"}, &river.InsertOpts{Queue: tenantQueue(c.TenantID), ScheduledAt: now.Add(20 * time.Second), MaxAttempts: 10, UniqueOpts: river.UniqueOpts{ByArgs: true}})
+	return err
+}
 func tenantQueue(tenant string) string {
 	hash := sha256.Sum256([]byte(tenant))
 	return "r_" + hex.EncodeToString(hash[:24])
@@ -608,8 +612,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return nil, err
 		}
-		_, err = s.jobs.InsertTx(ctx, tx, JobArgs{c.TenantID, c.ID, c.Revision + 1, "reconcile"}, &river.InsertOpts{Queue: tenantQueue(c.TenantID), ScheduledAt: now.Add(20 * time.Second), MaxAttempts: 10, UniqueOpts: river.UniqueOpts{ByArgs: true}})
-		return events, err
+		return events, s.scheduleReconciliation(ctx, tx, c, now)
 	})
 	if errors.Is(err, eventstore.ErrVersionConflict) {
 		return nil

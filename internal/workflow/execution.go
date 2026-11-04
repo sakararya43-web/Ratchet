@@ -339,6 +339,11 @@ func (s *Service) Reconcile(ctx context.Context, args JobArgs) error {
 		}
 		query.Signature = ed25519.Sign(execution.private, hash[:])
 		stamp = now
+		// A lost read-back reply must not end recovery. Persist the next probe in
+		// this transaction; every probe is read-only and terminal states stop it.
+		if err := s.scheduleReconciliation(ctx, tx, c, now); err != nil {
+			return nil, err
+		}
 		return domain.Decide(c, domain.Command{Kind: "RECONCILE", At: now, ExecutionID: c.ExecutionID})
 	})
 	if errors.Is(err, eventstore.ErrVersionConflict) {

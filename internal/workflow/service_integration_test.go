@@ -394,6 +394,17 @@ func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.
 			t.Fatal(err)
 		}
 		if queries > 0 {
+			current, err := sys.store.ReadChange(sys.ctx, sys.tenant, c.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var pending int64
+			if err := sys.pool.QueryRow(sys.ctx, `SELECT count(*) FROM ratchet_jobs.river_job WHERE kind='ratchet_change_v1' AND args->>'tenant_id'=$1 AND args->>'request_id'=$2 AND (args->>'revision')::bigint=$3 AND args->>'operation'='reconcile' AND state='scheduled' AND scheduled_at>clock_timestamp()`, sys.tenant, c.ID, current.Revision).Scan(&pending); err != nil {
+				t.Fatal(err)
+			}
+			if pending == 0 {
+				t.Fatal("lost read-back reply would end durable reconciliation")
+			}
 			break
 		}
 		if time.Now().After(deadline) {

@@ -1,0 +1,9 @@
+# Local build output and development credentials
+.local/
+bin/
+*.exe
+*.test
+*.out
+.env
+node_modules/
+dist/

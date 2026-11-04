@@ -36,14 +36,15 @@ import (
 )
 
 type system struct {
-	ctx       context.Context
-	pool      *pgxpool.Pool
-	store     *eventstore.Store
-	engine    *policy.Engine
-	tenant    string
-	key       []byte
-	authority *trust.Store
-	root      ports.Digest
+	ctx          context.Context
+	pool         *pgxpool.Pool
+	store        *eventstore.Store
+	engine       *policy.Engine
+	tenant       string
+	key          []byte
+	authority    *trust.Store
+	root         ports.Digest
+	authorityKey *ecdsa.PrivateKey
 }
 
 func setup(t *testing.T) system {
@@ -130,7 +131,7 @@ func setup(t *testing.T) system {
 	if before.Hash != after.Hash {
 		t.Fatal("last valid bundle lost")
 	}
-	return system{ctx, pool, store, engine, tenant, key, authority, genesis.GenesisDigest}
+	return system{ctx: ctx, pool: pool, store: store, engine: engine, tenant: tenant, key: key, authority: authority, root: genesis.GenesisDigest, authorityKey: leader}
 }
 func start(t *testing.T, s *workflow.Service, ctx context.Context) {
 	t.Helper()

@@ -11,6 +11,12 @@
 
 ## Phase 3 — in progress (2026-11-05)
 
+- Real PostgreSQL guard cases now prove newly acquired requester control, a
+  changed signed policy and credential revocation hold an already approved
+  request, clear its proof and create no execution attempt. Requester and a
+  transitively controlled owner cannot advance approval state. A real typed
+  withdrawal-safeguard weakening is rejected by the prepared demo policy.
+
 - Added seeded randomized organizations checked against an independent logical
   fixed point for R1/R2, and random approval/context sequences for R3. Three
   hundred seeded cases pass for each new property suite. CI now runs graph,

@@ -96,9 +96,17 @@ func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, k
 	return s, nil
 }
 func (s *Service) Start(ctx context.Context) error { return s.jobs.Start(ctx) }
-func (s *Service) Ready(context.Context) error {
+func (s *Service) Ready(ctx context.Context) error {
 	if s.approvals == nil || len(s.executions) != len(s.tenants) {
 		return ErrDependency
+	}
+	return s.PolicyReady(ctx)
+}
+func (s *Service) PolicyReady(ctx context.Context) error {
+	for tenant := range s.tenants {
+		if err := s.Store.WithTenantTx(ctx, tenant, func(tx pgx.Tx, _ time.Time) error { _, err := s.active(ctx, tx, tenant); return err }); err != nil {
+			return err
+		}
 	}
 	return nil
 }

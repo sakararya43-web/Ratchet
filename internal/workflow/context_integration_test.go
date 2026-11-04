@@ -33,7 +33,7 @@ func replaceGraph(t *testing.T, sys system, data graph.Data) {
 	}
 }
 func TestGraphPolicyAndCredentialChangesPreventApprovedDispatch(t *testing.T) {
-	for _, kind := range []string{"new-requester-control", "new-policy", "revoked-credential"} {
+	for _, kind := range []string{"new-requester-control", "new-policy", "new-registry-in-another-instance", "revoked-credential"} {
 		t.Run(kind, func(t *testing.T) {
 			sys := setup(t)
 			credentials := approval.NewCredentialStore()
@@ -110,6 +110,33 @@ func TestGraphPolicyAndCredentialChangesPreventApprovedDispatch(t *testing.T) {
 				manager := policy.Manager{Store: sys.store, Engine: sys.engine, Authority: sys.authority, Root: sys.root, Tenant: sys.tenant}
 				if err := manager.Activate(sys.ctx, raw); err != nil {
 					t.Fatal(err)
+				}
+			case "new-registry-in-another-instance":
+				g, err := sys.authority.GetGenesis()
+				if err != nil {
+					t.Fatal(err)
+				}
+				p, err := sys.authority.ProposeRegistryChange(sys.tenant, 1, 1, g.Members)
+				if err != nil {
+					t.Fatal(err)
+				}
+				d := trust.ComputeRegistrySigningDigest(sys.tenant, 1, 2, p.ProposalDigest)
+				sig, err := ecdsa.SignASN1(rand.Reader, sys.authorityKey, d[:])
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := sys.authority.SignRegistryProposal(p.ProposalID, trust.MemberSignature{ActorID: "authority-leader", Signature: sig}); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := sys.authority.ActivateRegistryProposal(p.ProposalID); err != nil {
+					t.Fatal(err)
+				}
+				other := policy.Manager{Store: sys.store, Engine: policy.NewEngine(), Authority: sys.authority, Root: sys.root, Tenant: sys.tenant}
+				if err := other.RefreshRegistry(sys.ctx); err != nil {
+					t.Fatal(err)
+				}
+				if err := service.PolicyReady(sys.ctx); !errors.Is(err, workflow.ErrDependency) {
+					t.Fatal("stale instance reported a ready policy", err)
 				}
 			case "revoked-credential":
 				if err := credentials.RevokeCredential(sys.tenant, "user:owner", id); err != nil {

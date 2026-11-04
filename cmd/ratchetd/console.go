@@ -240,14 +240,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			}
 		}
 		return nil
-	}, PolicyBundle: func(context.Context) error {
-		for tenant := range tenants {
-			if _, err := engine.Current(tenant); err != nil {
-				return err
-			}
-		}
-		return nil
-	}, Workflow: service.Ready}.Handler())
+	}, PolicyBundle: service.PolicyReady, Workflow: service.Ready}.Handler())
 	var wg sync.WaitGroup
 	defer func() { cancel(); wg.Wait() }()
 	failures := make(chan error, 2*len(tenants)+2)

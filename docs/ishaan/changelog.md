@@ -9,7 +9,20 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Phase 3 — in progress (2026-11-05)
+## Phase 3 — core implemented; joint acceptance pending (2026-11-05)
+
+See [the Phase 3 handoff](phase-3-handoff.md) for configuration, schema-6 upgrade,
+replay interfaces, tested adversarial cases and remaining actual-peer gates.
+All nine core tasks have implementation evidence; this does not sign off the
+unavailable joint browser/target demonstrations.
+
+- Policy readiness and dispatch read the durable registry floor, not just an
+  instance's prepared policy. A separate-instance rotation regression proves
+  stale memory cannot report ready or execute the formerly approved request.
+- Full core Linux integration/race checks pass. The ordinary combined core/peer
+  race suite is now green against `origin/sakar` `c1b555f`; its audit-fixture
+  correction resolves that old failure. The separate actual-peer conformance
+  suite still reproduces passkey, stale target revision and snapshot failures.
 
 - Closed a state-change authorization flaw: an unauthorized stale-digest approval
   can no longer force another request into Held before permission checks.

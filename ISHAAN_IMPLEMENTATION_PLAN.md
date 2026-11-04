@@ -180,17 +180,19 @@ on 2026-11-05 while these peer gates remain open.
 
 **Requirements:** Complete FR-C7-C8 enforcement, FR-P4 loading/enforcement and R1-R4/R7 evidence. The basic implementations already exist from Phase 2.
 
+**Core checkpoint (2026-11-05):** The implementation and owned acceptance checks are delivered. Joint browser/connector acceptance remains pending; the execution contract is defined as a proposal and the actual peer fails precondition enforcement. See [Phase 3 evidence](docs/ishaan/phase-3-handoff.md).
+
 ### Ishaan's work
 
-- [ ] Extend independence tests to requester-controlled approvers, newly acquired control, transitive takeover, beneficiary self-approval, multiple credentials for one person and concurrent quorum attempts.
-- [ ] Re-check independence and permissions at execution as well as assessment. A later graph/registry change must not let a formerly independent approval execute an expansion.
-- [ ] Exercise invalid, missing, duplicate, revoked and wrong-context signatures returned through the verifier boundary. Do not duplicate its cryptographic implementation in workflow code.
-- [ ] Verify activation behavior across valid/invalid bundles, changed approver registries, threshold changes and rollback attempts. Only artifacts verified against the authorized trust-root history may influence policy; prevent replay of an obsolete but previously valid bundle.
-- [ ] Preserve last-known-valid operation when Authority is temporarily unavailable, subject to recorded validity rules. Record activation events and make bundle history available through core projections where required.
-- [ ] Confirm ordinary target requests cannot edit approver lists, quorum, withdrawal safeguards or trust-root configuration through an alternate API path. No admin-session override may bypass `BundleVerifier`.
-- [ ] Define execution serialization/preconditions with the connector contract so a relevant target revision cannot change unnoticed between approval, dispatch and apply. A core recheck alone is not proof against target-side races.
-- [ ] Run property-based sequences over random organizations and changes for R1-R3: no deciding self-benefit, no claimed reduction that creates reach, and no stale approval executing a changed intent/context.
-- [ ] Demonstrate deterministic decision replay using recorded graph revision, policy bundle, facts and evaluator/schema version. Export the required evidence through the agreed interfaces.
+- [x] Extend independence tests to requester-controlled approvers, newly acquired control, transitive takeover, beneficiary self-approval, multiple credentials for one person and concurrent quorum attempts.
+- [x] Re-check independence and permissions at execution as well as assessment. A later graph/registry change must not let a formerly independent approval execute an expansion.
+- [x] Exercise invalid, missing, duplicate, revoked and wrong-context signatures returned through the verifier boundary. Do not duplicate its cryptographic implementation in workflow code.
+- [x] Verify activation behavior across valid/invalid bundles, changed approver registries, threshold changes and rollback attempts. Only artifacts verified against the authorized trust-root history may influence policy; prevent replay of an obsolete but previously valid bundle.
+- [x] Preserve last-known-valid operation when Authority is temporarily unavailable, subject to recorded validity rules. Record activation events and make bundle history available through core projections where required.
+- [x] Confirm ordinary target requests cannot edit approver lists, quorum, withdrawal safeguards or trust-root configuration through an alternate API path. No admin-session override may bypass `BundleVerifier`.
+- [x] Define execution serialization/preconditions with the connector contract so a relevant target revision cannot change unnoticed between approval, dispatch and apply. A core recheck alone is not proof against target-side races.
+- [x] Run property-based sequences over random organizations and changes for R1-R3: no deciding self-benefit, no claimed reduction that creates reach, and no stale approval executing a changed intent/context.
+- [x] Demonstrate deterministic decision replay using recorded graph revision, policy bundle, facts and evaluator/schema version. Export the required evidence through the agreed interfaces.
 
 **Exit evidence:** D4 refuses both Rahul and an identity he controls without advancing request approval state. D5 rejects ordinary withdrawal-rule weakening, while a legitimate governance amendment only becomes active after independently signed Authority verification. Changing graph or policy after approval forces reassessment rather than execution. No runtime bypass flags exist.
 

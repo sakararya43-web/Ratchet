@@ -103,6 +103,7 @@ type PreservedActivity struct {
 	ResourceName    string                 `protobuf:"bytes,2,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
 	PermittedAction string                 `protobuf:"bytes,3,opt,name=permitted_action,json=permittedAction,proto3" json:"permitted_action,omitempty"`
 	Tier            int32                  `protobuf:"varint,4,opt,name=tier,proto3" json:"tier,omitempty"`
+	IdentityId      string                 `protobuf:"bytes,5,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -165,6 +166,13 @@ func (x *PreservedActivity) GetTier() int32 {
 	return 0
 }
 
+func (x *PreservedActivity) GetIdentityId() string {
+	if x != nil {
+		return x.IdentityId
+	}
+	return ""
+}
+
 type ContainmentPlan struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	PlanId                  string                 `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
@@ -176,6 +184,16 @@ type ContainmentPlan struct {
 	PlanDigest              string                 `protobuf:"bytes,7,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
 	GraphVersion            int64                  `protobuf:"varint,8,opt,name=graph_version,json=graphVersion,proto3" json:"graph_version,omitempty"`
 	CreatedAt               string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	MinimumProved           bool                   `protobuf:"varint,10,opt,name=minimum_proved,json=minimumProved,proto3" json:"minimum_proved,omitempty"`
+	OptimalityScope         string                 `protobuf:"bytes,11,opt,name=optimality_scope,json=optimalityScope,proto3" json:"optimality_scope,omitempty"`
+	ProposedZeroTier0Proved bool                   `protobuf:"varint,12,opt,name=proposed_zero_tier0_proved,json=proposedZeroTier0Proved,proto3" json:"proposed_zero_tier0_proved,omitempty"`
+	DisruptionCost          int64                  `protobuf:"varint,13,opt,name=disruption_cost,json=disruptionCost,proto3" json:"disruption_cost,omitempty"`
+	CanonicalPlanJson       []byte                 `protobuf:"bytes,14,opt,name=canonical_plan_json,json=canonicalPlanJson,proto3" json:"canonical_plan_json,omitempty"`
+	PolicyBundleHash        string                 `protobuf:"bytes,15,opt,name=policy_bundle_hash,json=policyBundleHash,proto3" json:"policy_bundle_hash,omitempty"`
+	ExpiresAt               string                 `protobuf:"bytes,16,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	DisruptedActivities     []*PreservedActivity   `protobuf:"bytes,17,rep,name=disrupted_activities,json=disruptedActivities,proto3" json:"disrupted_activities,omitempty"`
+	Algorithm               string                 `protobuf:"bytes,18,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
+	RouteCountComplete      bool                   `protobuf:"varint,19,opt,name=route_count_complete,json=routeCountComplete,proto3" json:"route_count_complete,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -273,11 +291,82 @@ func (x *ContainmentPlan) GetCreatedAt() string {
 	return ""
 }
 
+func (x *ContainmentPlan) GetMinimumProved() bool {
+	if x != nil {
+		return x.MinimumProved
+	}
+	return false
+}
+
+func (x *ContainmentPlan) GetOptimalityScope() string {
+	if x != nil {
+		return x.OptimalityScope
+	}
+	return ""
+}
+
+func (x *ContainmentPlan) GetProposedZeroTier0Proved() bool {
+	if x != nil {
+		return x.ProposedZeroTier0Proved
+	}
+	return false
+}
+
+func (x *ContainmentPlan) GetDisruptionCost() int64 {
+	if x != nil {
+		return x.DisruptionCost
+	}
+	return 0
+}
+
+func (x *ContainmentPlan) GetCanonicalPlanJson() []byte {
+	if x != nil {
+		return x.CanonicalPlanJson
+	}
+	return nil
+}
+
+func (x *ContainmentPlan) GetPolicyBundleHash() string {
+	if x != nil {
+		return x.PolicyBundleHash
+	}
+	return ""
+}
+
+func (x *ContainmentPlan) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *ContainmentPlan) GetDisruptedActivities() []*PreservedActivity {
+	if x != nil {
+		return x.DisruptedActivities
+	}
+	return nil
+}
+
+func (x *ContainmentPlan) GetAlgorithm() string {
+	if x != nil {
+		return x.Algorithm
+	}
+	return ""
+}
+
+func (x *ContainmentPlan) GetRouteCountComplete() bool {
+	if x != nil {
+		return x.RouteCountComplete
+	}
+	return false
+}
+
 type PlanContainmentRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	CompromisedIdentity string                 `protobuf:"bytes,2,opt,name=compromised_identity,json=compromisedIdentity,proto3" json:"compromised_identity,omitempty"`
 	MinGraphVersion     int64                  `protobuf:"varint,3,opt,name=min_graph_version,json=minGraphVersion,proto3" json:"min_graph_version,omitempty"`
+	Mutation            *MutationContext       `protobuf:"bytes,4,opt,name=mutation,proto3" json:"mutation,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -331,6 +420,13 @@ func (x *PlanContainmentRequest) GetMinGraphVersion() int64 {
 		return x.MinGraphVersion
 	}
 	return 0
+}
+
+func (x *PlanContainmentRequest) GetMutation() *MutationContext {
+	if x != nil {
+		return x.Mutation
+	}
+	return nil
 }
 
 type PlanContainmentResponse struct {
@@ -677,13 +773,15 @@ const file_ratchet_v1_containment_proto_rawDesc = "" +
 	"actionType\x12'\n" +
 	"\x0ftarget_identity\x18\x03 \x01(\tR\x0etargetIdentity\x12(\n" +
 	"\x10resource_or_role\x18\x04 \x01(\tR\x0eresourceOrRole\x12\x16\n" +
-	"\x06reason\x18\x05 \x01(\tR\x06reason\"\x98\x01\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xb9\x01\n" +
 	"\x11PreservedActivity\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12#\n" +
 	"\rresource_name\x18\x02 \x01(\tR\fresourceName\x12)\n" +
 	"\x10permitted_action\x18\x03 \x01(\tR\x0fpermittedAction\x12\x12\n" +
-	"\x04tier\x18\x04 \x01(\x05R\x04tier\"\xc5\x03\n" +
+	"\x04tier\x18\x04 \x01(\x05R\x04tier\x12\x1f\n" +
+	"\videntity_id\x18\x05 \x01(\tR\n" +
+	"identityId\"\x9c\a\n" +
 	"\x0fContainmentPlan\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x121\n" +
@@ -695,11 +793,24 @@ const file_ratchet_v1_containment_proto_rawDesc = "" +
 	"planDigest\x12#\n" +
 	"\rgraph_version\x18\b \x01(\x03R\fgraphVersion\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\tR\tcreatedAt\"\x94\x01\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\x12%\n" +
+	"\x0eminimum_proved\x18\n" +
+	" \x01(\bR\rminimumProved\x12)\n" +
+	"\x10optimality_scope\x18\v \x01(\tR\x0foptimalityScope\x12;\n" +
+	"\x1aproposed_zero_tier0_proved\x18\f \x01(\bR\x17proposedZeroTier0Proved\x12'\n" +
+	"\x0fdisruption_cost\x18\r \x01(\x03R\x0edisruptionCost\x12.\n" +
+	"\x13canonical_plan_json\x18\x0e \x01(\fR\x11canonicalPlanJson\x12,\n" +
+	"\x12policy_bundle_hash\x18\x0f \x01(\tR\x10policyBundleHash\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\x10 \x01(\tR\texpiresAt\x12P\n" +
+	"\x14disrupted_activities\x18\x11 \x03(\v2\x1d.ratchet.v1.PreservedActivityR\x13disruptedActivities\x12\x1c\n" +
+	"\talgorithm\x18\x12 \x01(\tR\talgorithm\x120\n" +
+	"\x14route_count_complete\x18\x13 \x01(\bR\x12routeCountComplete\"\xcd\x01\n" +
 	"\x16PlanContainmentRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x121\n" +
 	"\x14compromised_identity\x18\x02 \x01(\tR\x13compromisedIdentity\x12*\n" +
-	"\x11min_graph_version\x18\x03 \x01(\x03R\x0fminGraphVersion\"J\n" +
+	"\x11min_graph_version\x18\x03 \x01(\x03R\x0fminGraphVersion\x127\n" +
+	"\bmutation\x18\x04 \x01(\v2\x1b.ratchet.v1.MutationContextR\bmutation\"J\n" +
 	"\x17PlanContainmentResponse\x12/\n" +
 	"\x04plan\x18\x01 \x01(\v2\x1b.ratchet.v1.ContainmentPlanR\x04plan\"\x97\x02\n" +
 	"\x19ExecuteContainmentRequest\x12\x1b\n" +
@@ -760,21 +871,23 @@ var file_ratchet_v1_containment_proto_goTypes = []any{
 var file_ratchet_v1_containment_proto_depIdxs = []int32{
 	0,  // 0: ratchet.v1.ContainmentPlan.recommended_revocations:type_name -> ratchet.v1.RevocationAction
 	1,  // 1: ratchet.v1.ContainmentPlan.preserved_activities:type_name -> ratchet.v1.PreservedActivity
-	2,  // 2: ratchet.v1.PlanContainmentResponse.plan:type_name -> ratchet.v1.ContainmentPlan
-	9,  // 3: ratchet.v1.ExecuteContainmentRequest.mutation:type_name -> ratchet.v1.MutationContext
-	10, // 4: ratchet.v1.ExecuteContainmentResponse.execution_results:type_name -> ratchet.v1.ExecResult
-	9,  // 5: ratchet.v1.RestoreAccessRequest.mutation:type_name -> ratchet.v1.MutationContext
-	3,  // 6: ratchet.v1.ContainmentService.PlanContainment:input_type -> ratchet.v1.PlanContainmentRequest
-	5,  // 7: ratchet.v1.ContainmentService.ExecuteContainment:input_type -> ratchet.v1.ExecuteContainmentRequest
-	7,  // 8: ratchet.v1.ContainmentService.RestoreAccess:input_type -> ratchet.v1.RestoreAccessRequest
-	4,  // 9: ratchet.v1.ContainmentService.PlanContainment:output_type -> ratchet.v1.PlanContainmentResponse
-	6,  // 10: ratchet.v1.ContainmentService.ExecuteContainment:output_type -> ratchet.v1.ExecuteContainmentResponse
-	8,  // 11: ratchet.v1.ContainmentService.RestoreAccess:output_type -> ratchet.v1.RestoreAccessResponse
-	9,  // [9:12] is the sub-list for method output_type
-	6,  // [6:9] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	1,  // 2: ratchet.v1.ContainmentPlan.disrupted_activities:type_name -> ratchet.v1.PreservedActivity
+	9,  // 3: ratchet.v1.PlanContainmentRequest.mutation:type_name -> ratchet.v1.MutationContext
+	2,  // 4: ratchet.v1.PlanContainmentResponse.plan:type_name -> ratchet.v1.ContainmentPlan
+	9,  // 5: ratchet.v1.ExecuteContainmentRequest.mutation:type_name -> ratchet.v1.MutationContext
+	10, // 6: ratchet.v1.ExecuteContainmentResponse.execution_results:type_name -> ratchet.v1.ExecResult
+	9,  // 7: ratchet.v1.RestoreAccessRequest.mutation:type_name -> ratchet.v1.MutationContext
+	3,  // 8: ratchet.v1.ContainmentService.PlanContainment:input_type -> ratchet.v1.PlanContainmentRequest
+	5,  // 9: ratchet.v1.ContainmentService.ExecuteContainment:input_type -> ratchet.v1.ExecuteContainmentRequest
+	7,  // 10: ratchet.v1.ContainmentService.RestoreAccess:input_type -> ratchet.v1.RestoreAccessRequest
+	4,  // 11: ratchet.v1.ContainmentService.PlanContainment:output_type -> ratchet.v1.PlanContainmentResponse
+	6,  // 12: ratchet.v1.ContainmentService.ExecuteContainment:output_type -> ratchet.v1.ExecuteContainmentResponse
+	8,  // 13: ratchet.v1.ContainmentService.RestoreAccess:output_type -> ratchet.v1.RestoreAccessResponse
+	11, // [11:14] is the sub-list for method output_type
+	8,  // [8:11] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_containment_proto_init() }

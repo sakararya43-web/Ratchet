@@ -26,6 +26,7 @@ message PreservedActivity {
   string resource_name = 2;
   string permitted_action = 3;
   int32 tier = 4;
+  string identity_id = 5;
 }
 
 message ContainmentPlan {
@@ -38,12 +39,23 @@ message ContainmentPlan {
   string plan_digest = 7;
   int64 graph_version = 8;
   string created_at = 9;
+  bool minimum_proved = 10;
+  string optimality_scope = 11;
+  bool proposed_zero_tier0_proved = 12;
+  int64 disruption_cost = 13;
+  bytes canonical_plan_json = 14;
+  string policy_bundle_hash = 15;
+  string expires_at = 16;
+  repeated PreservedActivity disrupted_activities = 17;
+  string algorithm = 18;
+  bool route_count_complete = 19;
 }
 
 message PlanContainmentRequest {
   string tenant_id = 1;
   string compromised_identity = 2;
   int64 min_graph_version = 3;
+  MutationContext mutation = 4;
 }
 
 message PlanContainmentResponse {

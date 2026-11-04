@@ -32,15 +32,16 @@ import (
 )
 
 type consoleConfig struct {
-	Origin          string `json:"origin"`
-	SessionKey      string `json:"session_key_hex"`
-	GraphKey        string `json:"graph_key_hex"`
-	CursorKey       string `json:"cursor_key_hex"`
-	ServerCert      string `json:"server_cert"`
-	ServerKey       string `json:"server_key"`
-	NATSURL         string `json:"nats_url"`
-	NATSCredentials string `json:"nats_credentials"`
-	Tenants         []struct {
+	Origin           string           `json:"origin"`
+	SessionKey       string           `json:"session_key_hex"`
+	GraphKey         string           `json:"graph_key_hex"`
+	CursorKey        string           `json:"cursor_key_hex"`
+	ServerCert       string           `json:"server_cert"`
+	ServerKey        string           `json:"server_key"`
+	NATSURL          string           `json:"nats_url"`
+	NATSCredentials  string           `json:"nats_credentials"`
+	ContainmentCosts map[string]int64 `json:"containment_costs"`
+	Tenants          []struct {
 		ID            string `json:"tenant_id"`
 		AuthorityFile string `json:"authority_file"`
 		GenesisDigest string `json:"genesis_digest"`
@@ -230,6 +231,13 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	apiMux.Handle("/ratchet.v1.OverviewService/", changes)
 	apiMux.Handle("/ratchet.v1.GraphService/", graphs)
 	apiMux.Handle("/ratchet.v1.ImpactService/", graphs)
+	if len(config.ContainmentCosts) > 0 {
+		containment, err := api.NewContainmentHandler(service, config.ContainmentCosts)
+		if err != nil {
+			return err
+		}
+		apiMux.Handle("/ratchet.v1.ContainmentService/", containment)
+	}
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", sessions.Routes()))
 	mux.Handle("/api/", http.StripPrefix("/api", sessions.Require(apiMux)))

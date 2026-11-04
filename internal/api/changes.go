@@ -16,6 +16,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
+	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
@@ -57,6 +58,8 @@ func changeError(err error) error {
 	case errors.Is(err, domain.ErrInvalid), errors.Is(err, eventstore.ErrInvalid):
 		code = connect.CodeInvalidArgument
 	case errors.Is(err, domain.ErrTransition), errors.Is(err, domain.ErrContextChanged):
+		code = connect.CodeFailedPrecondition
+	case errors.Is(err, graph.ErrNoContainment):
 		code = connect.CodeFailedPrecondition
 	case errors.Is(err, eventstore.ErrVersionConflict):
 		code = connect.CodeAborted

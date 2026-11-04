@@ -11,6 +11,14 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Mounted the real PlanContainment Connect operation when explicit operator
+  `containment_costs` are configured. The response exposes authoritative canonical
+  bytes, proposed zero-tier-0 proof, optimality scope, cost, activity changes and
+  route-count completeness. No default risk/disruption weights are invented.
+- Real TLS/database acceptance validates the surgical admin-role proposal,
+  canonical digest, idempotent retry and ordinary-user refusal. Execute/Restore
+  are not mounted while their full verified orchestration remains unfinished.
+
 - Added operator-cost catalogs scoped to reachable authority and schema-7 immutable
   containment proposals. Current policy authorization, graph/registry/policy context,
   complete catalog, exact actions/proof and expiry are bound to a canonical digest.

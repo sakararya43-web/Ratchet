@@ -80,6 +80,8 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	data := graph.Data{Nodes: []graph.Node{{ID: "user:requester", Type: "Human"}, {ID: "user:owner", Type: "Human"}, {ID: "role:finance", Type: "Role"}, {ID: "reports", Type: "Resource", Tier: 2}}, Edges: []graph.Edge{{Source: "role:finance", Target: "reports", Kind: "GRANTS", Action: "read"}}}
 	data.Nodes = append(data.Nodes, graph.Node{ID: "user:investigator", Type: "Human"}, graph.Node{ID: "role:security-lead", Type: "Role"})
 	data.Edges = append(data.Edges, graph.Edge{Source: "user:investigator", Target: "role:security-lead", Kind: "ASSIGNED"})
+	data.Nodes = append(data.Nodes, graph.Node{ID: "user:compromised", Type: "Human"}, graph.Node{ID: "role:admin", Type: "Role"}, graph.Node{ID: "wallet", Type: "Resource", Tier: 0})
+	data.Edges = append(data.Edges, graph.Edge{Source: "user:compromised", Target: "role:admin", Kind: "ASSIGNED"}, graph.Edge{Source: "user:compromised", Target: "role:finance", Kind: "ASSIGNED"}, graph.Edge{Source: "role:admin", Target: "wallet", Kind: "GRANTS", Action: "sign"})
 	if _, err := store.IngestGraph(ctx, eventstore.GraphInput{TenantID: tenant, ConnectorID: "source", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{8}).String(), ToRevision: 10, Snapshot: &data, Complete: true}, key); err != nil {
 		t.Fatal(err)
 	}
@@ -139,6 +141,7 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 		natsURL = "nats://127.0.0.1:54222"
 	}
 	config := map[string]any{"origin": origin, "session_key_hex": hex.EncodeToString(bytes.Repeat([]byte{41}, 32)), "graph_key_hex": hex.EncodeToString(key), "cursor_key_hex": hex.EncodeToString(bytes.Repeat([]byte{42}, 32)), "server_cert": cert, "server_key": keyPath, "nats_url": natsURL, "tenants": []map[string]string{{"tenant_id": tenant, "authority_file": authorityFile, "genesis_digest": genesis.GenesisDigest.String(), "bundle_file": bundlePath}}}
+	config["containment_costs"] = map[string]int64{"ROLE_REVOKE": 1, "RESTRICT_ACCOUNT": 100}
 	configRaw, err := json.Marshal(config)
 	if err != nil {
 		t.Fatal(err)
@@ -238,7 +241,32 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 		}
 	}
 	assessed := wait()
-	investigations := ratchetv1connect.NewChangeServiceClient(login("user:investigator"), base+"/api")
+	investigatorClient := login("user:investigator")
+	investigations := ratchetv1connect.NewChangeServiceClient(investigatorClient, base+"/api")
+	containment := ratchetv1connect.NewContainmentServiceClient(investigatorClient, base+"/api")
+	planInput := &v1.PlanContainmentRequest{TenantId: tenant, CompromisedIdentity: "user:compromised", Mutation: mutation(0)}
+	planned, err := containment.PlanContainment(ctx, connect.NewRequest(planInput))
+	if err != nil {
+		t.Fatal("real containment plan API", err)
+	}
+	if !planned.Msg.Plan.MinimumProved || !planned.Msg.Plan.ProposedZeroTier0Proved || planned.Msg.Plan.DisruptionCost != 1 || len(planned.Msg.Plan.RecommendedRevocations) != 1 || planned.Msg.Plan.RecommendedRevocations[0].ResourceOrRole != "role:admin" {
+		t.Fatal("incorrect proposed cut", planned.Msg.Plan)
+	}
+	planDigest, err := canon.New().Digest(json.RawMessage(planned.Msg.Plan.CanonicalPlanJson))
+	if err != nil || planDigest.String() != planned.Msg.Plan.PlanDigest {
+		t.Fatal("canonical plan not bound", err)
+	}
+	again, err := containment.PlanContainment(ctx, connect.NewRequest(planInput))
+	if err != nil || again.Msg.Plan.PlanId != planned.Msg.Plan.PlanId {
+		t.Fatal("plan retry duplicated proposal", err)
+	}
+	ordinaryContainment := ratchetv1connect.NewContainmentServiceClient(requester, base+"/api")
+	if _, err := ordinaryContainment.PlanContainment(ctx, connect.NewRequest(&v1.PlanContainmentRequest{TenantId: tenant, CompromisedIdentity: "user:compromised", Mutation: mutation(0)})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary user obtained containment plan", err)
+	}
+	if _, err := containment.ExecuteContainment(ctx, connect.NewRequest(&v1.ExecuteContainmentRequest{TenantId: tenant, PlanId: planned.Msg.Plan.PlanId, ResponderId: "user:investigator", Mutation: mutation(0)})); err == nil {
+		t.Fatal("planning API executed an unconfirmed containment")
+	}
 	evidence, err := investigations.GetDecisionEvidence(ctx, connect.NewRequest(&v1.GetDecisionEvidenceRequest{TenantId: tenant, RequestId: id}))
 	if err != nil {
 		t.Fatal("real authenticated evidence export", err)

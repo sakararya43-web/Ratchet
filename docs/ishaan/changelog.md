@@ -35,6 +35,15 @@ Phase 1's joint acceptance remains pending. No Phase 3 work has started.
   rejection, authorized reduction, permission denial and invalid replacement.
 - Reused byte-identical trust production files and passkey store/verifier from
   `9662c46`; no peer-owned file was rewritten and no seed-key runtime was imported.
+- Added schema version 3: tenant-isolated workflow projections/receipts, policy
+  artifacts, password accounts and expiring sessions. River 0.51 migrations use
+  a separate job schema and retain the existing migration/runtime privilege split.
+- Change mutations serialize with graph/policy writes, rebuild authoritative state
+  from verified ledger bytes, check durable command receipts before callbacks,
+  and atomically commit events, projections and transaction-enqueued jobs.
+- Signed policy activations are durably versioned and hash-chained. Restart reload
+  re-verifies the persisted artifact; invalid replacements cannot erase a valid one.
+- Full existing PostgreSQL acceptance passes after the schema upgrade.
 
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 

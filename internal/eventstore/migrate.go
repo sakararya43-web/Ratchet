@@ -6,6 +6,9 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivermigrate"
 	"io/fs"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -15,7 +18,7 @@ import (
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-const SchemaVersion int64 = 2
+const SchemaVersion int64 = 3
 
 // Migrate is an explicit administrative operation. The serving process must use
 // a separate runtime DSN and never keeps the migration credentials in its pool.
@@ -54,6 +57,23 @@ func Migrate(ctx context.Context, dsn string) error {
 	}
 	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("migrate core store: %w", err)
+	}
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	migrator, err := rivermigrate.New(riverpgxv5.New(pool), &rivermigrate.Config{Schema: "ratchet_jobs"})
+	if err != nil {
+		return err
+	}
+	if _, err := migrator.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
+		return fmt.Errorf("migrate durable jobs: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `REVOKE ALL ON ALL TABLES IN SCHEMA ratchet_jobs FROM PUBLIC;
+GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA ratchet_jobs TO ratchet_runtime;
+GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA ratchet_jobs TO ratchet_runtime`); err != nil {
+		return err
 	}
 	_, err = db.ExecContext(ctx, `GRANT SELECT ON public.goose_db_version TO ratchet_runtime`)
 	return err

@@ -107,8 +107,15 @@ func Prepare(ctx context.Context, store *trust.Store, root ports.Digest, tenant 
 	}
 	caps := ast.CapabilitiesForThisVersion()
 	builtins := caps.Builtins[:0]
+	// A positive capability list also excludes builtins whose implementation
+	// consults implicit certificate/JWT validation time without being marked
+	// nondeterministic. Policy upgrades cannot silently acquire host capabilities.
+	pure := map[string]bool{}
+	for _, name := range []string{"eq", "equal", "neq", "assign", "gt", "gte", "lt", "lte", "internal.member_2", "internal.member_3", "and", "or", "minus", "plus", "mul", "div", "rem", "abs", "ceil", "floor", "round", "sum", "product", "count", "max", "min", "sort", "all", "any", "concat", "contains", "startswith", "endswith", "lower", "upper", "trim_space", "split", "sprintf", "to_number", "is_number", "is_string", "is_boolean", "is_array", "is_object", "is_set", "is_null", "array.concat", "array.slice", "array.reverse", "object.get", "object.keys", "object.union", "object.remove", "json.marshal", "json.unmarshal"} {
+		pure[name] = true
+	}
 	for _, builtin := range caps.Builtins {
-		if !builtin.IsNondeterministic() && builtin.Name != "http.send" && !strings.HasPrefix(builtin.Name, "net.lookup_") {
+		if pure[builtin.Name] && !builtin.IsNondeterministic() {
 			builtins = append(builtins, builtin)
 		}
 	}

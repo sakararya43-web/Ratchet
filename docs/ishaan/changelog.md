@@ -78,6 +78,20 @@ Phase 1's joint acceptance remains pending. No Phase 3 work has started.
   Buf lint/Phase-1 compatibility and generated SQL/protobuf checks pass at the
   publication checkpoint. Full runtime integration and Linux race checks follow.
 
+- Added an actual console-runtime acceptance test using PostgreSQL, TLS,
+  password login, a real Authority-signed bundle, River and generated Connect
+  clients. It verifies assessment/review/context updates, canonical envelope
+  bytes, cross-tenant refusal, unchanged pending graph and absent unsafe routes.
+- Native runtime acceptance and Linux race checks of runtime/auth/workflow pass.
+  The race fixture's login client deadline is eight seconds, within the existing
+  production ten-second write bound; Argon2id parameters were not weakened.
+- Added basic approval-independence tests for current/proposed inherited control,
+  direct benefit and controlled beneficiaries. Execution also requires the role
+  to belong to the selected target connector's source snapshot.
+- Restricted Rego to an explicit pure builtin capability set, including refusal
+  of certificate-validation builtins with implicit wall-clock behavior. Signed
+  test modules prove clock/network/implicit-certificate-time calls cannot load.
+
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 
 The user explicitly authorized starting the next phase after the Phase 0 handoff.

@@ -111,7 +111,8 @@ func TestSignedPreparedPolicyDecisionsAndAuthorization(t *testing.T) {
 func TestPolicyCannotUseNetworkOrWallClockAndRequiresPinnedRoot(t *testing.T) {
 	for _, module := range []string{`package unwanted
  value := time.now_ns()`, `package unwanted
- value := http.send({"url":"https://example.com","method":"GET"})`} {
+ value := http.send({"url":"https://example.com","method":"GET"})`, `package unwanted
+ value := crypto.x509.parse_and_verify_certificates("untrusted")`} {
 		store, root, raw := signed(t, module)
 		if _, err := policy.Prepare(context.Background(), store, root, "tenant", raw); err == nil {
 			t.Fatal("nondeterministic builtin accepted")

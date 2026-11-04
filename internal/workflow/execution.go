@@ -93,7 +93,8 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	}
 	var source struct {
 		Nodes []struct {
-			ID string `json:"id"`
+			ID   string `json:"id"`
+			Type string `json:"type"`
 		} `json:"nodes"`
 		Edges []struct{ Source, Target, Kind string } `json:"edges"`
 	}
@@ -101,10 +102,12 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 		return cmd, err
 	}
 	exists := false
+	roleExists := false
 	for _, node := range source.Nodes {
 		exists = exists || node.ID == c.Intent.Target
+		roleExists = roleExists || (node.ID == c.Intent.Access && node.Type == "Role")
 	}
-	if !exists {
+	if !exists || !roleExists {
 		return cmd, ErrDependency
 	}
 	roles := []string{}

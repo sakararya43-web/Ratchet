@@ -91,3 +91,4 @@ message FinishAssertionResponse {
   bool user_verified = 4;
   bytes signed_evidence = 5;
 }
+

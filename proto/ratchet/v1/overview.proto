@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package ratchet.v1;
 
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+
 import "ratchet/v1/change.proto";
 import "ratchet/v1/incident.proto";
-
-option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
 
 service OverviewService {
   rpc GetAttentionItems(GetAttentionItemsRequest) returns (GetAttentionItemsResponse);
@@ -30,3 +30,4 @@ message GetAttentionItemsResponse {
   repeated ChangeRequest pending_requests = 2;
   repeated Incident active_incidents = 3;
 }
+

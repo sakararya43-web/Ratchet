@@ -9,28 +9,32 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Phase 0 — in progress (2026-11-04)
+## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance
 
-Reused the following files byte-for-byte from `origin/sakar` at
+Initially imported the following files byte-for-byte from `origin/sakar` at
 `9662c46`: `go.mod`, `go.sum`, `buf.yaml`, `proto/ratchet/v1/`,
 `internal/ports/ports.go`, `internal/canon/`, and `testdata/canon/`.
 No peer-owned implementation was rewritten and the branches remain separate.
 Subsequent contract additions must preserve these field numbers and RPC names.
+Core dependency additions were later made to the root Go module; original peer
+dependencies were retained and exercised in the combined build.
 The user confirmed dependency reuse with separate branches. The reused canonical
 golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
 
 ### Required completion evidence
 
 - [ ] Eight core service contracts and connector envelopes agreed with Sakar.
-- [ ] Approval envelope, authenticated caller boundaries, ledger bytes and replay facts specified.
-- [ ] Real PostgreSQL migration and sqlc/pgx repository.
-- [ ] Atomic event/outbox/idempotency writes and serialized per-tenant chain.
-- [ ] Separate personal data and least-privilege database roles.
-- [ ] Restart persistence, rollback, concurrent-chain, duplicate-command and SQL tamper-denial evidence.
-- [ ] Real persisted `ratchetd` operation and honest readiness.
-- [ ] Local PostgreSQL/NATS Compose, actual core CI, Buf baseline and compatibility checks.
+- [x] Approval envelope, authenticated caller boundaries, ledger bytes and replay facts specified.
+- [x] Real PostgreSQL migration and sqlc/pgx repository.
+- [x] Atomic event/outbox/idempotency writes and serialized per-tenant chain.
+- [x] Separate personal data and least-privilege database roles.
+- [x] Restart persistence, rollback, concurrent-chain, duplicate-command and SQL tamper-denial evidence.
+- [x] Real persisted `ratchetd` operation and honest readiness.
+- [x] Local PostgreSQL/NATS Compose, core CI workflow, Buf baseline and local compatibility/check commands.
+- [ ] Hosted GitHub Actions verdict after an authorized push.
+- [ ] Peer audit fixture correction and a fully green combined candidate.
 
 ### Contract increment
 
@@ -54,7 +58,7 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
   PostgreSQL uses configurable localhost port 55434 because 55432 belongs to an
   unrelated project. Local credentials were generated outside Git.
 - The explicit migration command successfully applied schema version 1 using
-  the non-superuser migration role. Integration checks are still in progress.
+  the non-superuser migration role. Integration evidence is recorded below.
 
 ### Canonical chain and private records
 
@@ -109,3 +113,24 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
 
 Phase 1 has not started. Shared contract review remains a joint gate.
 Full-outage revocation (R6/FR-X6) remains the documented peer-owned P2 limitation.
+
+### CI and integration handoff
+
+- Core vet, lint (zero issues), module verification, generated-file consistency,
+  Buf lint and compatibility checks pass. CI jobs are `core-contracts` and
+  `core-tests`; workflow syntax was validated with actionlint 1.7.12.
+- Linux process smoke also passed. Credential env generation now writes LF so
+  the same Windows-created private file can be consumed in Linux containers.
+- Restored the unchanged Authority/Passkey/Overview proto sources byte-for-byte
+  from the peer to avoid unnecessary formatting conflicts.
+- An isolated combined race run compiled all peer/core packages. All tests passed
+  except four subtests in the peer's `internal/audit` suite. The exact failures
+  also reproduce on untouched `origin/sakar`: `time.Now()-12h` enrollment is later
+  than the fixed 2026-11-03 approval event. Peer code was not changed.
+- Proposed agreement, tested merge resolution and the peer-owned fixture action
+  are recorded in `phase-0-handoff.md`. Shared review, the inherited test failure
+  and hosted CI remain explicit acceptance gates; no later phase is started.
+- The isolated combined frontend passes TypeScript checking, Vite production
+  build and all 15 canonicalization tests. No frontend source was changed.
+- Direct core module dependencies are annotated accurately; existing peer-only
+  requirements are retained. `go list -mod=readonly ./...` passes.

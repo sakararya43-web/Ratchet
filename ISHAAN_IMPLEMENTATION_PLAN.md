@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Planning only; implementation has not started in this repository.  
+**Status:** Phase 0 core implementation delivered on `main`; joint contract acceptance and integrated verification remain pending. See [Ishaan changelog](docs/ishaan/changelog.md) and [Phase 0 handoff](docs/ishaan/phase-0-handoff.md). Later phases have not started.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -59,7 +59,7 @@ The architecture's Oracle **4-core / 24-GB Always Free** assumption must not be 
 
 ## 4. Phase sequence
 
-Weeks are estimates from the agreed start date, not promises or instructions to overlap unfinished security gates. Moving a dependency changes the schedule, not ownership. Maintain `ishaan/<topic>` branches, focused PRs, Conventional Commits and the PRD's short branch lifetime where practical. Use the twice-weekly check-in to report delivered contracts and blockers.
+Weeks are estimates from the agreed start date, not promises or instructions to overlap unfinished security gates. Moving a dependency changes the schedule, not ownership. Per the current user instruction, work on `main` only, use focused Conventional Commits, and keep shared changes subject to peer agreement. Use the twice-weekly check-in to report delivered contracts and blockers.
 
 | Phase | Indicative window | Working result |
 |---|---|---|
@@ -78,19 +78,27 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 **Entry:** Documents are the current repository contents; do not assume application code or infrastructure already exists.
 
+**Execution record (2026-11-04):** The real core slice, schemas, SQL, hash chain,
+privacy separation, role restrictions, process operations and local checks are
+implemented. Contract freeze/agreement remains pending peer review. The isolated
+combined test run also reproduces an existing peer audit-fixture failure on
+untouched `origin/sakar`. Do not sign off Phase 0 or start Phase 1 until the
+[handoff gates](docs/ishaan/phase-0-handoff.md) are resolved. The user's instruction
+overrides the topic-branch rule: all Ishaan changes are committed on `main` only.
+
 ### Ishaan's work
 
-- [ ] Establish the Go module and build configuration needed by the first actual core operation. Add implementation files as they become useful; do not populate empty future modules.
+- [x] Establish the Go module and build configuration needed by the first actual core operation. Add implementation files as they become useful; do not populate empty future modules.
 - [ ] Contribute the eight core service schemas: `ChangeService`, `ImpactService`, `GraphService`, `ContainmentService`, `IncidentService`, `AuditService`, `OverviewService`, `DecisionService`. Freeze request kinds, state names, enum meanings, pagination, typed errors, tenant identifiers, graph versions and idempotency fields with the peer.
-- [ ] Specify the control-plane side of `GraphSnapshot`, `GraphDelta`, `ExecCommand`, `ExecResult`, `ObservedState`, `AuditEvent` and `DriftReport`. Include connector identity, tenant, schema version, source revision, correlation ID, command ID, preconditions and read-back evidence. Keep the five PRD NATS subjects unchanged unless a reviewed additive contract change is necessary.
-- [ ] Review `ApprovalVerifier`, `BundleVerifier`, `Digester` and `PasskeyHandlerFactory` ports and their failure behavior. Specify how the authenticated actor and tenant enter these boundaries without trusting user-supplied identity fields.
-- [ ] Specify the approval envelope: exact change intent, requester and target, request/revision ID, graph version, impact digest, policy hash, tenant and expiration. Accept Sakar's canonicalization format instead of creating another digest implementation.
+- [x] Specify the control-plane side of `GraphSnapshot`, `GraphDelta`, `ExecCommand`, `ExecResult`, `ObservedState`, `AuditEvent` and `DriftReport`. Include connector identity, tenant, schema version, source revision, correlation ID, command ID, preconditions and read-back evidence. Keep the five PRD NATS subjects unchanged unless a reviewed additive contract change is necessary.
+- [x] Review `ApprovalVerifier`, `BundleVerifier`, `Digester` and `PasskeyHandlerFactory` ports and their failure behavior. Specify how the authenticated actor and tenant enter these boundaries without trusting user-supplied identity fields.
+- [x] Specify the approval envelope: exact change intent, requester and target, request/revision ID, graph version, impact digest, policy hash, tenant and expiration. Accept Sakar's canonicalization format instead of creating another digest implementation.
 - [ ] Agree the append-only chain format and a replayable decision fact sheet. Specify byte encoding, sequence order, genesis hash, versioning and canonical metadata before events are stored.
-- [ ] Implement real PostgreSQL migrations and repositories using `pgx`, `sqlc` and `goose`: append/load an event stream, expected-version conflicts, command idempotency and outbox insertion in one transaction. Use a tenant-specific locked chain head or equivalent serialization so concurrent streams cannot fork the tenant hash chain. Do not assume generated sequence allocation equals commit order.
-- [ ] Start hash chaining immediately with Sakar's real `Digester`. Separate mutable personal-data storage and encrypted references from immutable event content. Do not duplicate justifications or names into permanent metadata by accident.
-- [ ] Provide distinct migration and runtime DB privileges; runtime must not update, delete or truncate event/ledger rows. Read-model writers need only their projection permissions. Runtime must not own tables or hold superuser privileges.
-- [ ] Make `ratchetd` perform a real persisted operation and expose honest liveness/readiness. Readiness distinguishes migration, database and graph/bundle readiness; unavailable decision dependencies never appear healthy for escalation.
-- [ ] Contribute working local Postgres/NATS startup and core checks to shared Compose/CI. Add `go vet`, lint, focused integration tests and race checks for code that exists. Establish the initial Buf baseline; later contract diffs run `buf breaking` against it.
+- [x] Implement real PostgreSQL migrations and repositories using `pgx`, `sqlc` and `goose`: append/load an event stream, expected-version conflicts, command idempotency and outbox insertion in one transaction. Use a tenant-specific locked chain head or equivalent serialization so concurrent streams cannot fork the tenant hash chain. Do not assume generated sequence allocation equals commit order.
+- [x] Start hash chaining immediately with Sakar's real `Digester`. Separate mutable personal-data storage and encrypted references from immutable event content. Do not duplicate justifications or names into permanent metadata by accident.
+- [x] Provide distinct migration and runtime DB privileges; runtime must not update, delete or truncate event/ledger rows. Read-model writers need only their projection permissions. Runtime must not own tables or hold superuser privileges.
+- [x] Make `ratchetd` perform a real persisted operation and expose honest liveness/readiness. Readiness distinguishes migration, database and graph/bundle readiness; unavailable decision dependencies never appear healthy for escalation.
+- [x] Contribute working local Postgres/NATS startup and core checks to shared Compose/CI. Add `go vet`, lint, focused integration tests and race checks for code that exists. Establish the initial Buf baseline; later contract diffs run `buf breaking` against it.
 
 **Dependency:** The real digester and canonical vectors come from the peer-owned package. Before that lands, design schemas and SQL or test independent domain operations; do not add a second digester or bypass hash verification.
 

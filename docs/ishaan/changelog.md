@@ -9,6 +9,25 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Phase 2 — in progress (2026-11-04)
+
+The user explicitly authorized the next phase after Phase 1's core handoff.
+Phase 1's joint acceptance remains pending. No Phase 3 work has started.
+
+- Added a pure event-producing change state machine covering submission,
+  assessment, approval, holds/reassessment, rejection, execution, failure, expiry
+  and verified revocation. Distinct-human/credential counting, context invalidation
+  and read-back-only completion have deterministic regression coverage.
+- Only explicitly supported typed intents validate. Personal context is represented
+  by a private record reference/digest, never copied into permanent public facts.
+- Read `origin/sakar` at unchanged `9662c46`: its passkey factory ignores SessionAPI
+  and mounts `/assert/simulate`; its verifier omits RP-ID/origin checks and uses
+  PKIX keys where actual WebAuthn enrollment returns COSE keys. These are peer
+  handoff gates. Unsafe passkey handlers will not be copied or mounted.
+- Reuse only exact production trust/store/verifier dependencies and the passkey
+  store/verifier needed for actual conformance checks. No seed-key helpers or
+  simulated-assertion handler is imported into the core runtime.
+
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 
 The user explicitly authorized starting the next phase after the Phase 0 handoff.

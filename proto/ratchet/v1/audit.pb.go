@@ -262,11 +262,12 @@ func (x *QueryAuditEventsRequest) GetPageToken() string {
 }
 
 type QueryAuditEventsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Events        []*LedgerEvent         `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Events              []*LedgerEvent         `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	NextPageToken       string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	SnapshotEndSequence int64                  `protobuf:"varint,3,opt,name=snapshot_end_sequence,json=snapshotEndSequence,proto3" json:"snapshot_end_sequence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *QueryAuditEventsResponse) Reset() {
@@ -311,6 +312,13 @@ func (x *QueryAuditEventsResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *QueryAuditEventsResponse) GetSnapshotEndSequence() int64 {
+	if x != nil {
+		return x.SnapshotEndSequence
+	}
+	return 0
 }
 
 type ExportHashChainRequest struct {
@@ -526,10 +534,11 @@ const file_ratchet_v1_audit_proto_rawDesc = "" +
 	"\bend_time\x18\a \x01(\tR\aendTime\x12\x1b\n" +
 	"\tpage_size\x18\b \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\t \x01(\tR\tpageToken\"s\n" +
+	"page_token\x18\t \x01(\tR\tpageToken\"\xa7\x01\n" +
 	"\x18QueryAuditEventsResponse\x12/\n" +
 	"\x06events\x18\x01 \x03(\v2\x17.ratchet.v1.LedgerEventR\x06events\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xbb\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x122\n" +
+	"\x15snapshot_end_sequence\x18\x03 \x01(\x03R\x13snapshotEndSequence\"\xbb\x01\n" +
 	"\x16ExportHashChainRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12%\n" +
 	"\x0estart_sequence\x18\x02 \x01(\x03R\rstartSequence\x12!\n" +

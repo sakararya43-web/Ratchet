@@ -66,10 +66,18 @@ func (a *containmentAPI) PlanContainment(ctx context.Context, r *connect.Request
 			return nil, changeError(err)
 		}
 		kind := action.Kind
+		reason := "Remove this service permission to cut access to critical assets."
 		if kind == "ROLE_REVOKE" {
 			kind = "REVOKE_ROLE"
+			reason = "Remove this role to cut access to critical assets."
 		}
-		view.RecommendedRevocations = append(view.RecommendedRevocations, &v1.RevocationAction{ActionId: uuid.NewSHA1(planID, digest.Bytes()).String(), ActionType: kind, TargetIdentity: action.Target, ResourceOrRole: action.Access, Reason: "Verified proposed reduction under the recorded graph context"})
+		if kind == "TERMINATE_SESSION" {
+			reason = "End this session to cut access to critical assets."
+		}
+		if kind == "RESTRICT_ACCOUNT" {
+			reason = "Restrict this account to cut access to critical assets."
+		}
+		view.RecommendedRevocations = append(view.RecommendedRevocations, &v1.RevocationAction{ActionId: uuid.NewSHA1(planID, digest.Bytes()).String(), ActionType: kind, TargetIdentity: action.Target, ResourceOrRole: action.Access, Reason: reason})
 	}
 	convert := func(activity graph.Activity) *v1.PreservedActivity {
 		return &v1.PreservedActivity{ResourceId: activity.Resource, PermittedAction: activity.Action, Tier: int32(activity.Tier), IdentityId: activity.Identity}

@@ -18,7 +18,7 @@ import (
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-const SchemaVersion int64 = 7
+const SchemaVersion int64 = 8
 
 // Migrate is an explicit administrative operation. The serving process must use
 // a separate runtime DSN and never keeps the migration credentials in its pool.

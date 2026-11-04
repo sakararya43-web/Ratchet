@@ -8,6 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type RatchetAuditProjection struct {
+	TenantID       string
+	Sequence       int64
+	ActorReference string
+	RequestID      string
+	IncidentID     string
+	ResourceRefs   []string
+	RecordedAt     pgtype.Timestamptz
+	Display        []byte
+}
+
 type RatchetChangeProjection struct {
 	TenantID      string
 	RequestID     pgtype.UUID

@@ -39,6 +39,7 @@ message QueryAuditEventsRequest {
 message QueryAuditEventsResponse {
   repeated LedgerEvent events = 1;
   string next_page_token = 2;
+  int64 snapshot_end_sequence = 3;
 }
 
 message ExportHashChainRequest {

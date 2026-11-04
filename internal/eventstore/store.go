@@ -182,6 +182,13 @@ func (s *Store) appendTx(ctx context.Context, tx pgx.Tx, command Command) (Recei
 		if err := q.InsertOutbox(ctx, storedb.InsertOutboxParams{TenantID: command.TenantID, EventID: pgUUID(eventID), Sequence: seq, Subject: "ratchet." + command.TenantID + ".changes.events", Payload: entry.Canonical, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return Receipt{}, fmt.Errorf("insert outbox: %w", err)
 		}
+		var auditContent ledger.Content
+		if err := json.Unmarshal(entry.Canonical, &auditContent); err != nil {
+			return Receipt{}, err
+		}
+		if err := s.projectAudit(ctx, tx, auditContent); err != nil {
+			return Receipt{}, err
+		}
 		previous = entry.Hash
 	}
 	if err := q.SaveCommand(ctx, storedb.SaveCommandParams{TenantID: command.TenantID, CommandID: id, CommandDigest: fingerprint.Bytes(), StreamID: command.StreamID, FirstSequence: receipt.FirstSequence, LastSequence: receipt.LastSequence, StreamVersion: receipt.StreamVersion}); err != nil {

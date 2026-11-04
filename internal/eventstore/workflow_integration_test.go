@@ -50,7 +50,7 @@ func TestWorkflowRollbackIncludesJobProjectionPrivateDataAndOutbox(t *testing.T)
 		t.Fatal("outbox escaped rollback", err)
 	}
 	err = store.WithTenantTx(ctx, tenant, func(tx pgx.Tx, _ time.Time) error {
-		for _, query := range []string{`SELECT count(*) FROM ratchet.change_projection WHERE tenant_id=$1`, `SELECT count(*) FROM ratchet.workflow_receipts WHERE tenant_id=$1`, `SELECT count(*) FROM ratchet.private_records WHERE tenant_id=$1`, `SELECT count(*) FROM ratchet_jobs.river_job WHERE args->>'tenant_id'=$1`} {
+		for _, query := range []string{`SELECT count(*) FROM ratchet.change_projection WHERE tenant_id=$1`, `SELECT count(*) FROM ratchet.workflow_receipts WHERE tenant_id=$1`, `SELECT count(*) FROM ratchet.private_records WHERE tenant_id=$1`, `SELECT count(*) FROM ratchet.audit_projection WHERE tenant_id=$1`, `SELECT count(*) FROM ratchet_jobs.river_job WHERE args->>'tenant_id'=$1`} {
 			var count int
 			if err := tx.QueryRow(ctx, query, tenant).Scan(&count); err != nil {
 				return err

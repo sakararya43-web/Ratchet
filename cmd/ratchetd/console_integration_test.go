@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -322,6 +323,19 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	ordinaryAudit := ratchetv1connect.NewAuditServiceClient(requester, base+"/api")
 	if _, err := ordinaryAudit.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant, PageToken: firstToken})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatal("ordinary session exported chain", err)
+	}
+	search, err := audits.QueryAuditEvents(ctx, connect.NewRequest(&v1.QueryAuditEventsRequest{TenantId: tenant, RequestId: id, ResourceId: "reports", PageSize: 1}))
+	if err != nil || len(search.Msg.Events) != 1 || search.Msg.NextPageToken == "" {
+		t.Fatal("indexed audit search", err)
+	}
+	if len(search.Msg.Events[0].CanonicalContent) != 0 || strings.Contains(search.Msg.Events[0].EventPayloadJson, input.Justification) || strings.Contains(search.Msg.Events[0].EventPayloadJson, "assertion") {
+		t.Fatal("display search exposed raw evidence")
+	}
+	if _, err := audits.QueryAuditEvents(ctx, connect.NewRequest(&v1.QueryAuditEventsRequest{TenantId: tenant, RequestId: uuid.NewString(), ResourceId: "reports", PageToken: search.Msg.NextPageToken})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatal("search cursor changed filters", err)
+	}
+	if _, err := ordinaryAudit.QueryAuditEvents(ctx, connect.NewRequest(&v1.QueryAuditEventsRequest{TenantId: tenant})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary session searched investigator audit", err)
 	}
 	evidence, err := investigations.GetDecisionEvidence(ctx, connect.NewRequest(&v1.GetDecisionEvidenceRequest{TenantId: tenant, RequestId: id}))
 	if err != nil {

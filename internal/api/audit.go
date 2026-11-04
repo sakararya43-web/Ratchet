@@ -11,7 +11,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
+	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/ledger"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
@@ -36,7 +39,108 @@ func NewAuditHandler(service *workflow.Service, key []byte) (http.Handler, error
 	a := &auditAPI{service, append([]byte(nil), key...)}
 	mux := http.NewServeMux()
 	mux.Handle(ratchetv1connect.AuditServiceExportHashChainProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServiceExportHashChainProcedure, a.ExportHashChain, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
+	mux.Handle(ratchetv1connect.AuditServiceQueryAuditEventsProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServiceQueryAuditEventsProcedure, a.QueryAuditEvents, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
 	return mux, nil
+}
+
+type auditQueryCursor struct {
+	Tenant     string
+	Filter     ports.Digest
+	After, End int64
+}
+
+func (a *auditAPI) queryMAC(raw []byte) []byte {
+	mac := hmac.New(sha256.New, a.key)
+	_, _ = mac.Write([]byte("RATCHET_AUDIT_QUERY_CURSOR_V1:"))
+	_, _ = mac.Write(raw)
+	return mac.Sum(nil)
+}
+func (a *auditAPI) QueryAuditEvents(ctx context.Context, r *connect.Request[v1.QueryAuditEventsRequest]) (*connect.Response[v1.QueryAuditEventsResponse], error) {
+	p, err := actor(ctx, r.Msg.TenantId, "")
+	if err != nil {
+		return nil, err
+	}
+	if len(r.Msg.ActorId) > 256 || len(r.Msg.ResourceId) > 256 {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	filter := eventstore.AuditFilter{Resource: r.Msg.ResourceId, Request: r.Msg.RequestId, Incident: r.Msg.IncidentId}
+	if r.Msg.ActorId != "" {
+		filter.Actor = uuid.NewSHA1(uuid.NameSpaceOID, []byte(p.TenantID+":"+r.Msg.ActorId)).String()
+	}
+	for _, id := range []*string{&filter.Request, &filter.Incident} {
+		if *id != "" {
+			if parsed, err := uuid.Parse(*id); err != nil || parsed == uuid.Nil {
+				return nil, changeError(domain.ErrInvalid)
+			} else {
+				*id = parsed.String()
+			}
+		}
+	}
+	parse := func(raw string) (*time.Time, error) {
+		if raw == "" {
+			return nil, nil
+		}
+		stamp, err := time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			return nil, domain.ErrInvalid
+		}
+		stamp = stamp.UTC()
+		return &stamp, nil
+	}
+	filter.Start, err = parse(r.Msg.StartTime)
+	if err != nil {
+		return nil, changeError(err)
+	}
+	filter.End, err = parse(r.Msg.EndTime)
+	if err != nil {
+		return nil, changeError(err)
+	}
+	if filter.Start != nil && filter.End != nil && filter.Start.After(*filter.End) {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	size := int(r.Msg.PageSize)
+	if size == 0 {
+		size = 50
+	}
+	if size < 1 || size > 200 {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	digest, err := canon.New().Digest(filter)
+	if err != nil {
+		return nil, changeError(err)
+	}
+	c := auditQueryCursor{Tenant: p.TenantID, Filter: digest}
+	if token := r.Msg.PageToken; token != "" {
+		parts := strings.Split(token, ".")
+		if len(parts) != 2 {
+			return nil, changeError(domain.ErrInvalid)
+		}
+		raw, e1 := base64.RawURLEncoding.DecodeString(parts[0])
+		signature, e2 := base64.RawURLEncoding.DecodeString(parts[1])
+		if e1 != nil || e2 != nil || !hmac.Equal(signature, a.queryMAC(raw)) || json.Unmarshal(raw, &c) != nil || c.Tenant != p.TenantID || c.Filter != digest || c.After < 0 || c.End < c.After || c.End > ledger.MaxSafeInteger {
+			return nil, changeError(domain.ErrInvalid)
+		}
+	}
+	views, end, err := a.service.QueryAudit(ctx, p, filter, c.After, c.End, size+1)
+	if err != nil {
+		return nil, changeError(err)
+	}
+	more := len(views) > size
+	if more {
+		views = views[:size]
+	}
+	response := &v1.QueryAuditEventsResponse{SnapshotEndSequence: end}
+	for _, view := range views {
+		event := view.Event
+		response.Events = append(response.Events, &v1.LedgerEvent{SequenceNumber: event.Sequence, TenantId: p.TenantID, EventType: event.Type, EventPayloadJson: string(view.Display), PreviousEventHash: event.Entry.Previous.String(), EventHash: event.Entry.Hash.String(), RecordedAt: event.RecordedAt.Format(time.RFC3339Nano), FormatVersion: 1, StreamId: event.StreamID, StreamVersion: event.StreamVersion, EventId: event.ID.String()})
+	}
+	if more {
+		c.After = views[len(views)-1].Event.Sequence
+		c.End = end
+		raw, _ := json.Marshal(c)
+		response.NextPageToken = base64.RawURLEncoding.EncodeToString(raw) + "." + base64.RawURLEncoding.EncodeToString(a.queryMAC(raw))
+	}
+	return connect.NewResponse(response), nil
 }
 func (a *auditAPI) mac(raw []byte) []byte {
 	mac := hmac.New(sha256.New, a.key)

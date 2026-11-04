@@ -11,6 +11,17 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Schema 8 adds transactionally updated audit projections with tenant RLS and
+  actor/time, request, incident and resource indexes. Missing projections rebuild
+  against the complete contiguous source chain and captured tenant tip.
+- Mounted actual redacted QueryAuditEvents with current signed authorization,
+  actor/resource/request/incident/time filtering and filter-bound fixed-window
+  cursors. Display state is verified against original ledger content; arbitrary
+  raw assertions/justifications are absent from display results.
+- Real database/TLS regressions detect forged display state, rebuild deleted
+  projections, retain chain verification after private-context erasure, reject
+  changed-filter cursors and deny ordinary-user search.
+
 - Added real role-authorized raw AuditService export with exact canonical event
   bytes, verified sequence/hash links and an explicit export profile. HMAC cursors
   bind tenant, requested range, fixed snapshot tip and predecessor hash; later

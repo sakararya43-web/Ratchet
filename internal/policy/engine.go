@@ -136,7 +136,15 @@ func Prepare(ctx context.Context, store *trust.Store, root ports.Digest, tenant 
 	if err != nil {
 		return nil, fmt.Errorf("%w: authorization query cannot compile", ErrInvalid)
 	}
-	return &Active{Hash: verified.BundleDigest, Version: verified.BundleVersion, change: change, auth: auth, data: verified.Data}, nil
+	candidate := &Active{Hash: verified.BundleDigest, Version: verified.BundleVersion, change: change, auth: auth, data: verified.Data}
+	if _, err := candidate.Decision(ctx, Facts{SchemaVersion: 1}); err != nil {
+		return nil, fmt.Errorf("%w: required structured decision query unavailable", ErrInvalid)
+	}
+	denial, err := candidate.auth.Eval(ctx, rego.EvalInput(Facts{SchemaVersion: 1}))
+	if err != nil || len(denial) != 1 || len(denial[0].Expressions) != 1 || denial[0].Expressions[0].Value != false {
+		return nil, fmt.Errorf("%w: default-deny authorization query required", ErrInvalid)
+	}
+	return candidate, nil
 }
 func version(s string) ([3]uint64, error) {
 	var out [3]uint64

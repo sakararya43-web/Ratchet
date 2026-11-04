@@ -14,6 +14,11 @@
 The user explicitly authorized the next phase after Phase 1's core handoff.
 Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 
+- Verify both required prepared-query contracts before activating a signed
+  bundle: a structured valid change decision must exist, and authorization must
+  explicitly deny an empty identity/context. Signed unrelated modules or an
+  unconditional authorization allow cannot displace the active bundle.
+
 - Isolated River workers and job insertion to explicitly configured tenant queues.
   Schema version 5 migrates existing jobs from the shared queue; old workers must
   stop before migration. A real two-instance regression verifies independent

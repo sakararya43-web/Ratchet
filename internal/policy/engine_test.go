@@ -16,7 +16,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 )
 
-func signed(t *testing.T, extra string) (*trust.Store, ports.Digest, []byte) {
+func signed(t *testing.T, extra string, override ...map[string]string) (*trust.Store, ports.Digest, []byte) {
 	t.Helper()
 	store, err := trust.NewStore("")
 	if err != nil {
@@ -45,6 +45,9 @@ func signed(t *testing.T, extra string) (*trust.Store, ports.Digest, []byte) {
 	if extra != "" {
 		modules["extra.rego"] = extra
 	}
+	if len(override) > 0 {
+		modules = override[0]
+	}
 	bundle, err := store.ProposeBundle("tenant", "1.0.0", "demo policy", modules, map[string]any{})
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +65,20 @@ func signed(t *testing.T, extra string) (*trust.Store, ports.Digest, []byte) {
 		t.Fatal(err)
 	}
 	return store, genesis.GenesisDigest, raw
+}
+
+func TestSignedBundleMustImplementStructuredQueries(t *testing.T) {
+	for _, modules := range []map[string]string{
+		{"unrelated.rego": "package unrelated\nvalue := true"},
+		{"change.rego": `package ratchet.change
+ decision := {"outcome":"HOLD","reasons":["incomplete"],"approver_groups":[],"quorum":0}`,
+			"authz.rego": "package ratchet.authz\nallow := true"},
+	} {
+		store, root, raw := signed(t, "", modules)
+		if _, err := policy.Prepare(context.Background(), store, root, "tenant", raw); err == nil {
+			t.Fatal("semantically invalid signed replacement admitted")
+		}
+	}
 }
 func TestSignedPreparedPolicyDecisionsAndAuthorization(t *testing.T) {
 	store, root, raw := signed(t, "")

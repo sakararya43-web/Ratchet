@@ -1,10 +1,12 @@
 package k8s_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/sakararya43-web/Ratchet/internal/connector"
 	"github.com/sakararya43-web/Ratchet/internal/connector/k8s"
 )
 
@@ -199,5 +201,86 @@ func TestAdmissionWebhook_ClusterAdminRoleBinding(t *testing.T) {
 	respApproved := handler.HandleAdmission(req)
 	if !respApproved.Allowed {
 		t.Fatalf("expected approved cluster-admin binding to be admitted: %s", respApproved.Status.Message)
+	}
+}
+
+func TestK8sAdapter_SnapshotAndExecution(t *testing.T) {
+	ctx := context.Background()
+	adapter := k8s.NewK8sAdapter("tenant-k8s-demo", "connector-k8s-01")
+
+	// 1. Fetch Snapshot & Verify Tier-0 classification
+	snap, err := adapter.FetchSnapshot(ctx)
+	if err != nil {
+		t.Fatalf("failed to fetch snapshot: %v", err)
+	}
+	if len(snap.Nodes) == 0 || len(snap.Edges) == 0 {
+		t.Fatalf("empty graph snapshot from k8s adapter")
+	}
+
+	foundClusterAdmin := false
+	for _, n := range snap.Nodes {
+		if n.ID == "clusterrole:cluster-admin" {
+			foundClusterAdmin = true
+			if n.Tier != 0 {
+				t.Errorf("expected cluster-admin to be Tier 0, got %d", n.Tier)
+			}
+		}
+	}
+	if !foundClusterAdmin {
+		t.Errorf("missing cluster-admin node in snapshot")
+	}
+
+	// 2. Execute ASSIGN_ROLE
+	assignCmd := &connector.ExecCommand{
+		CommandID:      "cmd-k8s-assign-01",
+		TenantID:       "tenant-k8s-demo",
+		Action:         "ASSIGN_ROLE",
+		TargetIdentity: "deploy-worker",
+		ResourceOrRole: "view",
+	}
+	res, err := adapter.Execute(ctx, assignCmd)
+	if err != nil || !res.Success {
+		t.Fatalf("failed to execute assign: %v", err)
+	}
+
+	// Verify read-back
+	obs, err := adapter.Verify(ctx, assignCmd)
+	if err != nil {
+		t.Fatalf("read-back verify failed: %v", err)
+	}
+	found := false
+	for _, r := range obs.CurrentRoles {
+		if r == "view" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected assigned role 'view' in observed state, got %v", obs.CurrentRoles)
+	}
+
+	// 3. Execute REVOKE_ROLE
+	revokeCmd := &connector.ExecCommand{
+		CommandID:      "cmd-k8s-revoke-01",
+		TenantID:       "tenant-k8s-demo",
+		Action:         "REVOKE_ROLE",
+		TargetIdentity: "deploy-worker",
+		ResourceOrRole: "view",
+		IsReduction:    true,
+	}
+	resRev, err := adapter.Execute(ctx, revokeCmd)
+	if err != nil || !resRev.Success {
+		t.Fatalf("failed to execute revoke: %v", err)
+	}
+
+	// Verify read-back confirms role is gone
+	obsRev, err := adapter.Verify(ctx, revokeCmd)
+	if err != nil {
+		t.Fatalf("read-back verify after revoke failed: %v", err)
+	}
+	for _, r := range obsRev.CurrentRoles {
+		if r == "view" {
+			t.Errorf("revoked role 'view' still present in observed state")
+		}
 	}
 }

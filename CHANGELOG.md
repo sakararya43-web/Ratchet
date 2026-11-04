@@ -187,16 +187,30 @@
     - `AdmissionWebhookHandler` with fail-closed security posture.
     - Legitimate reductions (`DELETE` of RoleBinding or role restrictions) always permitted even during control-plane disconnection.
     - Privilege escalations require single-use, non-expired `ApprovedIntent` from RATCHET; replayed or unapproved requests are refused (HTTP 403 Forbidden).
+  - `internal/connector/k8s/adapter.go`:
+    - `K8sAdapter` implementing `connector.TargetAdapter` for Kubernetes clusters.
+    - Full `FetchSnapshot` mapping ServiceAccounts and admin users to Identity nodes, ClusterRoles and Roles with Tier-0 classification, and RoleBindings to `ASSIGNED` edges.
+    - `Execute` and independent read-back `Verify` supporting `ASSIGN_ROLE` and `REVOKE_ROLE` operations.
+  - `cmd/ratchet-k8s-webhook/main.go`:
+    - Standalone HTTP service serving `/healthz`, `/validate` (Kubernetes AdmissionReview), and `/api/v1/intent`.
   - `internal/connector/k8s/k8s_test.go`:
-    - 5 unit tests verifying primitive detection, reduction permission, unapproved escalation refusal, one-time intent consumption, and cluster-admin binding protection (100% passing).
+    - 6 unit tests verifying primitive detection, reduction permission, unapproved escalation refusal, one-time intent consumption, cluster-admin binding protection, and adapter snapshot/execution (100% passing).
 
 ---
 
 ## Phase 7 — Hardening, Evidence Pack & Release Readiness
-- **Requirements Covered**: Hardening, zero-cost verification, audit integrity, evidence generation.
+- **Requirements Covered**: Hardening, zero-cost verification, audit integrity, evidence generation, deployment readiness.
 - **Scope & Deliverables**:
   - `docs/evidence_pack.md`: Complete evidence report detailing cryptographic protocols, verified acceptance journeys (D1–D8), FR-K6 attack matrix, CLI usage, and zero-cost constraints.
   - `docs/trust_limits.md`: Explicit disclosure of single-host demonstration boundaries versus physical hardware isolation.
+  - `docs/security_hardening.md`: Security hardening specification covering zero-secrets, ephemeral keys, SOPS/Age integration, non-root UID 10001 containers, failure modes/degradation matrix, and supply chain audits.
+  - `e2e/scenarios/hardening/hardening_test.go`:
+    - Verified persistence and restart recovery across Simulator, Authority, and Priority Containment engine.
+    - Verified Temporary Grant Manager cold-start sweep on service boot.
+    - Verified cross-change assertion replay refusal and zero-digest rejection.
+  - `deploy/`:
+    - Multi-stage non-root container images: `Dockerfile.sim`, `Dockerfile.authority`, `Dockerfile.connector`, `Dockerfile.k8s-webhook`, and `Dockerfile.web`.
+    - `docker-compose.yml` for unified local stack orchestration without paid cloud services.
   - Dependency audit: `npm audit` returned **0 vulnerabilities**; `go vet ./...` passed with **0 warnings**.
   - All Go packages, simulators, connectors, CLI, and scenario tests passing 100% without CGO dependency.
   - Web console compiles with 0 TypeScript errors (`tsc && vite build`).
@@ -204,12 +218,13 @@
 ---
 
 ## Current State & Verification Status
-- **Git Branch**: `sakar` (clean, synchronized with `origin/sakar`).
+- **Git Branch**: `sakar` (tracking `origin/sakar`).
 - **Go Test Suite**: All unit, integration, and e2e scenario tests passing:
   - `cmd/ratchet-sim` (passed)
   - `cmd/ratchet-sim/domain` (passed)
   - `e2e/scenarios/contain_rahul` (passed)
   - `e2e/scenarios/controlled_approver` (passed)
+  - `e2e/scenarios/hardening` (passed)
   - `e2e/scenarios/k6_attacks` (passed)
   - `e2e/scenarios/self_approval` (passed)
   - `e2e/scenarios/withdrawal_rule_edit` (passed)

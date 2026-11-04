@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  ratchet-sim:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.sim
+    ports:
+      - "8085:8085"
+    environment:
+      - SIM_BROKER_TOKEN=sim-broker-secret
+    restart: unless-stopped
+
+  ratchet-authority:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.authority
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+
+  ratchet-connector:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.connector
+    environment:
+      - SIM_BASE_URL=http://ratchet-sim:8085
+      - SIM_BROKER_TOKEN=sim-broker-secret
+    depends_on:
+      - ratchet-sim
+    restart: unless-stopped
+
+  ratchet-k8s-webhook:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.k8s-webhook
+    ports:
+      - "8443:8443"
+    restart: unless-stopped
+
+  ratchet-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    ports:
+      - "3000:80"
+    depends_on:
+      - ratchet-sim
+      - ratchet-authority
+    restart: unless-stopped

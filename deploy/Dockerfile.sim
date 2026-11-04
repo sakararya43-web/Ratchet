@@ -1,0 +1,15 @@
+# Multi-stage non-root container for ratchet-sim
+FROM golang:1.24-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/ratchet-sim ./cmd/ratchet-sim
+
+FROM alpine:3.21
+RUN adduser -D -u 10001 ratchet
+USER ratchet
+WORKDIR /home/ratchet
+COPY --from=builder /bin/ratchet-sim /usr/local/bin/ratchet-sim
+EXPOSE 8085
+ENTRYPOINT ["/usr/local/bin/ratchet-sim", "-port=8085"]

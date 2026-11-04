@@ -56,6 +56,15 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
 - The explicit migration command successfully applied schema version 1 using
   the non-superuser migration role. Integration checks are still in progress.
 
+### Canonical chain and private records
+
+- Implemented the peer-compatible SHA-256 predecessor/canonical-content chain,
+  strict UTC microsecond timestamps and the JCS safe-integer limit.
+- Added AES-256-GCM private records with random nonces and tenant/record-bound
+  associated data; neither plaintext nor encryption keys enter the ledger.
+- Hash tampering, peer-format compatibility, invalid timestamp/sequence and
+  ciphertext/key/tenant/record binding tests pass.
+
 ### Scope gates
 
 Phase 1 has not started. Shared contract review remains a joint gate.

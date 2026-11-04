@@ -239,6 +239,7 @@ type GetNeighbourhoodResponse struct {
 	Edges         []*GraphEdge           `protobuf:"bytes,2,rep,name=edges,proto3" json:"edges,omitempty"`
 	GraphVersion  int64                  `protobuf:"varint,3,opt,name=graph_version,json=graphVersion,proto3" json:"graph_version,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,4,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	Truncated     bool                   `protobuf:"varint,5,opt,name=truncated,proto3" json:"truncated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -299,6 +300,13 @@ func (x *GetNeighbourhoodResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *GetNeighbourhoodResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
 }
 
 type GetPathsToCriticalRequest struct {
@@ -528,6 +536,7 @@ type GetReachResponse struct {
 	ReachByTier          map[string]int32       `protobuf:"bytes,3,rep,name=reach_by_tier,json=reachByTier,proto3" json:"reach_by_tier,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	GraphVersion         int64                  `protobuf:"varint,4,opt,name=graph_version,json=graphVersion,proto3" json:"graph_version,omitempty"`
 	NextPageToken        string                 `protobuf:"bytes,5,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	Powers               []*AccessPower         `protobuf:"bytes,6,rep,name=powers,proto3" json:"powers,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -597,6 +606,13 @@ func (x *GetReachResponse) GetNextPageToken() string {
 	return ""
 }
 
+func (x *GetReachResponse) GetPowers() []*AccessPower {
+	if x != nil {
+		return x.Powers
+	}
+	return nil
+}
+
 var File_ratchet_v1_graph_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_graph_proto_rawDesc = "" +
@@ -619,12 +635,13 @@ const file_ratchet_v1_graph_proto_rawDesc = "" +
 	"\x11min_graph_version\x18\x04 \x01(\x03R\x0fminGraphVersion\x12\x1b\n" +
 	"\tpage_size\x18\x05 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x06 \x01(\tR\tpageToken\"\xc1\x01\n" +
+	"page_token\x18\x06 \x01(\tR\tpageToken\"\xdf\x01\n" +
 	"\x18GetNeighbourhoodResponse\x12+\n" +
 	"\x05nodes\x18\x01 \x03(\v2\x15.ratchet.v1.GraphNodeR\x05nodes\x12+\n" +
 	"\x05edges\x18\x02 \x03(\v2\x15.ratchet.v1.GraphEdgeR\x05edges\x12#\n" +
 	"\rgraph_version\x18\x03 \x01(\x03R\fgraphVersion\x12&\n" +
-	"\x0fnext_page_token\x18\x04 \x01(\tR\rnextPageToken\"\xc1\x01\n" +
+	"\x0fnext_page_token\x18\x04 \x01(\tR\rnextPageToken\x12\x1c\n" +
+	"\ttruncated\x18\x05 \x01(\bR\ttruncated\"\xc1\x01\n" +
 	"\x19GetPathsToCriticalRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\videntity_id\x18\x02 \x01(\tR\n" +
@@ -645,13 +662,14 @@ const file_ratchet_v1_graph_proto_rawDesc = "" +
 	"\x11min_graph_version\x18\x03 \x01(\x03R\x0fminGraphVersion\x12\x1b\n" +
 	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x05 \x01(\tR\tpageToken\"\xe7\x02\n" +
+	"page_token\x18\x05 \x01(\tR\tpageToken\"\x98\x03\n" +
 	"\x10GetReachResponse\x12>\n" +
 	"\x0freachable_nodes\x18\x01 \x03(\v2\x15.ratchet.v1.GraphNodeR\x0ereachableNodes\x123\n" +
 	"\x15controlled_identities\x18\x02 \x03(\tR\x14controlledIdentities\x12Q\n" +
 	"\rreach_by_tier\x18\x03 \x03(\v2-.ratchet.v1.GetReachResponse.ReachByTierEntryR\vreachByTier\x12#\n" +
 	"\rgraph_version\x18\x04 \x01(\x03R\fgraphVersion\x12&\n" +
-	"\x0fnext_page_token\x18\x05 \x01(\tR\rnextPageToken\x1a>\n" +
+	"\x0fnext_page_token\x18\x05 \x01(\tR\rnextPageToken\x12/\n" +
+	"\x06powers\x18\x06 \x03(\v2\x17.ratchet.v1.AccessPowerR\x06powers\x1a>\n" +
 	"\x10ReachByTierEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x012\xf2\x02\n" +
@@ -687,6 +705,7 @@ var file_ratchet_v1_graph_proto_goTypes = []any{
 	(*GraphNode)(nil),                  // 9: ratchet.v1.GraphNode
 	(*GraphEdge)(nil),                  // 10: ratchet.v1.GraphEdge
 	(*GraphRoute)(nil),                 // 11: ratchet.v1.GraphRoute
+	(*AccessPower)(nil),                // 12: ratchet.v1.AccessPower
 }
 var file_ratchet_v1_graph_proto_depIdxs = []int32{
 	9,  // 0: ratchet.v1.GetNodeDetailsResponse.node:type_name -> ratchet.v1.GraphNode
@@ -697,19 +716,20 @@ var file_ratchet_v1_graph_proto_depIdxs = []int32{
 	11, // 5: ratchet.v1.GetPathsToCriticalResponse.routes:type_name -> ratchet.v1.GraphRoute
 	9,  // 6: ratchet.v1.GetReachResponse.reachable_nodes:type_name -> ratchet.v1.GraphNode
 	8,  // 7: ratchet.v1.GetReachResponse.reach_by_tier:type_name -> ratchet.v1.GetReachResponse.ReachByTierEntry
-	0,  // 8: ratchet.v1.GraphService.GetNodeDetails:input_type -> ratchet.v1.GetNodeDetailsRequest
-	2,  // 9: ratchet.v1.GraphService.GetNeighbourhood:input_type -> ratchet.v1.GetNeighbourhoodRequest
-	4,  // 10: ratchet.v1.GraphService.GetPathsToCritical:input_type -> ratchet.v1.GetPathsToCriticalRequest
-	6,  // 11: ratchet.v1.GraphService.GetReach:input_type -> ratchet.v1.GetReachRequest
-	1,  // 12: ratchet.v1.GraphService.GetNodeDetails:output_type -> ratchet.v1.GetNodeDetailsResponse
-	3,  // 13: ratchet.v1.GraphService.GetNeighbourhood:output_type -> ratchet.v1.GetNeighbourhoodResponse
-	5,  // 14: ratchet.v1.GraphService.GetPathsToCritical:output_type -> ratchet.v1.GetPathsToCriticalResponse
-	7,  // 15: ratchet.v1.GraphService.GetReach:output_type -> ratchet.v1.GetReachResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	12, // 8: ratchet.v1.GetReachResponse.powers:type_name -> ratchet.v1.AccessPower
+	0,  // 9: ratchet.v1.GraphService.GetNodeDetails:input_type -> ratchet.v1.GetNodeDetailsRequest
+	2,  // 10: ratchet.v1.GraphService.GetNeighbourhood:input_type -> ratchet.v1.GetNeighbourhoodRequest
+	4,  // 11: ratchet.v1.GraphService.GetPathsToCritical:input_type -> ratchet.v1.GetPathsToCriticalRequest
+	6,  // 12: ratchet.v1.GraphService.GetReach:input_type -> ratchet.v1.GetReachRequest
+	1,  // 13: ratchet.v1.GraphService.GetNodeDetails:output_type -> ratchet.v1.GetNodeDetailsResponse
+	3,  // 14: ratchet.v1.GraphService.GetNeighbourhood:output_type -> ratchet.v1.GetNeighbourhoodResponse
+	5,  // 15: ratchet.v1.GraphService.GetPathsToCritical:output_type -> ratchet.v1.GetPathsToCriticalResponse
+	7,  // 16: ratchet.v1.GraphService.GetReach:output_type -> ratchet.v1.GetReachResponse
+	13, // [13:17] is the sub-list for method output_type
+	9,  // [9:13] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_graph_proto_init() }

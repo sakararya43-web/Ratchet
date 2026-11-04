@@ -41,6 +41,7 @@ message GetNeighbourhoodResponse {
   repeated GraphEdge edges = 2;
   int64 graph_version = 3;
   string next_page_token = 4;
+  bool truncated = 5;
 }
 
 message GetPathsToCriticalRequest {
@@ -72,4 +73,5 @@ message GetReachResponse {
   map<string, int32> reach_by_tier = 3;
   int64 graph_version = 4;
   string next_page_token = 5;
+  repeated AccessPower powers = 6;
 }

@@ -26,6 +26,7 @@ message SafeguardSummary {
 message GraphRoute {
   repeated string node_ids = 1;
   repeated string edge_kinds = 2;
+  repeated string edge_ids = 3;
 }
 
 message ImpactDiff {
@@ -61,4 +62,10 @@ message IdentityImpact {
   repeated GraphRoute new_tier0_routes = 4;
   repeated SafeguardSummary safeguards_weakened = 5;
   map<string, int32> blast_radius_delta = 6;
+  repeated AccessPower new_powers = 7;
+}
+
+message AccessPower {
+  string node_id = 1;
+  string action = 2;
 }

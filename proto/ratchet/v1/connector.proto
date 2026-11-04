@@ -111,3 +111,14 @@ message DriftReport {
   ConnectorEnvelope envelope = 7;
   int64 observed_revision = 8;
 }
+
+// Connector-authenticated sync; signature covers canonical proto JSON with this
+// signature field empty. Trusted keys are pinned by tenant and connector.
+message SignedGraphSync {
+  ConnectorEnvelope envelope = 1;
+  oneof payload {
+    GraphSnapshot snapshot = 2;
+    GraphDelta delta = 3;
+  }
+  bytes signature = 4;
+}

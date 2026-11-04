@@ -153,6 +153,7 @@ type GraphRoute struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeIds       []string               `protobuf:"bytes,1,rep,name=node_ids,json=nodeIds,proto3" json:"node_ids,omitempty"`
 	EdgeKinds     []string               `protobuf:"bytes,2,rep,name=edge_kinds,json=edgeKinds,proto3" json:"edge_kinds,omitempty"`
+	EdgeIds       []string               `protobuf:"bytes,3,rep,name=edge_ids,json=edgeIds,proto3" json:"edge_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -197,6 +198,13 @@ func (x *GraphRoute) GetNodeIds() []string {
 func (x *GraphRoute) GetEdgeKinds() []string {
 	if x != nil {
 		return x.EdgeKinds
+	}
+	return nil
+}
+
+func (x *GraphRoute) GetEdgeIds() []string {
+	if x != nil {
+		return x.EdgeIds
 	}
 	return nil
 }
@@ -453,6 +461,7 @@ type IdentityImpact struct {
 	NewTier0Routes          []*GraphRoute          `protobuf:"bytes,4,rep,name=new_tier0_routes,json=newTier0Routes,proto3" json:"new_tier0_routes,omitempty"`
 	SafeguardsWeakened      []*SafeguardSummary    `protobuf:"bytes,5,rep,name=safeguards_weakened,json=safeguardsWeakened,proto3" json:"safeguards_weakened,omitempty"`
 	BlastRadiusDelta        map[string]int32       `protobuf:"bytes,6,rep,name=blast_radius_delta,json=blastRadiusDelta,proto3" json:"blast_radius_delta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	NewPowers               []*AccessPower         `protobuf:"bytes,7,rep,name=new_powers,json=newPowers,proto3" json:"new_powers,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -529,6 +538,65 @@ func (x *IdentityImpact) GetBlastRadiusDelta() map[string]int32 {
 	return nil
 }
 
+func (x *IdentityImpact) GetNewPowers() []*AccessPower {
+	if x != nil {
+		return x.NewPowers
+	}
+	return nil
+}
+
+type AccessPower struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AccessPower) Reset() {
+	*x = AccessPower{}
+	mi := &file_ratchet_v1_impact_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccessPower) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccessPower) ProtoMessage() {}
+
+func (x *AccessPower) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_impact_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccessPower.ProtoReflect.Descriptor instead.
+func (*AccessPower) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_impact_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *AccessPower) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *AccessPower) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
 var File_ratchet_v1_impact_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_impact_proto_rawDesc = "" +
@@ -543,12 +611,13 @@ const file_ratchet_v1_impact_proto_rawDesc = "" +
 	"\x10SafeguardSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04tier\x18\x02 \x01(\x05R\x04tier\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\"F\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\"a\n" +
 	"\n" +
 	"GraphRoute\x12\x19\n" +
 	"\bnode_ids\x18\x01 \x03(\tR\anodeIds\x12\x1d\n" +
 	"\n" +
-	"edge_kinds\x18\x02 \x03(\tR\tedgeKinds\"\x98\x05\n" +
+	"edge_kinds\x18\x02 \x03(\tR\tedgeKinds\x12\x19\n" +
+	"\bedge_ids\x18\x03 \x03(\tR\aedgeIds\"\x98\x05\n" +
 	"\n" +
 	"ImpactDiff\x12/\n" +
 	"\x13monotonic_reduction\x18\x01 \x01(\bR\x12monotonicReduction\x12@\n" +
@@ -572,7 +641,7 @@ const file_ratchet_v1_impact_proto_rawDesc = "" +
 	"\x11min_graph_version\x18\x06 \x01(\x03R\x0fminGraphVersion\x125\n" +
 	"\x06intent\x18\a \x01(\v2\x1d.ratchet.v1.ExactChangeIntentR\x06intent\"H\n" +
 	"\x16SimulateChangeResponse\x12.\n" +
-	"\x06impact\x18\x01 \x01(\v2\x16.ratchet.v1.ImpactDiffR\x06impact\"\xe5\x03\n" +
+	"\x06impact\x18\x01 \x01(\v2\x16.ratchet.v1.ImpactDiffR\x06impact\"\x9d\x04\n" +
 	"\x0eIdentityImpact\x12\x1f\n" +
 	"\videntity_id\x18\x01 \x01(\tR\n" +
 	"identityId\x12@\n" +
@@ -580,10 +649,15 @@ const file_ratchet_v1_impact_proto_rawDesc = "" +
 	"\x19new_controlled_identities\x18\x03 \x03(\tR\x17newControlledIdentities\x12@\n" +
 	"\x10new_tier0_routes\x18\x04 \x03(\v2\x16.ratchet.v1.GraphRouteR\x0enewTier0Routes\x12M\n" +
 	"\x13safeguards_weakened\x18\x05 \x03(\v2\x1c.ratchet.v1.SafeguardSummaryR\x12safeguardsWeakened\x12^\n" +
-	"\x12blast_radius_delta\x18\x06 \x03(\v20.ratchet.v1.IdentityImpact.BlastRadiusDeltaEntryR\x10blastRadiusDelta\x1aC\n" +
+	"\x12blast_radius_delta\x18\x06 \x03(\v20.ratchet.v1.IdentityImpact.BlastRadiusDeltaEntryR\x10blastRadiusDelta\x126\n" +
+	"\n" +
+	"new_powers\x18\a \x03(\v2\x17.ratchet.v1.AccessPowerR\tnewPowers\x1aC\n" +
 	"\x15BlastRadiusDeltaEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x012h\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\">\n" +
+	"\vAccessPower\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action2h\n" +
 	"\rImpactService\x12W\n" +
 	"\x0eSimulateChange\x12!.ratchet.v1.SimulateChangeRequest\x1a\".ratchet.v1.SimulateChangeResponseB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
 
@@ -599,7 +673,7 @@ func file_ratchet_v1_impact_proto_rawDescGZIP() []byte {
 	return file_ratchet_v1_impact_proto_rawDescData
 }
 
-var file_ratchet_v1_impact_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_ratchet_v1_impact_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_ratchet_v1_impact_proto_goTypes = []any{
 	(*ResourceSummary)(nil),        // 0: ratchet.v1.ResourceSummary
 	(*SafeguardSummary)(nil),       // 1: ratchet.v1.SafeguardSummary
@@ -608,29 +682,31 @@ var file_ratchet_v1_impact_proto_goTypes = []any{
 	(*SimulateChangeRequest)(nil),  // 4: ratchet.v1.SimulateChangeRequest
 	(*SimulateChangeResponse)(nil), // 5: ratchet.v1.SimulateChangeResponse
 	(*IdentityImpact)(nil),         // 6: ratchet.v1.IdentityImpact
-	nil,                            // 7: ratchet.v1.ImpactDiff.BlastRadiusDeltaEntry
-	nil,                            // 8: ratchet.v1.IdentityImpact.BlastRadiusDeltaEntry
-	(*ExactChangeIntent)(nil),      // 9: ratchet.v1.ExactChangeIntent
+	(*AccessPower)(nil),            // 7: ratchet.v1.AccessPower
+	nil,                            // 8: ratchet.v1.ImpactDiff.BlastRadiusDeltaEntry
+	nil,                            // 9: ratchet.v1.IdentityImpact.BlastRadiusDeltaEntry
+	(*ExactChangeIntent)(nil),      // 10: ratchet.v1.ExactChangeIntent
 }
 var file_ratchet_v1_impact_proto_depIdxs = []int32{
 	0,  // 0: ratchet.v1.ImpactDiff.new_resources:type_name -> ratchet.v1.ResourceSummary
 	2,  // 1: ratchet.v1.ImpactDiff.sample_tier0_routes:type_name -> ratchet.v1.GraphRoute
 	1,  // 2: ratchet.v1.ImpactDiff.safeguards_weakened:type_name -> ratchet.v1.SafeguardSummary
-	7,  // 3: ratchet.v1.ImpactDiff.blast_radius_delta:type_name -> ratchet.v1.ImpactDiff.BlastRadiusDeltaEntry
+	8,  // 3: ratchet.v1.ImpactDiff.blast_radius_delta:type_name -> ratchet.v1.ImpactDiff.BlastRadiusDeltaEntry
 	6,  // 4: ratchet.v1.ImpactDiff.affected_identities:type_name -> ratchet.v1.IdentityImpact
-	9,  // 5: ratchet.v1.SimulateChangeRequest.intent:type_name -> ratchet.v1.ExactChangeIntent
+	10, // 5: ratchet.v1.SimulateChangeRequest.intent:type_name -> ratchet.v1.ExactChangeIntent
 	3,  // 6: ratchet.v1.SimulateChangeResponse.impact:type_name -> ratchet.v1.ImpactDiff
 	0,  // 7: ratchet.v1.IdentityImpact.new_resources:type_name -> ratchet.v1.ResourceSummary
 	2,  // 8: ratchet.v1.IdentityImpact.new_tier0_routes:type_name -> ratchet.v1.GraphRoute
 	1,  // 9: ratchet.v1.IdentityImpact.safeguards_weakened:type_name -> ratchet.v1.SafeguardSummary
-	8,  // 10: ratchet.v1.IdentityImpact.blast_radius_delta:type_name -> ratchet.v1.IdentityImpact.BlastRadiusDeltaEntry
-	4,  // 11: ratchet.v1.ImpactService.SimulateChange:input_type -> ratchet.v1.SimulateChangeRequest
-	5,  // 12: ratchet.v1.ImpactService.SimulateChange:output_type -> ratchet.v1.SimulateChangeResponse
-	12, // [12:13] is the sub-list for method output_type
-	11, // [11:12] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	9,  // 10: ratchet.v1.IdentityImpact.blast_radius_delta:type_name -> ratchet.v1.IdentityImpact.BlastRadiusDeltaEntry
+	7,  // 11: ratchet.v1.IdentityImpact.new_powers:type_name -> ratchet.v1.AccessPower
+	4,  // 12: ratchet.v1.ImpactService.SimulateChange:input_type -> ratchet.v1.SimulateChangeRequest
+	5,  // 13: ratchet.v1.ImpactService.SimulateChange:output_type -> ratchet.v1.SimulateChangeResponse
+	13, // [13:14] is the sub-list for method output_type
+	12, // [12:13] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_impact_proto_init() }
@@ -645,7 +721,7 @@ func file_ratchet_v1_impact_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_impact_proto_rawDesc), len(file_ratchet_v1_impact_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

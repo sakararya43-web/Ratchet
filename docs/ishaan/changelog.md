@@ -54,6 +54,17 @@ Only Phase 1 work is in progress. No later phase has started.
 - PostgreSQL/NATS integration verifies atomic ingest, privacy, replay, persistent
   gap quarantine, duplicate repair delivery and recovery from a lost publish ACK.
 
+### Authenticated JetStream transport
+
+- Added actual JetStream file-backed streams, durable explicit-ack consumption,
+  persistent source deduplication, stable publish IDs and retry/backlog handling.
+- Additive `SignedGraphSync` binds schema, tenant, connector, message/correlation
+  IDs, revision and complete snapshot/delta to a pinned Ed25519 key. Signing uses
+  domain-separated shared canonicalization; arbitrary identity headers are not
+  trusted. Malformed or unauthenticated inputs never become published graphs.
+- Added action-level reach/impact fields, path edge IDs and explicit neighborhood
+  truncation to the existing schemas. Buf lint/FILE compatibility remain green.
+
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance

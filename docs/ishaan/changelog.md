@@ -11,6 +11,15 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Added weighted super-source/super-sink min-cut over executable operations,
+  including shared-grant cost gadgets and protected infinite-capacity edges.
+  Every result is checked by the real graph/reduction model. Linear topologies
+  have a certified minimum within the supplied catalog; nonlinear topologies use
+  bounded exact search and label an unproved optimum as a verified alternative.
+- Tests verify two critical assets, preserved finance reports, shared grants,
+  protected catalogs, cancellation and a takeover counterexample that invalidates
+  an optimistic flow cut. Seeded exhaustive-catalog comparisons check minimum cost.
+
 - Added executable graph effects for complete role revocation, service permission
   removal by original grant ID, session termination and account restriction.
   Shared grant/binding effects are applied together. Protected/non-removable

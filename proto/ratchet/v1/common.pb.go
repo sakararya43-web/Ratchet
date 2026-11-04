@@ -449,6 +449,7 @@ type ExactChangeIntent struct {
 	IncidentId             string                 `protobuf:"bytes,8,opt,name=incident_id,json=incidentId,proto3" json:"incident_id,omitempty"`
 	PrivateRecordReference string                 `protobuf:"bytes,9,opt,name=private_record_reference,json=privateRecordReference,proto3" json:"private_record_reference,omitempty"`
 	PrivateContentDigest   string                 `protobuf:"bytes,10,opt,name=private_content_digest,json=privateContentDigest,proto3" json:"private_content_digest,omitempty"`
+	SafeguardParameters    map[string]string      `protobuf:"bytes,11,rep,name=safeguard_parameters,json=safeguardParameters,proto3" json:"safeguard_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -551,6 +552,13 @@ func (x *ExactChangeIntent) GetPrivateContentDigest() string {
 		return x.PrivateContentDigest
 	}
 	return ""
+}
+
+func (x *ExactChangeIntent) GetSafeguardParameters() map[string]string {
+	if x != nil {
+		return x.SafeguardParameters
+	}
+	return nil
 }
 
 type ApprovalEnvelope struct {
@@ -821,7 +829,7 @@ const file_ratchet_v1_common_proto_rawDesc = "" +
 	"\x06reason\x18\x01 \x01(\x0e2\x17.ratchet.v1.ErrorReasonR\x06reason\x12'\n" +
 	"\x0factual_revision\x18\x02 \x01(\x03R\x0eactualRevision\x120\n" +
 	"\x14actual_graph_version\x18\x03 \x01(\x03R\x12actualGraphVersion\x12%\n" +
-	"\x0ecorrelation_id\x18\x04 \x01(\tR\rcorrelationId\"\xd6\x03\n" +
+	"\x0ecorrelation_id\x18\x04 \x01(\tR\rcorrelationId\"\x89\x05\n" +
 	"\x11ExactChangeIntent\x12*\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x16.ratchet.v1.ChangeKindR\x04kind\x12'\n" +
 	"\x0ftarget_identity\x18\x02 \x01(\tR\x0etargetIdentity\x12)\n" +
@@ -834,7 +842,11 @@ const file_ratchet_v1_common_proto_rawDesc = "" +
 	"incidentId\x128\n" +
 	"\x18private_record_reference\x18\t \x01(\tR\x16privateRecordReference\x124\n" +
 	"\x16private_content_digest\x18\n" +
-	" \x01(\tR\x14privateContentDigest\"\xa7\x03\n" +
+	" \x01(\tR\x14privateContentDigest\x12i\n" +
+	"\x14safeguard_parameters\x18\v \x03(\v26.ratchet.v1.ExactChangeIntent.SafeguardParametersEntryR\x13safeguardParameters\x1aF\n" +
+	"\x18SafeguardParametersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa7\x03\n" +
 	"\x10ApprovalEnvelope\x12%\n" +
 	"\x0eformat_version\x18\x01 \x01(\rR\rformatVersion\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1d\n" +
@@ -921,7 +933,7 @@ func file_ratchet_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_ratchet_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_ratchet_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_ratchet_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_ratchet_v1_common_proto_goTypes = []any{
 	(ChangeKind)(0),           // 0: ratchet.v1.ChangeKind
 	(ChangeState)(0),          // 1: ratchet.v1.ChangeState
@@ -933,16 +945,18 @@ var file_ratchet_v1_common_proto_goTypes = []any{
 	(*ApprovalEnvelope)(nil),  // 7: ratchet.v1.ApprovalEnvelope
 	(*ConnectorEnvelope)(nil), // 8: ratchet.v1.ConnectorEnvelope
 	(*WatchCursor)(nil),       // 9: ratchet.v1.WatchCursor
+	nil,                       // 10: ratchet.v1.ExactChangeIntent.SafeguardParametersEntry
 }
 var file_ratchet_v1_common_proto_depIdxs = []int32{
-	3, // 0: ratchet.v1.ErrorDetail.reason:type_name -> ratchet.v1.ErrorReason
-	0, // 1: ratchet.v1.ExactChangeIntent.kind:type_name -> ratchet.v1.ChangeKind
-	6, // 2: ratchet.v1.ApprovalEnvelope.intent:type_name -> ratchet.v1.ExactChangeIntent
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3,  // 0: ratchet.v1.ErrorDetail.reason:type_name -> ratchet.v1.ErrorReason
+	0,  // 1: ratchet.v1.ExactChangeIntent.kind:type_name -> ratchet.v1.ChangeKind
+	10, // 2: ratchet.v1.ExactChangeIntent.safeguard_parameters:type_name -> ratchet.v1.ExactChangeIntent.SafeguardParametersEntry
+	6,  // 3: ratchet.v1.ApprovalEnvelope.intent:type_name -> ratchet.v1.ExactChangeIntent
+	4,  // [4:4] is the sub-list for method output_type
+	4,  // [4:4] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_common_proto_init() }
@@ -956,7 +970,7 @@ func file_ratchet_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_common_proto_rawDesc), len(file_ratchet_v1_common_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

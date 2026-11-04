@@ -83,6 +83,7 @@ message ExactChangeIntent {
   string incident_id = 8;
   string private_record_reference = 9;
   string private_content_digest = 10;
+  map<string, string> safeguard_parameters = 11;
 }
 
 message ApprovalEnvelope {

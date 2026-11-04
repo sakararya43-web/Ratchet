@@ -35,9 +35,17 @@ func (s *Snapshot) analyze(identity string) (analysis, error) {
 	q := make([]uint32, 1, len(s.nodes))
 	q[0] = start
 	a.seen[start] = true
+	queued := make([]bool, len(s.nodes))
+	queued[start] = true
+	if s.nodes[start].Properties["disabled"] == "true" {
+		return a, nil
+	}
 	denies := map[Power]bool{}
 	for at := 0; at < len(q); at++ {
 		i := q[at]
+		if (s.nodes[i].Type == "Session" || s.nodes[i].Type == "Credential") && s.nodes[i].Properties["disabled"] == "true" {
+			continue
+		}
 		for _, ei := range s.forward[s.offsets[i]:s.offsets[i+1]] {
 			e := s.edges[ei]
 			target := s.index[e.Target]
@@ -63,7 +71,7 @@ func (s *Snapshot) analyze(identity string) (analysis, error) {
 				a.seen[target] = true
 			case "GRANTS":
 				a.powers[Power{e.Target, e.Action}] = true
-				walk = n.Type == "Permission" || n.Type == "Credential" || n.Type == "Session"
+				walk = n.Type == "Permission" || ((n.Type == "Credential" || n.Type == "Session") && usableSecret(e.Action))
 				if !walk {
 					a.seen[target] = true
 				}
@@ -73,9 +81,12 @@ func (s *Snapshot) analyze(identity string) (analysis, error) {
 			case "DENIES":
 				denies[Power{e.Target, e.Action}] = true
 			}
-			if walk && !a.seen[target] {
+			if walk {
 				a.seen[target] = true
-				q = append(q, target)
+				if !queued[target] {
+					queued[target] = true
+					q = append(q, target)
+				}
 			}
 		}
 	}
@@ -180,6 +191,9 @@ func (s *Snapshot) PathsTo(identity string, limit, workLimit int) (Paths, error)
 		}
 		visited[i] = true
 		defer func() { visited[i] = false }()
+		if (s.nodes[i].Type == "Session" || s.nodes[i].Type == "Credential") && s.nodes[i].Properties["disabled"] == "true" {
+			return
+		}
 		if critical(s.nodes[i]) && a.seen[i] && len(path.EdgeIDs) > 0 {
 			if len(result.Routes) >= limit {
 				result.Truncated = true
@@ -196,6 +210,9 @@ func (s *Snapshot) PathsTo(identity string, limit, workLimit int) (Paths, error)
 			pass := e.Kind == "MEMBER_OF" || e.Kind == "ASSIGNED" || e.Kind == "CAN_ASSUME" || e.Kind == "CAN_ADMINISTER" || e.Kind == "CAN_MODIFY" || e.Kind == "CAN_APPROVE"
 			if e.Kind == "GRANTS" {
 				pass = a.powers[Power{e.Target, e.Action}]
+				if (s.nodes[j].Type == "Session" || s.nodes[j].Type == "Credential") && !usableSecret(e.Action) {
+					pass = false
+				}
 			}
 			if pass {
 				walk(j, Route{NodeIDs: append(path.NodeIDs, e.Target), EdgeKinds: append(path.EdgeKinds, e.Kind), EdgeIDs: append(path.EdgeIDs, e.ID)})
@@ -207,6 +224,10 @@ func (s *Snapshot) PathsTo(identity string, limit, workLimit int) (Paths, error)
 	}
 	walk(s.index[identity], Route{NodeIDs: []string{identity}})
 	return result, nil
+}
+
+func usableSecret(action string) bool {
+	return action == "use" || action == "read_secret" || action == "admin" || action == "*"
 }
 
 func (s *Snapshot) Neighbourhood(id string, depth, limit int) (Data, bool, error) {

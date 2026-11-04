@@ -1,0 +1,11 @@
+{
+  "request_id": "req-svc-overgrant-004",
+  "tenant_id": "tenant-exchange-demo",
+  "kind": "ROLE_ASSIGN",
+  "target_identity": "svc:reporting-worker",
+  "requested_access": "role:wallet-operator",
+  "justification": "Granting wallet signing privileges to automated analytics worker",
+  "requested_by": "user:dev-lead",
+  "emergency": false
+}
+

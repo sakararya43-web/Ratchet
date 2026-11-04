@@ -1,0 +1,10 @@
+{
+  "request_id": "req-controlled-approver-003",
+  "tenant_id": "tenant-exchange-demo",
+  "kind": "APPROVE_CHANGE",
+  "target_request_id": "req-rahul-admin-002",
+  "attempted_approver": "user:rahul-assistant",
+  "requester": "user:rahul",
+  "justification": "Approving supervisor access escalation"
+}
+

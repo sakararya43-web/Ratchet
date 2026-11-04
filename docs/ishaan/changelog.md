@@ -65,6 +65,22 @@ Only Phase 1 work is in progress. No later phase has started.
 - Added action-level reach/impact fields, path edge IDs and explicit neighborhood
   truncation to the existing schemas. Buf lint/FILE compatibility remain green.
 
+### Graph correctness and shared impact candidates
+
+- Independent fixed-point reference checks passed 200 generated cyclic graphs
+  with seed 20261104. Added regressions for wildcard narrowing, revoked sessions,
+  metadata versus secret possession and declared safeguard parameter changes.
+- Withdrawal thresholds/check counts are explicit semantics; unknown edits fail
+  analysis. Security parameters remain in replayable public facts while display
+  metadata stays encrypted. Signature/correlation digests are bound to receipts.
+- Reused the peer seed/change fixtures unchanged. Added candidate Rahul-admin
+  impact and ordinary/service-overgrant/safeguard/revocation policy fact inputs.
+  The peer ordinary fixture references a missing `user:finance-intern`, so the
+  additional core scenario uses the existing finance assistant explicitly.
+- First 100k-edge benchmark is recorded with hardware, command and dataset in
+  `phase-1-benchmark.txt`: approximately 0.98 s/op and 208 MB/op on one CPU.
+  The eventual 100 ms impact target is not achieved; optimization is still due.
+
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance

@@ -92,10 +92,13 @@ func (i *Ingestor) Handle(ctx context.Context, tenant string, raw []byte) error 
 		return ErrAuthentication
 	}
 	id, err := uuid.Parse(e.MessageId)
-	if err != nil || e.CorrelationId == "" {
+	if err != nil {
 		return eventstore.ErrInvalid
 	}
-	input := eventstore.GraphInput{TenantID: tenant, ConnectorID: e.ConnectorId, MessageID: id}
+	if _, err := uuid.Parse(e.CorrelationId); err != nil {
+		return eventstore.ErrInvalid
+	}
+	input := eventstore.GraphInput{TenantID: tenant, ConnectorID: e.ConnectorId, MessageID: id, CorrelationID: e.CorrelationId, WireDigest: digest.String()}
 	if snapshot := message.GetSnapshot(); snapshot != nil {
 		if snapshot.TenantId != tenant || snapshot.ConnectorId != e.ConnectorId || snapshot.SourceRevision != e.SourceRevision || !snapshot.Complete {
 			return eventstore.ErrInvalid

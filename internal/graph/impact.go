@@ -32,6 +32,19 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 	}
 	out := Impact{Version: s.version, MonotonicReduction: true, Affected: []IdentityImpact{}, Weakened: []Node{}}
 	weakened := map[string]Node{}
+	for _, n := range after.nodes {
+		if n.Type == "Safeguard" {
+			if oldIndex, exists := s.index[n.ID]; exists {
+				weak, err := guardWeakened(s.nodes[oldIndex], n)
+				if err != nil {
+					return Impact{}, err
+				}
+				if weak {
+					weakened[n.ID] = cloneNode(n)
+				}
+			}
+		}
+	}
 	for _, id := range delta.EdgesRemoved {
 		for _, e := range s.edges {
 			if e.ID == id && (e.Kind == "DENIES" || e.Kind == "PROTECTED_BY" || e.Kind == "REQUIRES_APPROVAL") {
@@ -74,7 +87,7 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 		}
 		addedResource := map[string]bool{}
 		for _, p := range current.Powers {
-			if !oldP[p] {
+			if !oldP[p] && !oldP[Power{p.NodeID, "*"}] {
 				item.NewPowers = append(item.NewPowers, p)
 				target := after.nodes[after.index[p.NodeID]]
 				if target.Type == "Resource" && !addedResource[p.NodeID] {
@@ -95,6 +108,7 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 				weakened[id] = cloneNode(sg)
 			}
 		}
+		slices.SortFunc(item.Weakened, func(a, b Node) int { return strings.Compare(a.ID, b.ID) })
 		for tier := 0; tier < 4; tier++ {
 			item.BlastDelta[tier] = current.ByTier[tier] - old.ByTier[tier]
 		}

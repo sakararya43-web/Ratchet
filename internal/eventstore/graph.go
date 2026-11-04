@@ -11,19 +11,22 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore/storedb"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
+	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
 
 var ErrResyncRequired = errors.New("connector full resync required")
 
 type GraphInput struct {
-	TenantID     string       `json:"tenant_id"`
-	ConnectorID  string       `json:"connector_id"`
-	MessageID    uuid.UUID    `json:"message_id"`
-	FromRevision int64        `json:"from_revision"`
-	ToRevision   int64        `json:"to_revision"`
-	Complete     bool         `json:"complete"`
-	Snapshot     *graph.Data  `json:"snapshot,omitempty"`
-	Delta        *graph.Delta `json:"delta,omitempty"`
+	TenantID      string       `json:"tenant_id"`
+	ConnectorID   string       `json:"connector_id"`
+	MessageID     uuid.UUID    `json:"message_id"`
+	CorrelationID string       `json:"correlation_id"`
+	WireDigest    string       `json:"wire_digest"`
+	FromRevision  int64        `json:"from_revision"`
+	ToRevision    int64        `json:"to_revision"`
+	Complete      bool         `json:"complete"`
+	Snapshot      *graph.Data  `json:"snapshot,omitempty"`
+	Delta         *graph.Delta `json:"delta,omitempty"`
 }
 type GraphReceipt struct {
 	Version     int64
@@ -38,6 +41,12 @@ type sourceGraph struct {
 }
 
 func (s *Store) IngestGraph(ctx context.Context, input GraphInput, key []byte) (GraphReceipt, error) {
+	if _, err := ports.DigestFromHex(input.WireDigest); err != nil {
+		return GraphReceipt{}, ErrInvalid
+	}
+	if _, err := uuid.Parse(input.CorrelationID); err != nil {
+		return GraphReceipt{}, ErrInvalid
+	}
 	if !token.MatchString(input.TenantID) || !token.MatchString(input.ConnectorID) || input.MessageID == uuid.Nil || input.ToRevision < 1 || input.ToRevision > 1<<53-1 || input.FromRevision < 0 || input.FromRevision > 1<<53-1 || len(key) != 32 || (input.Snapshot == nil) == (input.Delta == nil) || (input.Snapshot != nil && !input.Complete) {
 		return GraphReceipt{}, ErrInvalid
 	}
@@ -133,7 +142,7 @@ func (s *Store) IngestGraph(ctx context.Context, input GraphInput, key []byte) (
 	if err != nil {
 		return GraphReceipt{}, err
 	}
-	facts := map[string]any{"connector_id": input.ConnectorID, "source_revision": input.ToRevision, "input_digest": digest.String()}
+	facts := map[string]any{"connector_id": input.ConnectorID, "source_revision": input.ToRevision, "input_digest": digest.String(), "correlation_id": input.CorrelationID, "wire_digest": input.WireDigest}
 	typ := "SyncCompleted"
 	outcome = "applied"
 	var private *PrivateRecord
@@ -286,6 +295,16 @@ func publicGraph(data graph.Data) graph.Data {
 		out.Nodes[i] = graph.Node{ID: n.ID, Type: n.Type, Tier: n.Tier}
 		if disabled := n.Properties["disabled"]; disabled != "" {
 			out.Nodes[i].Properties = map[string]string{"disabled": disabled}
+		}
+		if n.Type == "Safeguard" {
+			for _, key := range []string{"guard_kind", "required_checks", "threshold_usd"} {
+				if value, exists := n.Properties[key]; exists {
+					if out.Nodes[i].Properties == nil {
+						out.Nodes[i].Properties = map[string]string{}
+					}
+					out.Nodes[i].Properties[key] = value
+				}
+			}
 		}
 	}
 	for i, e := range data.Edges {

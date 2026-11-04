@@ -1,0 +1,11 @@
+{
+  "request_id": "req-ordinary-001",
+  "tenant_id": "tenant-exchange-demo",
+  "kind": "ROLE_ASSIGN",
+  "target_identity": "user:finance-intern",
+  "requested_access": "role:finance-analyst",
+  "justification": "Onboarding finance analyst needing access to read daily trading reports",
+  "requested_by": "user:finance-intern",
+  "emergency": false
+}
+

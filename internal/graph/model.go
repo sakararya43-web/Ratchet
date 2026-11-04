@@ -88,6 +88,26 @@ func Build(version int64, data Data) (*Snapshot, error) {
 		default:
 			return nil, fmt.Errorf("%w: unsupported node type %q", ErrInvalid, n.Type)
 		}
+		if disabled, exists := n.Properties["disabled"]; exists && disabled != "true" && disabled != "false" {
+			return nil, fmt.Errorf("%w: invalid disabled state", ErrInvalid)
+		}
+		if n.Type == "Safeguard" {
+			kind := n.Properties["guard_kind"]
+			if kind != "" && kind != "withdrawal_threshold_v1" {
+				return nil, fmt.Errorf("%w: unknown safeguard semantics", ErrInvalid)
+			}
+			if kind == "" && (n.Properties["required_checks"] != "" || n.Properties["threshold_usd"] != "") {
+				return nil, fmt.Errorf("%w: declared safeguard semantics required", ErrInvalid)
+			}
+			if kind != "" {
+				if _, err := guardNumber(n, "required_checks"); err != nil {
+					return nil, err
+				}
+				if _, err := guardNumber(n, "threshold_usd"); err != nil {
+					return nil, err
+				}
+			}
+		}
 		s.nodes[i] = cloneNode(n)
 	}
 	slices.SortFunc(s.nodes, func(a, b Node) int {

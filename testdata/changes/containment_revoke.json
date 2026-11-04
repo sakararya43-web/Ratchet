@@ -1,0 +1,20 @@
+{
+  "request_id": "req-contain-revoke-006",
+  "tenant_id": "tenant-exchange-demo",
+  "kind": "CONTAINMENT_REVOKE",
+  "compromised_identity": "user:rahul",
+  "revocations": [
+    {
+      "action_type": "TERMINATE_SESSION",
+      "target": "session:rahul-workstation-1"
+    },
+    {
+      "action_type": "REVOKE_ROLE",
+      "target": "role:exchange-admin"
+    }
+  ],
+  "reason": "Immediate incident response: compromised account detected attempting unauthorized lateral movement",
+  "requested_by": "user:sec-lead-1",
+  "emergency": true
+}
+

@@ -11,6 +11,13 @@
 
 ## Phase 3 — in progress (2026-11-05)
 
+- Added actual session/policy-authorized Connect evidence export and policy
+  activation history with generated additive schemas. Security leads can retrieve
+  replayable canonical evidence; ordinary requesters/owners cannot use these
+  investigator operations. Real TLS/Connect acceptance verifies both boundaries.
+- The same acceptance refuses ordinary target requests for approver/quorum/root
+  changes even from a privileged console session; no admin override route exists.
+
 - Approval envelope v2 binds registry epoch/digest. Assessment facts v2 bind the
   exact public graph digest and actor memberships. Historical graph reconstruction
   verifies the complete contiguous tenant prefix and uses no private display data.

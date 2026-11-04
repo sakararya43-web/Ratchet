@@ -15,6 +15,8 @@ service ChangeService {
   rpc HoldChange(HoldChangeRequest) returns (HoldChangeResponse);
   rpc RequestMoreInfo(RequestMoreInfoRequest) returns (RequestMoreInfoResponse);
   rpc ProvideContext(ProvideContextRequest) returns (ProvideContextResponse);
+  rpc GetDecisionEvidence(GetDecisionEvidenceRequest) returns (GetDecisionEvidenceResponse);
+  rpc ListPolicyHistory(ListPolicyHistoryRequest) returns (ListPolicyHistoryResponse);
   rpc WatchChanges(WatchChangesRequest) returns (stream WatchChangesResponse);
 }
 
@@ -151,4 +153,32 @@ message ProvideContextResponse {
 message WatchChangesResponse {
   ChangeRequest request = 1;
   string cursor = 2;
+}
+
+message GetDecisionEvidenceRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+  int64 assessment_revision = 3; // Zero selects the latest assessment.
+}
+message GetDecisionEvidenceResponse {
+  bytes canonical_evidence_json = 1;
+  string assessment_event_hash = 2;
+  string genesis_digest = 3; // Client must compare with its independent pin.
+}
+message ListPolicyHistoryRequest {
+  string tenant_id = 1;
+  int64 after_event_position = 2;
+  int32 page_size = 3;
+}
+message PolicyActivationRecord {
+  string bundle_version = 1;
+  string bundle_digest = 2;
+  int64 registry_epoch = 3;
+  string registry_digest = 4;
+  int64 event_position = 5;
+}
+message ListPolicyHistoryResponse {
+  repeated PolicyActivationRecord activations = 1;
+  int64 next_event_position = 2;
+  bool has_more = 3;
 }

@@ -1337,6 +1337,322 @@ func (x *WatchChangesResponse) GetCursor() string {
 	return ""
 }
 
+type GetDecisionEvidenceRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RequestId          string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	AssessmentRevision int64                  `protobuf:"varint,3,opt,name=assessment_revision,json=assessmentRevision,proto3" json:"assessment_revision,omitempty"` // Zero selects the latest assessment.
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *GetDecisionEvidenceRequest) Reset() {
+	*x = GetDecisionEvidenceRequest{}
+	mi := &file_ratchet_v1_change_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDecisionEvidenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDecisionEvidenceRequest) ProtoMessage() {}
+
+func (x *GetDecisionEvidenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_change_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDecisionEvidenceRequest.ProtoReflect.Descriptor instead.
+func (*GetDecisionEvidenceRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_change_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetDecisionEvidenceRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *GetDecisionEvidenceRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *GetDecisionEvidenceRequest) GetAssessmentRevision() int64 {
+	if x != nil {
+		return x.AssessmentRevision
+	}
+	return 0
+}
+
+type GetDecisionEvidenceResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CanonicalEvidenceJson []byte                 `protobuf:"bytes,1,opt,name=canonical_evidence_json,json=canonicalEvidenceJson,proto3" json:"canonical_evidence_json,omitempty"`
+	AssessmentEventHash   string                 `protobuf:"bytes,2,opt,name=assessment_event_hash,json=assessmentEventHash,proto3" json:"assessment_event_hash,omitempty"`
+	GenesisDigest         string                 `protobuf:"bytes,3,opt,name=genesis_digest,json=genesisDigest,proto3" json:"genesis_digest,omitempty"` // Client must compare with its independent pin.
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GetDecisionEvidenceResponse) Reset() {
+	*x = GetDecisionEvidenceResponse{}
+	mi := &file_ratchet_v1_change_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDecisionEvidenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDecisionEvidenceResponse) ProtoMessage() {}
+
+func (x *GetDecisionEvidenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_change_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDecisionEvidenceResponse.ProtoReflect.Descriptor instead.
+func (*GetDecisionEvidenceResponse) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_change_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetDecisionEvidenceResponse) GetCanonicalEvidenceJson() []byte {
+	if x != nil {
+		return x.CanonicalEvidenceJson
+	}
+	return nil
+}
+
+func (x *GetDecisionEvidenceResponse) GetAssessmentEventHash() string {
+	if x != nil {
+		return x.AssessmentEventHash
+	}
+	return ""
+}
+
+func (x *GetDecisionEvidenceResponse) GetGenesisDigest() string {
+	if x != nil {
+		return x.GenesisDigest
+	}
+	return ""
+}
+
+type ListPolicyHistoryRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	AfterEventPosition int64                  `protobuf:"varint,2,opt,name=after_event_position,json=afterEventPosition,proto3" json:"after_event_position,omitempty"`
+	PageSize           int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ListPolicyHistoryRequest) Reset() {
+	*x = ListPolicyHistoryRequest{}
+	mi := &file_ratchet_v1_change_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPolicyHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPolicyHistoryRequest) ProtoMessage() {}
+
+func (x *ListPolicyHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_change_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPolicyHistoryRequest.ProtoReflect.Descriptor instead.
+func (*ListPolicyHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_change_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListPolicyHistoryRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *ListPolicyHistoryRequest) GetAfterEventPosition() int64 {
+	if x != nil {
+		return x.AfterEventPosition
+	}
+	return 0
+}
+
+func (x *ListPolicyHistoryRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type PolicyActivationRecord struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	BundleVersion  string                 `protobuf:"bytes,1,opt,name=bundle_version,json=bundleVersion,proto3" json:"bundle_version,omitempty"`
+	BundleDigest   string                 `protobuf:"bytes,2,opt,name=bundle_digest,json=bundleDigest,proto3" json:"bundle_digest,omitempty"`
+	RegistryEpoch  int64                  `protobuf:"varint,3,opt,name=registry_epoch,json=registryEpoch,proto3" json:"registry_epoch,omitempty"`
+	RegistryDigest string                 `protobuf:"bytes,4,opt,name=registry_digest,json=registryDigest,proto3" json:"registry_digest,omitempty"`
+	EventPosition  int64                  `protobuf:"varint,5,opt,name=event_position,json=eventPosition,proto3" json:"event_position,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PolicyActivationRecord) Reset() {
+	*x = PolicyActivationRecord{}
+	mi := &file_ratchet_v1_change_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PolicyActivationRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PolicyActivationRecord) ProtoMessage() {}
+
+func (x *PolicyActivationRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_change_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PolicyActivationRecord.ProtoReflect.Descriptor instead.
+func (*PolicyActivationRecord) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_change_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *PolicyActivationRecord) GetBundleVersion() string {
+	if x != nil {
+		return x.BundleVersion
+	}
+	return ""
+}
+
+func (x *PolicyActivationRecord) GetBundleDigest() string {
+	if x != nil {
+		return x.BundleDigest
+	}
+	return ""
+}
+
+func (x *PolicyActivationRecord) GetRegistryEpoch() int64 {
+	if x != nil {
+		return x.RegistryEpoch
+	}
+	return 0
+}
+
+func (x *PolicyActivationRecord) GetRegistryDigest() string {
+	if x != nil {
+		return x.RegistryDigest
+	}
+	return ""
+}
+
+func (x *PolicyActivationRecord) GetEventPosition() int64 {
+	if x != nil {
+		return x.EventPosition
+	}
+	return 0
+}
+
+type ListPolicyHistoryResponse struct {
+	state             protoimpl.MessageState    `protogen:"open.v1"`
+	Activations       []*PolicyActivationRecord `protobuf:"bytes,1,rep,name=activations,proto3" json:"activations,omitempty"`
+	NextEventPosition int64                     `protobuf:"varint,2,opt,name=next_event_position,json=nextEventPosition,proto3" json:"next_event_position,omitempty"`
+	HasMore           bool                      `protobuf:"varint,3,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ListPolicyHistoryResponse) Reset() {
+	*x = ListPolicyHistoryResponse{}
+	mi := &file_ratchet_v1_change_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPolicyHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPolicyHistoryResponse) ProtoMessage() {}
+
+func (x *ListPolicyHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_change_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPolicyHistoryResponse.ProtoReflect.Descriptor instead.
+func (*ListPolicyHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_change_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListPolicyHistoryResponse) GetActivations() []*PolicyActivationRecord {
+	if x != nil {
+		return x.Activations
+	}
+	return nil
+}
+
+func (x *ListPolicyHistoryResponse) GetNextEventPosition() int64 {
+	if x != nil {
+		return x.NextEventPosition
+	}
+	return 0
+}
+
+func (x *ListPolicyHistoryResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
 var File_ratchet_v1_change_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_change_proto_rawDesc = "" +
@@ -1455,7 +1771,30 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\"c\n" +
 	"\x14WatchChangesResponse\x123\n" +
 	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\x12\x16\n" +
-	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\xfc\x05\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor\"\x89\x01\n" +
+	"\x1aGetDecisionEvidenceRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12/\n" +
+	"\x13assessment_revision\x18\x03 \x01(\x03R\x12assessmentRevision\"\xb0\x01\n" +
+	"\x1bGetDecisionEvidenceResponse\x126\n" +
+	"\x17canonical_evidence_json\x18\x01 \x01(\fR\x15canonicalEvidenceJson\x122\n" +
+	"\x15assessment_event_hash\x18\x02 \x01(\tR\x13assessmentEventHash\x12%\n" +
+	"\x0egenesis_digest\x18\x03 \x01(\tR\rgenesisDigest\"\x86\x01\n" +
+	"\x18ListPolicyHistoryRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14after_event_position\x18\x02 \x01(\x03R\x12afterEventPosition\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\"\xdb\x01\n" +
+	"\x16PolicyActivationRecord\x12%\n" +
+	"\x0ebundle_version\x18\x01 \x01(\tR\rbundleVersion\x12#\n" +
+	"\rbundle_digest\x18\x02 \x01(\tR\fbundleDigest\x12%\n" +
+	"\x0eregistry_epoch\x18\x03 \x01(\x03R\rregistryEpoch\x12'\n" +
+	"\x0fregistry_digest\x18\x04 \x01(\tR\x0eregistryDigest\x12%\n" +
+	"\x0eevent_position\x18\x05 \x01(\x03R\reventPosition\"\xac\x01\n" +
+	"\x19ListPolicyHistoryResponse\x12D\n" +
+	"\vactivations\x18\x01 \x03(\v2\".ratchet.v1.PolicyActivationRecordR\vactivations\x12.\n" +
+	"\x13next_event_position\x18\x02 \x01(\x03R\x11nextEventPosition\x12\x19\n" +
+	"\bhas_more\x18\x03 \x01(\bR\ahasMore2\xc6\a\n" +
 	"\rChangeService\x12Q\n" +
 	"\fSubmitChange\x12\x1f.ratchet.v1.SubmitChangeRequest\x1a .ratchet.v1.SubmitChangeResponse\x12H\n" +
 	"\tGetChange\x12\x1c.ratchet.v1.GetChangeRequest\x1a\x1d.ratchet.v1.GetChangeResponse\x12N\n" +
@@ -1465,7 +1804,9 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\n" +
 	"HoldChange\x12\x1d.ratchet.v1.HoldChangeRequest\x1a\x1e.ratchet.v1.HoldChangeResponse\x12Z\n" +
 	"\x0fRequestMoreInfo\x12\".ratchet.v1.RequestMoreInfoRequest\x1a#.ratchet.v1.RequestMoreInfoResponse\x12W\n" +
-	"\x0eProvideContext\x12!.ratchet.v1.ProvideContextRequest\x1a\".ratchet.v1.ProvideContextResponse\x12S\n" +
+	"\x0eProvideContext\x12!.ratchet.v1.ProvideContextRequest\x1a\".ratchet.v1.ProvideContextResponse\x12f\n" +
+	"\x13GetDecisionEvidence\x12&.ratchet.v1.GetDecisionEvidenceRequest\x1a'.ratchet.v1.GetDecisionEvidenceResponse\x12`\n" +
+	"\x11ListPolicyHistory\x12$.ratchet.v1.ListPolicyHistoryRequest\x1a%.ratchet.v1.ListPolicyHistoryResponse\x12S\n" +
 	"\fWatchChanges\x12\x1f.ratchet.v1.WatchChangesRequest\x1a .ratchet.v1.WatchChangesResponse0\x01B?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
 
 var (
@@ -1480,78 +1821,88 @@ func file_ratchet_v1_change_proto_rawDescGZIP() []byte {
 	return file_ratchet_v1_change_proto_rawDescData
 }
 
-var file_ratchet_v1_change_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_ratchet_v1_change_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_ratchet_v1_change_proto_goTypes = []any{
-	(*ChangeRequest)(nil),           // 0: ratchet.v1.ChangeRequest
-	(*SubmitChangeRequest)(nil),     // 1: ratchet.v1.SubmitChangeRequest
-	(*SubmitChangeResponse)(nil),    // 2: ratchet.v1.SubmitChangeResponse
-	(*GetChangeRequest)(nil),        // 3: ratchet.v1.GetChangeRequest
-	(*GetChangeResponse)(nil),       // 4: ratchet.v1.GetChangeResponse
-	(*ListChangesRequest)(nil),      // 5: ratchet.v1.ListChangesRequest
-	(*ListChangesResponse)(nil),     // 6: ratchet.v1.ListChangesResponse
-	(*ApproveChangeRequest)(nil),    // 7: ratchet.v1.ApproveChangeRequest
-	(*ApproveChangeResponse)(nil),   // 8: ratchet.v1.ApproveChangeResponse
-	(*RejectChangeRequest)(nil),     // 9: ratchet.v1.RejectChangeRequest
-	(*RejectChangeResponse)(nil),    // 10: ratchet.v1.RejectChangeResponse
-	(*HoldChangeRequest)(nil),       // 11: ratchet.v1.HoldChangeRequest
-	(*HoldChangeResponse)(nil),      // 12: ratchet.v1.HoldChangeResponse
-	(*RequestMoreInfoRequest)(nil),  // 13: ratchet.v1.RequestMoreInfoRequest
-	(*RequestMoreInfoResponse)(nil), // 14: ratchet.v1.RequestMoreInfoResponse
-	(*WatchChangesRequest)(nil),     // 15: ratchet.v1.WatchChangesRequest
-	(*ProvideContextRequest)(nil),   // 16: ratchet.v1.ProvideContextRequest
-	(*ProvideContextResponse)(nil),  // 17: ratchet.v1.ProvideContextResponse
-	(*WatchChangesResponse)(nil),    // 18: ratchet.v1.WatchChangesResponse
-	(ChangeKind)(0),                 // 19: ratchet.v1.ChangeKind
-	(ChangeState)(0),                // 20: ratchet.v1.ChangeState
-	(*ApprovalEnvelope)(nil),        // 21: ratchet.v1.ApprovalEnvelope
-	(*MutationContext)(nil),         // 22: ratchet.v1.MutationContext
-	(*ExactChangeIntent)(nil),       // 23: ratchet.v1.ExactChangeIntent
-	(*WatchCursor)(nil),             // 24: ratchet.v1.WatchCursor
+	(*ChangeRequest)(nil),               // 0: ratchet.v1.ChangeRequest
+	(*SubmitChangeRequest)(nil),         // 1: ratchet.v1.SubmitChangeRequest
+	(*SubmitChangeResponse)(nil),        // 2: ratchet.v1.SubmitChangeResponse
+	(*GetChangeRequest)(nil),            // 3: ratchet.v1.GetChangeRequest
+	(*GetChangeResponse)(nil),           // 4: ratchet.v1.GetChangeResponse
+	(*ListChangesRequest)(nil),          // 5: ratchet.v1.ListChangesRequest
+	(*ListChangesResponse)(nil),         // 6: ratchet.v1.ListChangesResponse
+	(*ApproveChangeRequest)(nil),        // 7: ratchet.v1.ApproveChangeRequest
+	(*ApproveChangeResponse)(nil),       // 8: ratchet.v1.ApproveChangeResponse
+	(*RejectChangeRequest)(nil),         // 9: ratchet.v1.RejectChangeRequest
+	(*RejectChangeResponse)(nil),        // 10: ratchet.v1.RejectChangeResponse
+	(*HoldChangeRequest)(nil),           // 11: ratchet.v1.HoldChangeRequest
+	(*HoldChangeResponse)(nil),          // 12: ratchet.v1.HoldChangeResponse
+	(*RequestMoreInfoRequest)(nil),      // 13: ratchet.v1.RequestMoreInfoRequest
+	(*RequestMoreInfoResponse)(nil),     // 14: ratchet.v1.RequestMoreInfoResponse
+	(*WatchChangesRequest)(nil),         // 15: ratchet.v1.WatchChangesRequest
+	(*ProvideContextRequest)(nil),       // 16: ratchet.v1.ProvideContextRequest
+	(*ProvideContextResponse)(nil),      // 17: ratchet.v1.ProvideContextResponse
+	(*WatchChangesResponse)(nil),        // 18: ratchet.v1.WatchChangesResponse
+	(*GetDecisionEvidenceRequest)(nil),  // 19: ratchet.v1.GetDecisionEvidenceRequest
+	(*GetDecisionEvidenceResponse)(nil), // 20: ratchet.v1.GetDecisionEvidenceResponse
+	(*ListPolicyHistoryRequest)(nil),    // 21: ratchet.v1.ListPolicyHistoryRequest
+	(*PolicyActivationRecord)(nil),      // 22: ratchet.v1.PolicyActivationRecord
+	(*ListPolicyHistoryResponse)(nil),   // 23: ratchet.v1.ListPolicyHistoryResponse
+	(ChangeKind)(0),                     // 24: ratchet.v1.ChangeKind
+	(ChangeState)(0),                    // 25: ratchet.v1.ChangeState
+	(*ApprovalEnvelope)(nil),            // 26: ratchet.v1.ApprovalEnvelope
+	(*MutationContext)(nil),             // 27: ratchet.v1.MutationContext
+	(*ExactChangeIntent)(nil),           // 28: ratchet.v1.ExactChangeIntent
+	(*WatchCursor)(nil),                 // 29: ratchet.v1.WatchCursor
 }
 var file_ratchet_v1_change_proto_depIdxs = []int32{
-	19, // 0: ratchet.v1.ChangeRequest.typed_kind:type_name -> ratchet.v1.ChangeKind
-	20, // 1: ratchet.v1.ChangeRequest.state:type_name -> ratchet.v1.ChangeState
-	21, // 2: ratchet.v1.ChangeRequest.approval_envelope:type_name -> ratchet.v1.ApprovalEnvelope
-	22, // 3: ratchet.v1.SubmitChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
-	23, // 4: ratchet.v1.SubmitChangeRequest.intent:type_name -> ratchet.v1.ExactChangeIntent
+	24, // 0: ratchet.v1.ChangeRequest.typed_kind:type_name -> ratchet.v1.ChangeKind
+	25, // 1: ratchet.v1.ChangeRequest.state:type_name -> ratchet.v1.ChangeState
+	26, // 2: ratchet.v1.ChangeRequest.approval_envelope:type_name -> ratchet.v1.ApprovalEnvelope
+	27, // 3: ratchet.v1.SubmitChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	28, // 4: ratchet.v1.SubmitChangeRequest.intent:type_name -> ratchet.v1.ExactChangeIntent
 	0,  // 5: ratchet.v1.SubmitChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
 	0,  // 6: ratchet.v1.GetChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
 	0,  // 7: ratchet.v1.ListChangesResponse.requests:type_name -> ratchet.v1.ChangeRequest
-	22, // 8: ratchet.v1.ApproveChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	27, // 8: ratchet.v1.ApproveChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
 	0,  // 9: ratchet.v1.ApproveChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	22, // 10: ratchet.v1.RejectChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	27, // 10: ratchet.v1.RejectChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
 	0,  // 11: ratchet.v1.RejectChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	22, // 12: ratchet.v1.HoldChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	27, // 12: ratchet.v1.HoldChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
 	0,  // 13: ratchet.v1.HoldChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	22, // 14: ratchet.v1.RequestMoreInfoRequest.mutation:type_name -> ratchet.v1.MutationContext
+	27, // 14: ratchet.v1.RequestMoreInfoRequest.mutation:type_name -> ratchet.v1.MutationContext
 	0,  // 15: ratchet.v1.RequestMoreInfoResponse.request:type_name -> ratchet.v1.ChangeRequest
-	24, // 16: ratchet.v1.WatchChangesRequest.cursor:type_name -> ratchet.v1.WatchCursor
-	22, // 17: ratchet.v1.ProvideContextRequest.mutation:type_name -> ratchet.v1.MutationContext
+	29, // 16: ratchet.v1.WatchChangesRequest.cursor:type_name -> ratchet.v1.WatchCursor
+	27, // 17: ratchet.v1.ProvideContextRequest.mutation:type_name -> ratchet.v1.MutationContext
 	0,  // 18: ratchet.v1.ProvideContextResponse.request:type_name -> ratchet.v1.ChangeRequest
 	0,  // 19: ratchet.v1.WatchChangesResponse.request:type_name -> ratchet.v1.ChangeRequest
-	1,  // 20: ratchet.v1.ChangeService.SubmitChange:input_type -> ratchet.v1.SubmitChangeRequest
-	3,  // 21: ratchet.v1.ChangeService.GetChange:input_type -> ratchet.v1.GetChangeRequest
-	5,  // 22: ratchet.v1.ChangeService.ListChanges:input_type -> ratchet.v1.ListChangesRequest
-	7,  // 23: ratchet.v1.ChangeService.ApproveChange:input_type -> ratchet.v1.ApproveChangeRequest
-	9,  // 24: ratchet.v1.ChangeService.RejectChange:input_type -> ratchet.v1.RejectChangeRequest
-	11, // 25: ratchet.v1.ChangeService.HoldChange:input_type -> ratchet.v1.HoldChangeRequest
-	13, // 26: ratchet.v1.ChangeService.RequestMoreInfo:input_type -> ratchet.v1.RequestMoreInfoRequest
-	16, // 27: ratchet.v1.ChangeService.ProvideContext:input_type -> ratchet.v1.ProvideContextRequest
-	15, // 28: ratchet.v1.ChangeService.WatchChanges:input_type -> ratchet.v1.WatchChangesRequest
-	2,  // 29: ratchet.v1.ChangeService.SubmitChange:output_type -> ratchet.v1.SubmitChangeResponse
-	4,  // 30: ratchet.v1.ChangeService.GetChange:output_type -> ratchet.v1.GetChangeResponse
-	6,  // 31: ratchet.v1.ChangeService.ListChanges:output_type -> ratchet.v1.ListChangesResponse
-	8,  // 32: ratchet.v1.ChangeService.ApproveChange:output_type -> ratchet.v1.ApproveChangeResponse
-	10, // 33: ratchet.v1.ChangeService.RejectChange:output_type -> ratchet.v1.RejectChangeResponse
-	12, // 34: ratchet.v1.ChangeService.HoldChange:output_type -> ratchet.v1.HoldChangeResponse
-	14, // 35: ratchet.v1.ChangeService.RequestMoreInfo:output_type -> ratchet.v1.RequestMoreInfoResponse
-	17, // 36: ratchet.v1.ChangeService.ProvideContext:output_type -> ratchet.v1.ProvideContextResponse
-	18, // 37: ratchet.v1.ChangeService.WatchChanges:output_type -> ratchet.v1.WatchChangesResponse
-	29, // [29:38] is the sub-list for method output_type
-	20, // [20:29] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	22, // 20: ratchet.v1.ListPolicyHistoryResponse.activations:type_name -> ratchet.v1.PolicyActivationRecord
+	1,  // 21: ratchet.v1.ChangeService.SubmitChange:input_type -> ratchet.v1.SubmitChangeRequest
+	3,  // 22: ratchet.v1.ChangeService.GetChange:input_type -> ratchet.v1.GetChangeRequest
+	5,  // 23: ratchet.v1.ChangeService.ListChanges:input_type -> ratchet.v1.ListChangesRequest
+	7,  // 24: ratchet.v1.ChangeService.ApproveChange:input_type -> ratchet.v1.ApproveChangeRequest
+	9,  // 25: ratchet.v1.ChangeService.RejectChange:input_type -> ratchet.v1.RejectChangeRequest
+	11, // 26: ratchet.v1.ChangeService.HoldChange:input_type -> ratchet.v1.HoldChangeRequest
+	13, // 27: ratchet.v1.ChangeService.RequestMoreInfo:input_type -> ratchet.v1.RequestMoreInfoRequest
+	16, // 28: ratchet.v1.ChangeService.ProvideContext:input_type -> ratchet.v1.ProvideContextRequest
+	19, // 29: ratchet.v1.ChangeService.GetDecisionEvidence:input_type -> ratchet.v1.GetDecisionEvidenceRequest
+	21, // 30: ratchet.v1.ChangeService.ListPolicyHistory:input_type -> ratchet.v1.ListPolicyHistoryRequest
+	15, // 31: ratchet.v1.ChangeService.WatchChanges:input_type -> ratchet.v1.WatchChangesRequest
+	2,  // 32: ratchet.v1.ChangeService.SubmitChange:output_type -> ratchet.v1.SubmitChangeResponse
+	4,  // 33: ratchet.v1.ChangeService.GetChange:output_type -> ratchet.v1.GetChangeResponse
+	6,  // 34: ratchet.v1.ChangeService.ListChanges:output_type -> ratchet.v1.ListChangesResponse
+	8,  // 35: ratchet.v1.ChangeService.ApproveChange:output_type -> ratchet.v1.ApproveChangeResponse
+	10, // 36: ratchet.v1.ChangeService.RejectChange:output_type -> ratchet.v1.RejectChangeResponse
+	12, // 37: ratchet.v1.ChangeService.HoldChange:output_type -> ratchet.v1.HoldChangeResponse
+	14, // 38: ratchet.v1.ChangeService.RequestMoreInfo:output_type -> ratchet.v1.RequestMoreInfoResponse
+	17, // 39: ratchet.v1.ChangeService.ProvideContext:output_type -> ratchet.v1.ProvideContextResponse
+	20, // 40: ratchet.v1.ChangeService.GetDecisionEvidence:output_type -> ratchet.v1.GetDecisionEvidenceResponse
+	23, // 41: ratchet.v1.ChangeService.ListPolicyHistory:output_type -> ratchet.v1.ListPolicyHistoryResponse
+	18, // 42: ratchet.v1.ChangeService.WatchChanges:output_type -> ratchet.v1.WatchChangesResponse
+	32, // [32:43] is the sub-list for method output_type
+	21, // [21:32] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_change_proto_init() }
@@ -1566,7 +1917,7 @@ func file_ratchet_v1_change_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_change_proto_rawDesc), len(file_ratchet_v1_change_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

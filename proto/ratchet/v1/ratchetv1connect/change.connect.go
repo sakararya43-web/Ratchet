@@ -56,6 +56,12 @@ const (
 	// ChangeServiceProvideContextProcedure is the fully-qualified name of the ChangeService's
 	// ProvideContext RPC.
 	ChangeServiceProvideContextProcedure = "/ratchet.v1.ChangeService/ProvideContext"
+	// ChangeServiceGetDecisionEvidenceProcedure is the fully-qualified name of the ChangeService's
+	// GetDecisionEvidence RPC.
+	ChangeServiceGetDecisionEvidenceProcedure = "/ratchet.v1.ChangeService/GetDecisionEvidence"
+	// ChangeServiceListPolicyHistoryProcedure is the fully-qualified name of the ChangeService's
+	// ListPolicyHistory RPC.
+	ChangeServiceListPolicyHistoryProcedure = "/ratchet.v1.ChangeService/ListPolicyHistory"
 	// ChangeServiceWatchChangesProcedure is the fully-qualified name of the ChangeService's
 	// WatchChanges RPC.
 	ChangeServiceWatchChangesProcedure = "/ratchet.v1.ChangeService/WatchChanges"
@@ -71,6 +77,8 @@ type ChangeServiceClient interface {
 	HoldChange(context.Context, *connect.Request[v1.HoldChangeRequest]) (*connect.Response[v1.HoldChangeResponse], error)
 	RequestMoreInfo(context.Context, *connect.Request[v1.RequestMoreInfoRequest]) (*connect.Response[v1.RequestMoreInfoResponse], error)
 	ProvideContext(context.Context, *connect.Request[v1.ProvideContextRequest]) (*connect.Response[v1.ProvideContextResponse], error)
+	GetDecisionEvidence(context.Context, *connect.Request[v1.GetDecisionEvidenceRequest]) (*connect.Response[v1.GetDecisionEvidenceResponse], error)
+	ListPolicyHistory(context.Context, *connect.Request[v1.ListPolicyHistoryRequest]) (*connect.Response[v1.ListPolicyHistoryResponse], error)
 	WatchChanges(context.Context, *connect.Request[v1.WatchChangesRequest]) (*connect.ServerStreamForClient[v1.WatchChangesResponse], error)
 }
 
@@ -133,6 +141,18 @@ func NewChangeServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(changeServiceMethods.ByName("ProvideContext")),
 			connect.WithClientOptions(opts...),
 		),
+		getDecisionEvidence: connect.NewClient[v1.GetDecisionEvidenceRequest, v1.GetDecisionEvidenceResponse](
+			httpClient,
+			baseURL+ChangeServiceGetDecisionEvidenceProcedure,
+			connect.WithSchema(changeServiceMethods.ByName("GetDecisionEvidence")),
+			connect.WithClientOptions(opts...),
+		),
+		listPolicyHistory: connect.NewClient[v1.ListPolicyHistoryRequest, v1.ListPolicyHistoryResponse](
+			httpClient,
+			baseURL+ChangeServiceListPolicyHistoryProcedure,
+			connect.WithSchema(changeServiceMethods.ByName("ListPolicyHistory")),
+			connect.WithClientOptions(opts...),
+		),
 		watchChanges: connect.NewClient[v1.WatchChangesRequest, v1.WatchChangesResponse](
 			httpClient,
 			baseURL+ChangeServiceWatchChangesProcedure,
@@ -144,15 +164,17 @@ func NewChangeServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // changeServiceClient implements ChangeServiceClient.
 type changeServiceClient struct {
-	submitChange    *connect.Client[v1.SubmitChangeRequest, v1.SubmitChangeResponse]
-	getChange       *connect.Client[v1.GetChangeRequest, v1.GetChangeResponse]
-	listChanges     *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
-	approveChange   *connect.Client[v1.ApproveChangeRequest, v1.ApproveChangeResponse]
-	rejectChange    *connect.Client[v1.RejectChangeRequest, v1.RejectChangeResponse]
-	holdChange      *connect.Client[v1.HoldChangeRequest, v1.HoldChangeResponse]
-	requestMoreInfo *connect.Client[v1.RequestMoreInfoRequest, v1.RequestMoreInfoResponse]
-	provideContext  *connect.Client[v1.ProvideContextRequest, v1.ProvideContextResponse]
-	watchChanges    *connect.Client[v1.WatchChangesRequest, v1.WatchChangesResponse]
+	submitChange        *connect.Client[v1.SubmitChangeRequest, v1.SubmitChangeResponse]
+	getChange           *connect.Client[v1.GetChangeRequest, v1.GetChangeResponse]
+	listChanges         *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
+	approveChange       *connect.Client[v1.ApproveChangeRequest, v1.ApproveChangeResponse]
+	rejectChange        *connect.Client[v1.RejectChangeRequest, v1.RejectChangeResponse]
+	holdChange          *connect.Client[v1.HoldChangeRequest, v1.HoldChangeResponse]
+	requestMoreInfo     *connect.Client[v1.RequestMoreInfoRequest, v1.RequestMoreInfoResponse]
+	provideContext      *connect.Client[v1.ProvideContextRequest, v1.ProvideContextResponse]
+	getDecisionEvidence *connect.Client[v1.GetDecisionEvidenceRequest, v1.GetDecisionEvidenceResponse]
+	listPolicyHistory   *connect.Client[v1.ListPolicyHistoryRequest, v1.ListPolicyHistoryResponse]
+	watchChanges        *connect.Client[v1.WatchChangesRequest, v1.WatchChangesResponse]
 }
 
 // SubmitChange calls ratchet.v1.ChangeService.SubmitChange.
@@ -195,6 +217,16 @@ func (c *changeServiceClient) ProvideContext(ctx context.Context, req *connect.R
 	return c.provideContext.CallUnary(ctx, req)
 }
 
+// GetDecisionEvidence calls ratchet.v1.ChangeService.GetDecisionEvidence.
+func (c *changeServiceClient) GetDecisionEvidence(ctx context.Context, req *connect.Request[v1.GetDecisionEvidenceRequest]) (*connect.Response[v1.GetDecisionEvidenceResponse], error) {
+	return c.getDecisionEvidence.CallUnary(ctx, req)
+}
+
+// ListPolicyHistory calls ratchet.v1.ChangeService.ListPolicyHistory.
+func (c *changeServiceClient) ListPolicyHistory(ctx context.Context, req *connect.Request[v1.ListPolicyHistoryRequest]) (*connect.Response[v1.ListPolicyHistoryResponse], error) {
+	return c.listPolicyHistory.CallUnary(ctx, req)
+}
+
 // WatchChanges calls ratchet.v1.ChangeService.WatchChanges.
 func (c *changeServiceClient) WatchChanges(ctx context.Context, req *connect.Request[v1.WatchChangesRequest]) (*connect.ServerStreamForClient[v1.WatchChangesResponse], error) {
 	return c.watchChanges.CallServerStream(ctx, req)
@@ -210,6 +242,8 @@ type ChangeServiceHandler interface {
 	HoldChange(context.Context, *connect.Request[v1.HoldChangeRequest]) (*connect.Response[v1.HoldChangeResponse], error)
 	RequestMoreInfo(context.Context, *connect.Request[v1.RequestMoreInfoRequest]) (*connect.Response[v1.RequestMoreInfoResponse], error)
 	ProvideContext(context.Context, *connect.Request[v1.ProvideContextRequest]) (*connect.Response[v1.ProvideContextResponse], error)
+	GetDecisionEvidence(context.Context, *connect.Request[v1.GetDecisionEvidenceRequest]) (*connect.Response[v1.GetDecisionEvidenceResponse], error)
+	ListPolicyHistory(context.Context, *connect.Request[v1.ListPolicyHistoryRequest]) (*connect.Response[v1.ListPolicyHistoryResponse], error)
 	WatchChanges(context.Context, *connect.Request[v1.WatchChangesRequest], *connect.ServerStream[v1.WatchChangesResponse]) error
 }
 
@@ -268,6 +302,18 @@ func NewChangeServiceHandler(svc ChangeServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(changeServiceMethods.ByName("ProvideContext")),
 		connect.WithHandlerOptions(opts...),
 	)
+	changeServiceGetDecisionEvidenceHandler := connect.NewUnaryHandler(
+		ChangeServiceGetDecisionEvidenceProcedure,
+		svc.GetDecisionEvidence,
+		connect.WithSchema(changeServiceMethods.ByName("GetDecisionEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
+	changeServiceListPolicyHistoryHandler := connect.NewUnaryHandler(
+		ChangeServiceListPolicyHistoryProcedure,
+		svc.ListPolicyHistory,
+		connect.WithSchema(changeServiceMethods.ByName("ListPolicyHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	changeServiceWatchChangesHandler := connect.NewServerStreamHandler(
 		ChangeServiceWatchChangesProcedure,
 		svc.WatchChanges,
@@ -292,6 +338,10 @@ func NewChangeServiceHandler(svc ChangeServiceHandler, opts ...connect.HandlerOp
 			changeServiceRequestMoreInfoHandler.ServeHTTP(w, r)
 		case ChangeServiceProvideContextProcedure:
 			changeServiceProvideContextHandler.ServeHTTP(w, r)
+		case ChangeServiceGetDecisionEvidenceProcedure:
+			changeServiceGetDecisionEvidenceHandler.ServeHTTP(w, r)
+		case ChangeServiceListPolicyHistoryProcedure:
+			changeServiceListPolicyHistoryHandler.ServeHTTP(w, r)
 		case ChangeServiceWatchChangesProcedure:
 			changeServiceWatchChangesHandler.ServeHTTP(w, r)
 		default:
@@ -333,6 +383,14 @@ func (UnimplementedChangeServiceHandler) RequestMoreInfo(context.Context, *conne
 
 func (UnimplementedChangeServiceHandler) ProvideContext(context.Context, *connect.Request[v1.ProvideContextRequest]) (*connect.Response[v1.ProvideContextResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.ChangeService.ProvideContext is not implemented"))
+}
+
+func (UnimplementedChangeServiceHandler) GetDecisionEvidence(context.Context, *connect.Request[v1.GetDecisionEvidenceRequest]) (*connect.Response[v1.GetDecisionEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.ChangeService.GetDecisionEvidence is not implemented"))
+}
+
+func (UnimplementedChangeServiceHandler) ListPolicyHistory(context.Context, *connect.Request[v1.ListPolicyHistoryRequest]) (*connect.Response[v1.ListPolicyHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.ChangeService.ListPolicyHistory is not implemented"))
 }
 
 func (UnimplementedChangeServiceHandler) WatchChanges(context.Context, *connect.Request[v1.WatchChangesRequest], *connect.ServerStream[v1.WatchChangesResponse]) error {

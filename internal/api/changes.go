@@ -42,6 +42,8 @@ func NewChangeHandler(service *workflow.Service, key []byte) (http.Handler, erro
 	mux.Handle(ratchetv1connect.ChangeServiceHoldChangeProcedure, connect.NewUnaryHandler(ratchetv1connect.ChangeServiceHoldChangeProcedure, a.HoldChange, opts...))
 	mux.Handle(ratchetv1connect.ChangeServiceRequestMoreInfoProcedure, connect.NewUnaryHandler(ratchetv1connect.ChangeServiceRequestMoreInfoProcedure, a.RequestMoreInfo, opts...))
 	mux.Handle(ratchetv1connect.ChangeServiceProvideContextProcedure, connect.NewUnaryHandler(ratchetv1connect.ChangeServiceProvideContextProcedure, a.ProvideContext, opts...))
+	mux.Handle(ratchetv1connect.ChangeServiceGetDecisionEvidenceProcedure, connect.NewUnaryHandler(ratchetv1connect.ChangeServiceGetDecisionEvidenceProcedure, a.GetDecisionEvidence, opts...))
+	mux.Handle(ratchetv1connect.ChangeServiceListPolicyHistoryProcedure, connect.NewUnaryHandler(ratchetv1connect.ChangeServiceListPolicyHistoryProcedure, a.ListPolicyHistory, opts...))
 	mux.Handle(ratchetv1connect.OverviewServiceGetAttentionItemsProcedure, connect.NewUnaryHandler(ratchetv1connect.OverviewServiceGetAttentionItemsProcedure, a.GetAttentionItems, opts...))
 	// Watch is a later phase and is deliberately not mounted.
 	return mux, nil

@@ -27,6 +27,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
+	"github.com/sakararya43-web/Ratchet/internal/workflow"
 	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
 	"github.com/sakararya43-web/Ratchet/proto/ratchet/v1/ratchetv1connect"
 )
@@ -70,13 +71,15 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	}
 	tenant := "console_" + uuid.NewString()
 	password := "private-test-password-" + uuid.NewString()
-	for _, id := range []string{"user:requester", "user:owner"} {
+	for _, id := range []string{"user:requester", "user:owner", "user:investigator"} {
 		if err := api.ProvisionUser(ctx, admin, api.Principal{TenantID: tenant, ActorID: id}, password); err != nil {
 			t.Fatal(err)
 		}
 	}
 	key := bytes.Repeat([]byte{23}, 32)
 	data := graph.Data{Nodes: []graph.Node{{ID: "user:requester", Type: "Human"}, {ID: "user:owner", Type: "Human"}, {ID: "role:finance", Type: "Role"}, {ID: "reports", Type: "Resource", Tier: 2}}, Edges: []graph.Edge{{Source: "role:finance", Target: "reports", Kind: "GRANTS", Action: "read"}}}
+	data.Nodes = append(data.Nodes, graph.Node{ID: "user:investigator", Type: "Human"}, graph.Node{ID: "role:security-lead", Type: "Role"})
+	data.Edges = append(data.Edges, graph.Edge{Source: "user:investigator", Target: "role:security-lead", Kind: "ASSIGNED"})
 	if _, err := store.IngestGraph(ctx, eventstore.GraphInput{TenantID: tenant, ConnectorID: "source", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{8}).String(), ToRevision: 10, Snapshot: &data, Complete: true}, key); err != nil {
 		t.Fatal(err)
 	}
@@ -235,6 +238,33 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 		}
 	}
 	assessed := wait()
+	investigations := ratchetv1connect.NewChangeServiceClient(login("user:investigator"), base+"/api")
+	evidence, err := investigations.GetDecisionEvidence(ctx, connect.NewRequest(&v1.GetDecisionEvidenceRequest{TenantId: tenant, RequestId: id}))
+	if err != nil {
+		t.Fatal("real authenticated evidence export", err)
+	}
+	var exported workflow.DecisionEvidence
+	if err := json.Unmarshal(evidence.Msg.CanonicalEvidenceJson, &exported); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := workflow.ReplayDecision(ctx, exported, genesis.GenesisDigest, exported.EventHash); err != nil {
+		t.Fatal("exported replay", err)
+	}
+	if _, err := changes.GetDecisionEvidence(ctx, connect.NewRequest(&v1.GetDecisionEvidenceRequest{TenantId: tenant, RequestId: id})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("requester obtained investigator evidence", err)
+	}
+	history, err := investigations.ListPolicyHistory(ctx, connect.NewRequest(&v1.ListPolicyHistoryRequest{TenantId: tenant, PageSize: 1}))
+	if err != nil || len(history.Msg.Activations) != 1 || history.Msg.Activations[0].RegistryEpoch != 1 {
+		t.Fatal("governance history", err)
+	}
+	if _, err := changes.ListPolicyHistory(ctx, connect.NewRequest(&v1.ListPolicyHistoryRequest{TenantId: tenant})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary session obtained governance history", err)
+	}
+	for _, kind := range []string{"CHANGE_APPROVER", "MODIFY_QUORUM", "ROTATE_REGISTRY", "MODIFY_TRUST_ROOT"} {
+		if _, err := investigations.SubmitChange(ctx, connect.NewRequest(&v1.SubmitChangeRequest{TenantId: tenant, Kind: kind, TargetIdentity: "role:security-lead", RequestedAccess: "override", Justification: "An administrative session must not bypass governance", Mutation: mutation(0)})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatal("target request bypassed Authority governance", kind, err)
+		}
+	}
 	canonicalDigest, err := canon.New().Digest(json.RawMessage(assessed.CanonicalApprovalEnvelopeJson))
 	if err != nil || canonicalDigest.String() != assessed.ChangeDigest || assessed.RequiredQuorum != 1 {
 		t.Fatal("approval bytes not bound", err)

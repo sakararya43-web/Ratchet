@@ -44,6 +44,18 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
   Buf 1.75.0 lint and FILE compatibility against that baseline pass. The existing
   DecisionRequest/Response names have a file-scoped naming-rule exception.
 
+### Durable storage schema
+
+- Added the real goose migration, sqlc queries and generated pgx/v5 bindings for
+  tenant heads, events, command receipts, encrypted private records and outbox.
+- Added runtime/projector/migration roles, forced tenant RLS and append-only
+  mutation triggers. Runtime cannot update outbox payloads.
+- Started real PostgreSQL 17 and JetStream-enabled NATS 2.11 using Compose.
+  PostgreSQL uses configurable localhost port 55434 because 55432 belongs to an
+  unrelated project. Local credentials were generated outside Git.
+- The explicit migration command successfully applied schema version 1 using
+  the non-superuser migration role. Integration checks are still in progress.
+
 ### Scope gates
 
 Phase 1 has not started. Shared contract review remains a joint gate.

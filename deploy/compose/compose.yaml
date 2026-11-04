@@ -1,0 +1,36 @@
+name: ratchet-core
+services:
+  postgres:
+    image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
+    environment:
+      POSTGRES_DB: ratchet
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?generate local credentials first}
+      RATCHET_MIGRATOR_PASSWORD: ${RATCHET_MIGRATOR_PASSWORD:?generate local credentials first}
+      RATCHET_RUNTIME_PASSWORD: ${RATCHET_RUNTIME_PASSWORD:?generate local credentials first}
+      RATCHET_PROJECTOR_PASSWORD: ${RATCHET_PROJECTOR_PASSWORD:?generate local credentials first}
+    ports:
+      - "127.0.0.1:${RATCHET_POSTGRES_PORT:-55434}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-ratchet.sh:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d ratchet"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  nats:
+    image: nats:2.11-alpine@sha256:e4bf19f15fd3218814a4e3c9e0064e1334bd8aa20d5984b9f1a0afd084f8cc00
+    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
+    ports:
+      - "127.0.0.1:54222:4222"
+    volumes:
+      - nats-data:/data
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8222/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  postgres-data:
+  nats-data:

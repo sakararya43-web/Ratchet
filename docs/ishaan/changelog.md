@@ -65,6 +65,21 @@ golden tests pass on Go 1.27.3; `internal/ports` compiles unchanged.
 - Hash tampering, peer-format compatibility, invalid timestamp/sequence and
   ciphertext/key/tenant/record binding tests pass.
 
+### Atomic repository and database evidence
+
+- Implemented append/load, verified chain reads, exact-intent command receipts,
+  optimistic stream versions, private-record retention and atomic outbox writes.
+- Added explicit goose migration and database/schema/least-privilege probes.
+- Real PostgreSQL acceptance passed: 32 concurrent streams form one continuous
+  chain; 16 racing identical commands create one event/outbox/receipt; conflicting
+  intents and stale stream versions are refused.
+- A trigger-injected failure after partial writes rolls back all five tables;
+  retry starts at sequence 1. New pool reads survive restart, private-record
+  deletion preserves immutable bytes, and outbox bytes match the event.
+- SQL UPDATE/DELETE/TRUNCATE and trigger-disabling attempts are denied. Forced
+  RLS prevents cross-tenant reads/writes; elevated migration credentials fail
+  the runtime role check. A test cleanup-order deadlock was fixed before rerun.
+
 ### Scope gates
 
 Phase 1 has not started. Shared contract review remains a joint gate.

@@ -11,6 +11,15 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Added checkpoint candidates with an explicit ordered event-hash/duplicate-last
+  Merkle profile, exact sequence range, predecessor event hash and prior checkpoint
+  reference. Truncated/reordered ranges and missing continuity are rejected.
+- Returned checkpoint signatures are individually verified through the actual
+  peer SignCheckpoint boundary before quorum is counted. The peer's existing
+  VerifyCheckpointSignatures only counts entries, so it is never trusted alone.
+  Real signatures pass; invalid/duplicate/missing signatures and changed metadata
+  fail. Candidate transport/acceptance-reference orchestration remains unfinished.
+
 - Mounted the real PlanContainment Connect operation when explicit operator
   `containment_costs` are configured. The response exposes authoritative canonical
   bytes, proposed zero-tier-0 proof, optimality scope, cost, activity changes and

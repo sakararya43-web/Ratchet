@@ -11,6 +11,14 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Added operator-cost catalogs scoped to reachable authority and schema-7 immutable
+  containment proposals. Current policy authorization, graph/registry/policy context,
+  complete catalog, exact actions/proof and expiry are bound to a canonical digest.
+- Proposal, command receipt semantics and hash-chained evidence commit atomically.
+  Eight concurrent retries return one proposal; changed input conflicts. Real
+  PostgreSQL acceptance proves planning changes neither live graph nor execution
+  state. This is planning evidence, not a claim of target containment.
+
 - Added weighted super-source/super-sink min-cut over executable operations,
   including shared-grant cost gadgets and protected infinite-capacity edges.
   Every result is checked by the real graph/reduction model. Linear topologies

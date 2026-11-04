@@ -42,6 +42,15 @@ type RatchetConsoleUser struct {
 	Disabled     bool
 }
 
+type RatchetContainmentPlan struct {
+	TenantID      string
+	PlanID        pgtype.UUID
+	InputDigest   []byte
+	PlanDigest    []byte
+	Document      []byte
+	EventPosition int64
+}
+
 type RatchetEvent struct {
 	TenantID         string
 	Sequence         int64

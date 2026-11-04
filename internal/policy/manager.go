@@ -77,7 +77,7 @@ func (m Manager) Restore(ctx context.Context) error {
 	}
 	var raw, proof, floor []byte
 	err := m.Store.WithTenantTx(ctx, m.Tenant, func(tx pgx.Tx, _ time.Time) error {
-		if err := tx.QueryRow(ctx, `SELECT raw_bundle,coalesce(trust_proof,''::bytea) FROM ratchet.policy_artifacts WHERE tenant_id=$1 ORDER BY event_position DESC LIMIT 1`, m.Tenant).Scan(&raw, &proof); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT p.raw_bundle,coalesce(p.trust_proof,r.trust_proof,''::bytea) FROM ratchet.policy_artifacts p LEFT JOIN ratchet.registry_artifacts r ON r.tenant_id=p.tenant_id AND r.epoch=p.registry_epoch WHERE p.tenant_id=$1 ORDER BY p.event_position DESC LIMIT 1`, m.Tenant).Scan(&raw, &proof); err != nil {
 			return err
 		}
 		if len(proof) == 0 {

@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
@@ -39,7 +41,8 @@ func TestDurableGovernanceFloorOfflineRestoreAndBundleRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	tenant := "governance_" + uuid.NewString()
-	authority, root, keys, members := governedTenant(t, tenant)
+	authorityFile := filepath.Join(t.TempDir(), "authority.json")
+	authority, root, keys, members := governedTenant(t, tenant, authorityFile)
 	modules := map[string]string{}
 	for _, name := range []string{"change.rego", "authz.rego"} {
 		raw, err := os.ReadFile("../../policies/" + name)
@@ -78,8 +81,34 @@ func TestDurableGovernanceFloorOfflineRestoreAndBundleRollback(t *testing.T) {
 	}
 	m := policy.Manager{Store: store, Engine: policy.NewEngine(), Authority: authority, Root: root, Tenant: tenant}
 	first := bundle("1.0.0")
-	if err := m.Activate(ctx, first); err != nil {
+	// Reproduce a real schema-5 activation, which has no frozen trust-proof
+	// column yet. The upgrade must establish verified proof without rewriting it.
+	var legacy trust.PolicyBundle
+	if err := json.Unmarshal(first, &legacy); err != nil {
 		t.Fatal(err)
+	}
+	if err := store.WithTenantTx(ctx, tenant, func(tx pgx.Tx, _ time.Time) error {
+		facts, err := json.Marshal(map[string]any{"bundle_digest": legacy.BundleDigest.String(), "bundle_version": legacy.BundleVersion, "genesis_digest": root.String(), "registry_epoch": 1})
+		if err != nil {
+			return err
+		}
+		receipt, err := store.AppendWithin(ctx, tx, eventstore.Command{TenantID: tenant, ID: uuid.New(), StreamID: "policy:bundles", ActorReference: uuid.New(), Events: []eventstore.Event{{Type: "PolicyBundleActivated", Facts: facts}}})
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO ratchet.policy_artifacts(tenant_id,version,digest,raw_bundle,event_position) VALUES($1,$2,$3,$4,$5)`, tenant, legacy.BundleVersion, legacy.BundleDigest.Bytes(), first, receipt.LastSequence)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Restore(ctx); err != nil {
+		t.Fatal(err)
+	}
+	legacyOffline := m
+	legacyOffline.Authority = nil
+	legacyOffline.Engine = policy.NewEngine()
+	if err := legacyOffline.Restore(ctx); err != nil {
+		t.Fatal("legacy proof was not durably established", err)
 	}
 	second := bundle("1.1.0")
 	if err := m.Activate(ctx, second); err != nil {
@@ -91,6 +120,23 @@ func TestDurableGovernanceFloorOfflineRestoreAndBundleRollback(t *testing.T) {
 	last, err := m.Engine.Current(tenant)
 	if err != nil {
 		t.Fatal(err)
+	}
+	bundleFile := filepath.Join(t.TempDir(), "bundle.json")
+	if err := os.WriteFile(bundleFile, second, 0600); err != nil {
+		t.Fatal(err)
+	}
+	source := policy.FileSource{Manager: m, AuthorityFile: authorityFile, BundleFile: bundleFile}
+	if err := source.Refresh(ctx); err != nil {
+		t.Fatal("actual file refresh", err)
+	}
+	if err := os.WriteFile(authorityFile, []byte("invalid Authority candidate"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := source.Refresh(ctx); err == nil {
+		t.Fatal("invalid source admitted")
+	}
+	if current, err := m.Engine.Current(tenant); err != nil || current.Hash != last.Hash {
+		t.Fatal("unverified source erased last valid operation", err)
 	}
 	offline := m
 	offline.Authority = nil

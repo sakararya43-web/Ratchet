@@ -25,7 +25,7 @@ func (s *Service) PolicyHistory(ctx context.Context, actor Actor, after int64, l
 		if err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT version,digest,registry_epoch,event_position,raw_bundle,coalesce(trust_proof,''::bytea) FROM ratchet.policy_artifacts WHERE tenant_id=$1 AND event_position>$2 ORDER BY event_position LIMIT $3`, actor.TenantID, after, limit+1)
+		rows, err := tx.Query(ctx, `SELECT p.version,p.digest,p.registry_epoch,p.event_position,p.raw_bundle,coalesce(p.trust_proof,r.trust_proof,''::bytea) FROM ratchet.policy_artifacts p LEFT JOIN ratchet.registry_artifacts r ON r.tenant_id=p.tenant_id AND r.epoch=p.registry_epoch WHERE p.tenant_id=$1 AND p.event_position>$2 ORDER BY p.event_position LIMIT $3`, actor.TenantID, after, limit+1)
 		if err != nil {
 			return err
 		}

@@ -11,6 +11,14 @@
 
 ## Phase 3 — in progress (2026-11-05)
 
+- Closed a state-change authorization flaw: an unauthorized stale-digest approval
+  can no longer force another request into Held before permission checks.
+  Regression coverage verifies unchanged revision and approval state.
+- Replay checks envelope/request/intent framing as well as hashes. Invalid
+  Authority candidate files no longer prevent restoring already verified durable
+  policy. A schema-5 artifact upgrade establishes registry proof without mutating
+  immutable policy history, and then restores successfully with Authority offline.
+
 - Real PostgreSQL guard cases now prove newly acquired requester control, a
   changed signed policy and credential revocation hold an already approved
   request, clear its proof and create no execution attempt. Requester and a

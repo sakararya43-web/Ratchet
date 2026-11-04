@@ -464,9 +464,6 @@ func (s *Service) Approve(ctx context.Context, actor Actor, request string, id u
 		if err != nil {
 			return nil, err
 		}
-		if c.Envelope == nil || c.Digest != expected || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != a.Hash || c.Envelope.RegistryEpoch != a.RegistryEpoch || c.Envelope.RegistryDigest != a.RegistryDigest {
-			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
-		}
 		result, delta, err := impact(snapshot, c.Intent)
 		if err != nil {
 			return nil, err
@@ -477,6 +474,11 @@ func (s *Service) Approve(ctx context.Context, actor Actor, request string, id u
 		}
 		if err := eligible(snapshot, c, result, delta, actor.ID, owners); err != nil {
 			return nil, err
+		}
+		// Even invalid/stale proof must not let an unauthorized caller mutate a
+		// request by forcing it into Held before their permissions are checked.
+		if c.Envelope == nil || c.Digest != expected || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != a.Hash || c.Envelope.RegistryEpoch != a.RegistryEpoch || c.Envelope.RegistryDigest != a.RegistryDigest {
+			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
 		}
 		verified, err := s.approvals.Verify(ctx, submission, c.Digest)
 		if err != nil {

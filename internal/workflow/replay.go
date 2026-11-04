@@ -118,8 +118,9 @@ func ReplayDecision(ctx context.Context, e DecisionEvidence, root, expectedHash 
 		return result, eventstore.ErrIntegrity
 	}
 	var payload struct {
-		Stream string       `json:"stream_id"`
-		Facts  domain.Event `json:"facts"`
+		Stream   string       `json:"stream_id"`
+		Revision int64        `json:"stream_version"`
+		Facts    domain.Event `json:"facts"`
 	}
 	if json.Unmarshal(content.Payload, &payload) != nil || content.EventType != "ChangeAssessed" || payload.Facts.Type != content.EventType || payload.Stream != "change:"+e.Request {
 		return result, eventstore.ErrIntegrity
@@ -127,6 +128,17 @@ func ReplayDecision(ctx context.Context, e DecisionEvidence, root, expectedHash 
 	c := payload.Facts.Change
 	if c.ID != e.Request || c.TenantID != e.Tenant || c.Envelope == nil || c.Envelope.FormatVersion != 2 {
 		return result, ErrDependency
+	}
+	if c.State != domain.Assessed || payload.Revision != c.Revision || c.Envelope.TenantID != c.TenantID || c.Envelope.RequestID != c.ID || c.Envelope.Requester != c.Requester || c.Envelope.Revision != c.Revision+1 || c.Envelope.PrivateReference != c.PrivateReference || c.Envelope.PrivateDigest != c.PrivateDigest || !c.UpdatedAt.Before(c.Envelope.ExpiresAt) {
+		return result, eventstore.ErrIntegrity
+	}
+	intent, err := canon.New().Digest(c.Intent)
+	if err != nil {
+		return result, err
+	}
+	approvedIntent, err := canon.New().Digest(c.Envelope.Intent)
+	if err != nil || approvedIntent != intent {
+		return result, eventstore.ErrIntegrity
 	}
 	a, err := policy.PrepareHistorical(ctx, e.RegistryProof, root, e.Tenant, e.Bundle)
 	if err != nil {

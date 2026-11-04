@@ -18,9 +18,13 @@ import (
 func governed(t *testing.T) (*trust.Store, ports.Digest, []*ecdsa.PrivateKey, []trust.AuthorityMember) {
 	return governedTenant(t, "tenant")
 }
-func governedTenant(t *testing.T, tenant string) (*trust.Store, ports.Digest, []*ecdsa.PrivateKey, []trust.AuthorityMember) {
+func governedTenant(t *testing.T, tenant string, paths ...string) (*trust.Store, ports.Digest, []*ecdsa.PrivateKey, []trust.AuthorityMember) {
 	t.Helper()
-	store, err := trust.NewStore("")
+	path := ""
+	if len(paths) > 0 {
+		path = paths[0]
+	}
+	store, err := trust.NewStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}

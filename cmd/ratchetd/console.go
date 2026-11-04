@@ -139,7 +139,8 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		if _, err := os.Stat(tenant.AuthorityFile); err == nil {
 			authority, err = trust.NewStore(tenant.AuthorityFile)
 			if err != nil {
-				return errors.New("authority store invalid")
+				logger.Warn("authority candidate invalid; restoring verified durable history", "tenant", tenant.ID)
+				authority = nil
 			}
 		}
 		root, err := ports.DigestFromHex(tenant.GenesisDigest)

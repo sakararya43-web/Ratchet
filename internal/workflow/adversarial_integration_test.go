@@ -59,6 +59,13 @@ func TestAdversarialProofsAndConcurrentDistinctHumanQuorum(t *testing.T) {
 		t.Fatal("tier zero quorum", err)
 	}
 	actor := workflow.Actor{TenantID: sys.tenant, ID: "user:sec1"}
+	if _, err := service.Approve(sys.ctx, workflow.Actor{TenantID: sys.tenant, ID: "user:requester"}, c.ID, uuid.New(), c.Revision, ports.Digest{42}, ports.ApprovalSubmission{}); !errors.Is(err, workflow.ErrPermission) {
+		t.Fatal("unauthorized stale proof mutated request", err)
+	}
+	unchanged, err := sys.store.ReadChange(sys.ctx, sys.tenant, c.ID)
+	if err != nil || unchanged.Revision != c.Revision || unchanged.State != domain.AwaitingApproval {
+		t.Fatal("unauthorized context change advanced state", err)
+	}
 	valid := func() ports.ApprovalSubmission {
 		return assertion(t, sys.tenant, actor.ID, c.Digest, keys[actor.ID], ids[actor.ID])
 	}

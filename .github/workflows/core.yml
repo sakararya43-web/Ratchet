@@ -77,8 +77,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: New-process persistence and readiness smoke
         run: sh scripts/core-smoke.sh
-      - name: Independent graph reference regression
-        run: go test ./internal/graph -count=1 -rapid.seed=20261104 -rapid.checks=200
+      - name: Independent graph and adversarial workflow properties
+        run: go test ./internal/graph ./internal/domain ./internal/workflow -count=1 -rapid.seed=20261105 -rapid.checks=300
       - name: Actual connector conformance when peer code is integrated
         if: ${{ hashFiles('cmd/ratchet-sim/domain/model.go') != '' }}
         run: go test -race -tags=peerintegration -count=1 ./internal/connector/conformance

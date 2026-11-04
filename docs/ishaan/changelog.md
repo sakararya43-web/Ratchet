@@ -11,6 +11,11 @@
 
 ## Phase 3 — in progress (2026-11-05)
 
+- Added seeded randomized organizations checked against an independent logical
+  fixed point for R1/R2, and random approval/context sequences for R3. Three
+  hundred seeded cases pass for each new property suite. CI now runs graph,
+  domain and workflow properties with the published 20261105 seed.
+
 - Added actual session/policy-authorized Connect evidence export and policy
   activation history with generated additive schemas. Security leads can retrieve
   replayable canonical evidence; ordinary requesters/owners cannot use these

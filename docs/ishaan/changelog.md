@@ -14,6 +14,13 @@
 The user explicitly authorized the next phase after Phase 1's core handoff.
 Phase 1's joint acceptance remains pending. No Phase 3 work has started.
 
+The [Phase 2 handoff](phase-2-handoff.md) records runtime configuration, executable
+evidence and exact peer corrections required for D1/D2. The implementation plan
+now distinguishes completed core tasks from the two remaining integrated tasks.
+Hosted [core CI for `4e9727f`](https://github.com/sakararya43-web/Ratchet/actions/runs/41858014416)
+passes both contract and core/runtime jobs. Peer conformance remains a separate,
+failing combined-checkout gate; this successful main build does not waive it.
+
 - A real PostgreSQL/River regression stops the original workflow worker, creates
   a fresh instance with the same verified dependencies, and recovers the existing
   execution attempt through read-only probes. Exactly one original write remains;

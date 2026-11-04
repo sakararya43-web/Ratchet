@@ -117,7 +117,7 @@ without runtime fakes. Real PostgreSQL/JetStream/TLS acceptance passes. Shared
 fixtures remain review candidates and the actual peer adapter fails five
 conformance checks; its executable also lacks actual NATS publication. The
 [handoff](docs/ishaan/phase-1-handoff.md) records exact evidence and owner actions.
-Phase 1 is not signed off and Phase 2 has not started. The first 100k-edge impact
+Phase 1 is not signed off; Phase 2 was subsequently authorized and is in progress. The first 100k-edge impact
 baseline is 1.38 s/op; the 100 ms target remains unmet and is scheduled for Phase 5.
 
 ### Ishaan's work
@@ -150,24 +150,26 @@ operations are implemented. Native component tests use real PostgreSQL, real
 cryptography and real River jobs. Live browser/peer-target acceptance is still
 blocked by the peer session/verifier/connector conformance gaps. No unsafe peer
 handler or simulated assertion endpoint is mounted. Final runtime/CI/contract
-verification and handoff are in progress; do not sign off this phase yet.
+verification and handoff are recorded in [the Phase 2 handoff](docs/ishaan/phase-2-handoff.md).
+The core race/contract checks pass, but peer conformance fails reproducibly;
+do not sign off this phase or begin Phase 3 yet.
 
 ### Ishaan's work
 
-- [ ] Implement seeded-user login with actual session verification, expiration, logout and server-derived actor identity. Use secure cookie configuration appropriate to the origin, CSRF protection for state changes and policy authorization at each service operation. A role dropdown or arbitrary user-ID header is not login.
+- [x] Implement seeded-user login with actual session verification, expiration, logout and server-derived actor identity. Use secure cookie configuration appropriate to the origin, CSRF protection for state changes and policy authorization at each service operation. A role dropdown or arbitrary user-ID header is not login.
 - [ ] Mount the peer's real passkey handlers through the agreed factory and dependencies; do not reimplement enrollment or assertion verification. Block privileged operations while the verifier or required identity binding is unavailable.
-- [ ] Implement pure `(state, command) -> events/error` transitions for Submitted, Assessed, Allowed, AwaitingApproval, Held, Rejected, Approved, Executing, Executed, Failed, Expired and Revoked. Define valid transitions explicitly; support added context and reassessment after a hold. Do not create a direct Submitted-to-Executed shortcut.
-- [ ] Validate each supported change kind, justification, target, requested access, incident linkage and optional expiration. Reject unknown or unsupported kinds with a typed error.
-- [ ] Embed OPA prepared queries. Return structured `ALLOW`, `REQUIRE_APPROVAL`, `HOLD` or `REJECT`, with reasons and required groups/quorum. Bind policy inputs to recorded, replayable facts rather than live wall-clock or network lookups during evaluation.
-- [ ] Implement the actual demo policy: ordinary access requires one independent resource owner; a new tier-0 route requires two distinct security leads; tier-0 safeguard weakening is rejected; an authorized verified reduction is eligible for allow. Use hold where required context is incomplete.
-- [ ] Load policy exclusively through the real peer `BundleVerifier`, pinned to the agreed genesis trust root and current registry history. An invalid bundle cannot replace the last valid bundle; without any valid bundle, escalation stays unavailable. Record the active bundle hash on each decision.
-- [ ] Implement approval orchestration using the peer `ApprovalVerifier`. Check requester versus approver, requester control over approver, allowed group membership, distinct human identities and conflicts where the approver or an identity they control benefits from the proposed expansion. Multiple passkeys for one person never count as multiple people.
-- [ ] Persist the exact approved envelope and assertion evidence. Quorum completion, the transition and its outbox/job writes must be concurrency-safe; retries or parallel submissions cannot count one signature twice.
-- [ ] Implement River-backed assessment/execution jobs in the same transaction as domain events. Use OSS jobs and explicit state transitions, not paid workflow abstractions.
-- [ ] Before dispatch, re-evaluate current graph impact, policy version, approval eligibility and target preconditions. A changed approved context returns to review with `context changed` and invalidates stale approval reuse. Define this conservatively when graph versions differ; no silent substitution of a new digest.
+- [x] Implement pure `(state, command) -> events/error` transitions for Submitted, Assessed, Allowed, AwaitingApproval, Held, Rejected, Approved, Executing, Executed, Failed, Expired and Revoked. Define valid transitions explicitly; support added context and reassessment after a hold. Do not create a direct Submitted-to-Executed shortcut.
+- [x] Validate each supported change kind, justification, target, requested access, incident linkage and optional expiration. Reject unknown or unsupported kinds with a typed error.
+- [x] Embed OPA prepared queries. Return structured `ALLOW`, `REQUIRE_APPROVAL`, `HOLD` or `REJECT`, with reasons and required groups/quorum. Bind policy inputs to recorded, replayable facts rather than live wall-clock or network lookups during evaluation.
+- [x] Implement the actual demo policy: ordinary access requires one independent resource owner; a new tier-0 route requires two distinct security leads; tier-0 safeguard weakening is rejected; an authorized verified reduction is eligible for allow. Use hold where required context is incomplete.
+- [x] Load policy exclusively through the real peer `BundleVerifier`, pinned to the agreed genesis trust root and current registry history. An invalid bundle cannot replace the last valid bundle; without any valid bundle, escalation stays unavailable. Record the active bundle hash on each decision. Current support is pinned epoch 1; later epochs refuse activation pending verified history in Phase 3.
+- [x] Implement approval orchestration using the peer `ApprovalVerifier`. Check requester versus approver, requester control over approver, allowed group membership, distinct human identities and conflicts where the approver or an identity they control benefits from the proposed expansion. Multiple passkeys for one person never count as multiple people.
+- [x] Persist the exact approved envelope and assertion evidence. Quorum completion, the transition and its outbox/job writes must be concurrency-safe; retries or parallel submissions cannot count one signature twice.
+- [x] Implement River-backed assessment/execution jobs in the same transaction as domain events. Use OSS jobs and explicit state transitions, not paid workflow abstractions.
+- [x] Before dispatch, re-evaluate current graph impact, policy version, approval eligibility and target preconditions. A changed approved context returns to review with `context changed` and invalidates stale approval reuse. Define this conservatively when graph versions differ; no silent substitution of a new digest.
 - [ ] Publish a correlated, idempotent command only after all guards pass. Consume the connector's apply/read-back evidence. Record Executed only after verified observed state matches the approved intent; an acknowledgement or successful HTTP write alone is insufficient. On uncertain execution, reconcile instead of blindly repeating a non-idempotent operation.
-- [ ] Project request details, approval queues and attention-oriented overview data. Implement the real core Change/Overview handlers; provide clear pending, failed and unavailable results.
-- [ ] Add connector conformance cases for Execute/Verify, duplicate delivery, failed preconditions, mismatched read-back, interrupted execution and recovery.
+- [x] Project request details, approval queues and attention-oriented overview data. Implement the real core Change/Overview handlers; provide clear pending, failed and unavailable results.
+- [x] Add connector conformance cases for Execute/Verify, duplicate delivery, failed preconditions, mismatched read-back, interrupted execution and recovery. The actual peer fails precondition enforcement; see the handoff for exact failing cases.
 
 **Dependency gate:** Signed initial bundle, enrolled approvers, real assertion verifier and real connector Execute/Verify are required inputs. If any is unavailable, keep affected requests pending and work on independent core tests. Never substitute an unsigned policy or automatically approved request.
 

@@ -2,7 +2,8 @@
 
 This page describes the Phase 0 PostgreSQL-backed evidence operation. Phase 1
 now adds actual graph/impact services; see [its runtime handoff](phase-1-handoff.md).
-Change, approval and execution workflows remain later work.
+Phase 2 adds actual login, policy and workflow operations; see
+[its runtime handoff and remaining integration gates](phase-2-handoff.md).
 All work stays on `main`. See `changelog.md` before continuing the next phase.
 
 ## Local acceptance on Windows
@@ -84,9 +85,10 @@ previous main revision.
 
 Peer transport additions and offline-verifier hardening belong in the handoff.
 The Phase 0 append format places authoritative evidence inside hashed payloads,
-including future approval envelopes/assertions. The core will not rely on any
-unhashed approval field or unsigned bundle. Phase 1 cannot be declared started
-until all Phase 0 exit evidence and shared review are accounted for.
+including approval envelopes/assertions. The core does not rely on any unhashed
+approval field or unsigned bundle. The user subsequently authorized Phases 1 and
+2 while the recorded peer acceptance gates remain open; that authorization does
+not substitute for shared review or successful integrated exit evidence.
 
 See `phase-0-handoff.md` for the known inherited peer audit-fixture failure and
 the tested shared-file resolution. A merge rehearsal currently compiles both

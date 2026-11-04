@@ -2,7 +2,8 @@
 
 Prepared 2026-11-04. Work is committed on `main` only. The core implementation
 and its local checks are delivered; **joint acceptance remains pending**. No
-Phase 2 implementation has started. The user explicitly authorized Phase 1
+Phase 2 implementation had started at this checkpoint; the subsequent authorized
+Phase 2 work is recorded in [its handoff](phase-2-handoff.md). The user explicitly authorized Phase 1
 after the Phase 0 handoff; this does not constitute peer contract approval.
 
 ## Delivered operations

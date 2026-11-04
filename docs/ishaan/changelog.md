@@ -11,6 +11,15 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Added real role-authorized raw AuditService export with exact canonical event
+  bytes, verified sequence/hash links and an explicit export profile. HMAC cursors
+  bind tenant, requested range, fixed snapshot tip and predecessor hash; later
+  appends do not move a download's boundary. Pages are bounded by count and bytes.
+- Actual TLS/database tests independently verify all exported entries, preserve
+  the captured tip while appending another event, reject tampered cursors and
+  deny ordinary users. No checkpoint signature or complete offline trust pack is
+  invented; indexed/redacted search and the complete evidence package remain open.
+
 - Added checkpoint candidates with an explicit ordered event-hash/duplicate-last
   Merkle profile, exact sequence range, predecessor event hash and prior checkpoint
   reference. Truncated/reordered ranges and missing continuity are rejected.

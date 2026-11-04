@@ -1,0 +1,23 @@
+package workflow
+
+import (
+	"context"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/sakararya43-web/Ratchet/internal/eventstore"
+	"github.com/sakararya43-web/Ratchet/internal/ports"
+)
+
+func (s *Service) ExportAudit(ctx context.Context, actor Actor, after, end int64, limit int, previous, tip *ports.Digest) (eventstore.ChainPage, error) {
+	var page eventstore.ChainPage
+	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, _ time.Time) error {
+		if _, _, err := s.context(ctx, tx, actor, "audit_export", nil); err != nil {
+			return err
+		}
+		var err error
+		page, err = s.Store.ExportWithin(ctx, tx, actor.TenantID, after, end, limit, previous, tip)
+		return err
+	})
+	return page, err
+}

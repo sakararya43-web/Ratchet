@@ -25,6 +25,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
+	"github.com/sakararya43-web/Ratchet/internal/ledger"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
@@ -266,6 +267,61 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	}
 	if _, err := containment.ExecuteContainment(ctx, connect.NewRequest(&v1.ExecuteContainmentRequest{TenantId: tenant, PlanId: planned.Msg.Plan.PlanId, ResponderId: "user:investigator", Mutation: mutation(0)})); err == nil {
 		t.Fatal("planning API executed an unconfirmed containment")
+	}
+	audits := ratchetv1connect.NewAuditServiceClient(investigatorClient, base+"/api")
+	page, err := audits.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant, PageSize: 2}))
+	if err != nil {
+		t.Fatal("real audit export", err)
+	}
+	end, tip := page.Msg.SnapshotEndSequence, page.Msg.SnapshotEndHash
+	firstToken := page.Msg.NextPageToken
+	if firstToken == "" {
+		t.Fatal("audit pagination not exercised")
+	}
+	if _, err := containment.PlanContainment(ctx, connect.NewRequest(&v1.PlanContainmentRequest{TenantId: tenant, CompromisedIdentity: "user:compromised", Mutation: mutation(0)})); err != nil {
+		t.Fatal(err)
+	}
+	var previous ports.Digest
+	var sequence int64
+	for {
+		if page.Msg.SnapshotEndSequence != end || page.Msg.SnapshotEndHash != tip || page.Msg.PagePreviousHash != previous.String() {
+			t.Fatal("audit cursor changed snapshot or chain anchor")
+		}
+		for _, event := range page.Msg.Chain {
+			before, err := ports.DigestFromHex(event.PreviousEventHash)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hash, err := ports.DigestFromHex(event.EventHash)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ledger.Verify(canon.New(), ledger.Entry{Canonical: event.CanonicalContent, Previous: before, Hash: hash}, tenant, sequence+1, previous); err != nil {
+				t.Fatal("exported chain failed independent verification", err)
+			}
+			if bytes.Contains(event.CanonicalContent, []byte(input.Justification)) {
+				t.Fatal("private justification leaked in raw chain")
+			}
+			previous = hash
+			sequence = event.SequenceNumber
+		}
+		if page.Msg.NextPageToken == "" {
+			break
+		}
+		page, err = audits.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant, PageSize: 2, PageToken: page.Msg.NextPageToken}))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if sequence != end || previous.String() != tip {
+		t.Fatal("snapshot export omitted or included later evidence")
+	}
+	if _, err := audits.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant, PageToken: "!" + firstToken[1:]})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatal("tampered audit cursor accepted", err)
+	}
+	ordinaryAudit := ratchetv1connect.NewAuditServiceClient(requester, base+"/api")
+	if _, err := ordinaryAudit.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant, PageToken: firstToken})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary session exported chain", err)
 	}
 	evidence, err := investigations.GetDecisionEvidence(ctx, connect.NewRequest(&v1.GetDecisionEvidenceRequest{TenantId: tenant, RequestId: id}))
 	if err != nil {

@@ -54,4 +54,8 @@ message ExportHashChainResponse {
   repeated LedgerEvent chain = 2;
   string latest_checkpoint_digest = 3;
   string next_page_token = 4;
+  int64 snapshot_end_sequence = 5;
+  string snapshot_end_hash = 6;
+  string export_profile = 7;
+  string page_previous_hash = 8;
 }

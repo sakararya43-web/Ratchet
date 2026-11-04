@@ -395,6 +395,10 @@ type ExportHashChainResponse struct {
 	Chain                  []*LedgerEvent         `protobuf:"bytes,2,rep,name=chain,proto3" json:"chain,omitempty"`
 	LatestCheckpointDigest string                 `protobuf:"bytes,3,opt,name=latest_checkpoint_digest,json=latestCheckpointDigest,proto3" json:"latest_checkpoint_digest,omitempty"`
 	NextPageToken          string                 `protobuf:"bytes,4,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	SnapshotEndSequence    int64                  `protobuf:"varint,5,opt,name=snapshot_end_sequence,json=snapshotEndSequence,proto3" json:"snapshot_end_sequence,omitempty"`
+	SnapshotEndHash        string                 `protobuf:"bytes,6,opt,name=snapshot_end_hash,json=snapshotEndHash,proto3" json:"snapshot_end_hash,omitempty"`
+	ExportProfile          string                 `protobuf:"bytes,7,opt,name=export_profile,json=exportProfile,proto3" json:"export_profile,omitempty"`
+	PagePreviousHash       string                 `protobuf:"bytes,8,opt,name=page_previous_hash,json=pagePreviousHash,proto3" json:"page_previous_hash,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -457,6 +461,34 @@ func (x *ExportHashChainResponse) GetNextPageToken() string {
 	return ""
 }
 
+func (x *ExportHashChainResponse) GetSnapshotEndSequence() int64 {
+	if x != nil {
+		return x.SnapshotEndSequence
+	}
+	return 0
+}
+
+func (x *ExportHashChainResponse) GetSnapshotEndHash() string {
+	if x != nil {
+		return x.SnapshotEndHash
+	}
+	return ""
+}
+
+func (x *ExportHashChainResponse) GetExportProfile() string {
+	if x != nil {
+		return x.ExportProfile
+	}
+	return ""
+}
+
+func (x *ExportHashChainResponse) GetPagePreviousHash() string {
+	if x != nil {
+		return x.PagePreviousHash
+	}
+	return ""
+}
+
 var File_ratchet_v1_audit_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_audit_proto_rawDesc = "" +
@@ -504,12 +536,16 @@ const file_ratchet_v1_audit_proto_rawDesc = "" +
 	"\fend_sequence\x18\x03 \x01(\x03R\vendSequence\x12\x1b\n" +
 	"\tpage_size\x18\x04 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x05 \x01(\tR\tpageToken\"\xc7\x01\n" +
+	"page_token\x18\x05 \x01(\tR\tpageToken\"\xfc\x02\n" +
 	"\x17ExportHashChainResponse\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12-\n" +
 	"\x05chain\x18\x02 \x03(\v2\x17.ratchet.v1.LedgerEventR\x05chain\x128\n" +
 	"\x18latest_checkpoint_digest\x18\x03 \x01(\tR\x16latestCheckpointDigest\x12&\n" +
-	"\x0fnext_page_token\x18\x04 \x01(\tR\rnextPageToken2\xc9\x01\n" +
+	"\x0fnext_page_token\x18\x04 \x01(\tR\rnextPageToken\x122\n" +
+	"\x15snapshot_end_sequence\x18\x05 \x01(\x03R\x13snapshotEndSequence\x12*\n" +
+	"\x11snapshot_end_hash\x18\x06 \x01(\tR\x0fsnapshotEndHash\x12%\n" +
+	"\x0eexport_profile\x18\a \x01(\tR\rexportProfile\x12,\n" +
+	"\x12page_previous_hash\x18\b \x01(\tR\x10pagePreviousHash2\xc9\x01\n" +
 	"\fAuditService\x12]\n" +
 	"\x10QueryAuditEvents\x12#.ratchet.v1.QueryAuditEventsRequest\x1a$.ratchet.v1.QueryAuditEventsResponse\x12Z\n" +
 	"\x0fExportHashChain\x12\".ratchet.v1.ExportHashChainRequest\x1a#.ratchet.v1.ExportHashChainResponseB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"

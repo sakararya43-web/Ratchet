@@ -129,17 +129,18 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}
 	logger := slog.New(slog.NewTextHandler(out, nil))
 	tenants := map[string]bool{}
+	policySources := []policy.FileSource{}
 	for _, tenant := range config.Tenants {
 		if tenants[tenant.ID] || tenant.ID == "" || tenant.AuthorityFile == "" {
 			return errors.New("invalid tenant policy configuration")
 		}
 		tenants[tenant.ID] = true
-		if _, err := os.Stat(tenant.AuthorityFile); err != nil {
-			return errors.New("actual authority store required")
-		}
-		authority, err := trust.NewStore(tenant.AuthorityFile)
-		if err != nil {
-			return errors.New("authority store unavailable")
+		var authority *trust.Store
+		if _, err := os.Stat(tenant.AuthorityFile); err == nil {
+			authority, err = trust.NewStore(tenant.AuthorityFile)
+			if err != nil {
+				return errors.New("authority store invalid")
+			}
 		}
 		root, err := ports.DigestFromHex(tenant.GenesisDigest)
 		if err != nil || root.IsZero() {
@@ -149,14 +150,10 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		if err := manager.Restore(parent); err != nil && !errors.Is(err, policy.ErrUnavailable) {
 			return err
 		}
-		if tenant.BundleFile != "" {
-			raw, err := os.ReadFile(tenant.BundleFile)
-			if err != nil {
-				return errors.New("bundle artifact unavailable")
-			}
-			if err := manager.Activate(parent, raw); err != nil {
-				logger.Warn("policy candidate refused; retaining last verified bundle", "tenant", tenant.ID)
-			}
+		source := policy.FileSource{Manager: manager, AuthorityFile: tenant.AuthorityFile, BundleFile: tenant.BundleFile}
+		policySources = append(policySources, source)
+		if err := source.Refresh(parent); err != nil {
+			logger.Warn("policy source unavailable or refused; enforcing last verified registry", "tenant", tenant.ID)
 		}
 	}
 	if len(tenants) == 0 {
@@ -274,6 +271,22 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			}, logger)
 		})
 	}
+	start(func() error {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+			}
+			for _, source := range policySources {
+				if err := source.Refresh(ctx); err != nil && ctx.Err() == nil {
+					logger.Warn("policy source unavailable or refused; enforcing last verified registry", "tenant", source.Manager.Tenant)
+				}
+			}
+		}
+	})
 	start(func() error {
 		ticker := time.NewTicker(250 * time.Millisecond)
 		defer ticker.Stop()

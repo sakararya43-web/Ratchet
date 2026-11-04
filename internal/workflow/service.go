@@ -147,6 +147,10 @@ func (s *Service) active(ctx context.Context, tx pgx.Tx, tenant string) (*policy
 	if string(digest) != string(a.Hash[:]) {
 		return nil, ErrDependency
 	}
+	var registry []byte
+	if err := tx.QueryRow(ctx, `SELECT digest FROM ratchet.registry_artifacts WHERE tenant_id=$1 ORDER BY epoch DESC LIMIT 1`, tenant).Scan(&registry); err != nil || string(registry) != string(a.RegistryDigest[:]) {
+		return nil, ErrDependency
+	}
 	return a, nil
 }
 func (s *Service) context(ctx context.Context, tx pgx.Tx, actor Actor, operation string, owners []string) (*graph.Snapshot, *policy.Active, error) {
@@ -582,6 +586,10 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		if decision.Outcome != c.Decision.Outcome || decision.Quorum != c.Decision.Quorum || !slices.Equal(decision.Groups, c.Decision.Groups) {
 			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
 		}
+		requesterGroups, err := groups(snapshot, c.Requester)
+		if err != nil || a.Authorize(ctx, policy.Facts{Actor: c.Requester, Operation: "submit", Groups: requesterGroups}) != nil {
+			return hold(c, now, "requester authorization changed")
+		}
 		if s.approvals == nil {
 			return hold(c, now, "conformant passkey dependency unavailable")
 		}
@@ -589,11 +597,15 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 			return hold(c, now, "passkey-confirmed independent authorization required")
 		}
 		for _, approval := range c.Approvals {
+			memberships, err := groups(snapshot, approval.ActorID)
+			if err != nil || a.Authorize(ctx, policy.Facts{Actor: approval.ActorID, Operation: "approve", Groups: memberships, Owners: ownersFor(a, result)}) != nil {
+				return hold(c, now, "approver authorization changed")
+			}
 			if err := eligible(snapshot, c, result, delta, approval.ActorID, ownersFor(a, result)); err != nil {
 				return hold(c, now, "approval independence changed")
 			}
 			verified, err := s.approvals.Verify(ctx, approval.Evidence, c.Digest)
-			if err != nil || !verified.UserVerified || verified.ActorID != approval.ActorID || verified.TenantID != c.TenantID || verified.ChangeDigest != c.Digest {
+			if err != nil || !verified.UserVerified || verified.ActorID != approval.ActorID || verified.TenantID != c.TenantID || verified.ChangeDigest != c.Digest || !slices.Equal(verified.CredentialID, approval.CredentialID) {
 				return hold(c, now, "approval no longer valid")
 			}
 		}

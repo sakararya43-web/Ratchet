@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 2 in progress on `main`, explicitly authorized after Phase 1's core handoff. Earlier peer-connector acceptance and shared review remain pending. See [Ishaan changelog](docs/ishaan/changelog.md). No Phase 3 work has started.
+**Status:** Phase 3 in progress on `main`, explicitly authorized on 2026-11-05. Phase 2 and earlier peer integration acceptance remain pending; advancing core work does not waive those gates. See [Ishaan changelog](docs/ishaan/changelog.md). Phases run sequentially.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -152,7 +152,8 @@ blocked by the peer session/verifier/connector conformance gaps. No unsafe peer
 handler or simulated assertion endpoint is mounted. Final runtime/CI/contract
 verification and handoff are recorded in [the Phase 2 handoff](docs/ishaan/phase-2-handoff.md).
 The core race/contract checks pass, but peer conformance fails reproducibly;
-do not sign off this phase or begin Phase 3 yet.
+do not sign off this phase yet. The user subsequently authorized Phase 3 core work
+on 2026-11-05 while these peer gates remain open.
 
 ### Ishaan's work
 

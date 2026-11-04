@@ -13,7 +13,6 @@ import (
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/open-policy-agent/opa/v1/storage/inmem"
-	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
@@ -38,10 +37,13 @@ type Facts struct {
 	Impact         any           `json:"impact"`
 }
 type Active struct {
-	Hash         ports.Digest
-	Version      string
-	change, auth rego.PreparedEvalQuery
-	data         map[string]any
+	Hash           ports.Digest
+	Version        string
+	RegistryEpoch  int64
+	RegistryDigest ports.Digest
+	TrustProof     []byte
+	change, auth   rego.PreparedEvalQuery
+	data           map[string]any
 }
 
 func (a *Active) Data() map[string]any {
@@ -80,25 +82,33 @@ func Prepare(ctx context.Context, store *trust.Store, root ports.Digest, tenant 
 	if store == nil || root.IsZero() || tenant == "" || len(raw) == 0 || len(raw) > 1<<20 {
 		return nil, ErrUnavailable
 	}
-	genesis, err := store.GetGenesis()
+	registry, err := RegistryFromStore(store, root, tenant)
 	if err != nil {
-		return nil, ErrUnavailable
+		return nil, err
 	}
-	if genesis.TenantID != tenant || genesis.Epoch != 1 || genesis.GenesisDigest != root {
-		return nil, ErrInvalid
+	return prepareRegistry(ctx, registry, tenant, raw)
+}
+
+func PrepareHistorical(ctx context.Context, proof []byte, root ports.Digest, tenant string, raw []byte) (*Active, error) {
+	registry, err := VerifyRegistry(proof, root, tenant)
+	if err != nil {
+		return nil, err
 	}
-	digest, err := canon.New().Digest(map[string]any{"tenant_id": genesis.TenantID, "threshold_m": genesis.ThresholdM, "total_n": genesis.TotalN, "epoch": genesis.Epoch, "members": genesis.Members})
-	if err != nil || digest != root {
+	return prepareRegistry(ctx, registry, tenant, raw)
+}
+
+func prepareRegistry(ctx context.Context, registry *Registry, tenant string, raw []byte) (*Active, error) {
+	if len(raw) == 0 || len(raw) > 1<<20 {
 		return nil, ErrInvalid
 	}
 	var bundle trust.PolicyBundle
-	if err := json.Unmarshal(raw, &bundle); err != nil || bundle.TenantID != tenant || bundle.Epoch != genesis.Epoch {
+	if err := json.Unmarshal(raw, &bundle); err != nil || bundle.TenantID != tenant || bundle.Epoch != registry.Epoch {
 		return nil, ErrInvalid
 	}
 	if _, err := version(bundle.BundleVersion); err != nil {
 		return nil, err
 	}
-	verified, err := trust.NewBundleVerifier(store).Verify(ctx, raw)
+	verified, err := trust.NewBundleVerifier(registry.store).Verify(ctx, raw)
 	if err != nil {
 		return nil, fmt.Errorf("%w: bundle verification refused", ErrInvalid)
 	}
@@ -136,7 +146,7 @@ func Prepare(ctx context.Context, store *trust.Store, root ports.Digest, tenant 
 	if err != nil {
 		return nil, fmt.Errorf("%w: authorization query cannot compile", ErrInvalid)
 	}
-	candidate := &Active{Hash: verified.BundleDigest, Version: verified.BundleVersion, change: change, auth: auth, data: verified.Data}
+	candidate := &Active{Hash: verified.BundleDigest, Version: verified.BundleVersion, RegistryEpoch: registry.Epoch, RegistryDigest: registry.Digest, TrustProof: append([]byte(nil), registry.Proof...), change: change, auth: auth, data: verified.Data}
 	if _, err := candidate.Decision(ctx, Facts{SchemaVersion: 1}); err != nil {
 		return nil, fmt.Errorf("%w: required structured decision query unavailable", ErrInvalid)
 	}
@@ -176,11 +186,31 @@ func Newer(candidate, prior string) bool {
 }
 
 type Engine struct {
-	mu     sync.RWMutex
-	active map[string]*Active
+	mu         sync.RWMutex
+	active     map[string]*Active
+	registries map[string]registryContext
+}
+type registryContext struct {
+	epoch  int64
+	digest ports.Digest
 }
 
-func NewEngine() *Engine { return &Engine{active: map[string]*Active{}} }
+func NewEngine() *Engine {
+	return &Engine{active: map[string]*Active{}, registries: map[string]registryContext{}}
+}
+func (e *Engine) PublishRegistry(tenant string, r *Registry) error {
+	if tenant == "" || r == nil || r.Epoch < 1 || r.Digest.IsZero() {
+		return ErrInvalid
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	prior := e.registries[tenant]
+	if r.Epoch < prior.epoch || (r.Epoch == prior.epoch && prior.digest != r.Digest) {
+		return ErrInvalid
+	}
+	e.registries[tenant] = registryContext{r.Epoch, r.Digest}
+	return nil
+}
 func (e *Engine) Current(tenant string) (*Active, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
@@ -188,16 +218,22 @@ func (e *Engine) Current(tenant string) (*Active, error) {
 	if a == nil {
 		return nil, ErrUnavailable
 	}
+	if r, ok := e.registries[tenant]; ok && (r.epoch != a.RegistryEpoch || r.digest != a.RegistryDigest) {
+		return nil, ErrUnavailable
+	}
 	return a, nil
 }
 
 // Publish follows the durable activation transaction; never call it before commit.
 func (e *Engine) Publish(tenant string, a *Active) error {
-	if tenant == "" || a == nil {
+	if tenant == "" || a == nil || a.RegistryEpoch < 1 || a.RegistryDigest.IsZero() {
 		return ErrInvalid
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if r, ok := e.registries[tenant]; ok && (r.epoch != a.RegistryEpoch || r.digest != a.RegistryDigest) {
+		return ErrUnavailable
+	}
 	if old := e.active[tenant]; old != nil {
 		if old.Hash == a.Hash {
 			return nil

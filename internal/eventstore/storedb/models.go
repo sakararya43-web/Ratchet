@@ -107,6 +107,8 @@ type RatchetPolicyArtifact struct {
 	Digest        []byte
 	RawBundle     []byte
 	EventPosition int64
+	RegistryEpoch int64
+	TrustProof    []byte
 }
 
 type RatchetPrivateRecord struct {
@@ -115,6 +117,14 @@ type RatchetPrivateRecord struct {
 	KeyReference string
 	Ciphertext   []byte
 	CreatedAt    pgtype.Timestamptz
+}
+
+type RatchetRegistryArtifact struct {
+	TenantID      string
+	Epoch         int64
+	Digest        []byte
+	TrustProof    []byte
+	EventPosition int64
 }
 
 type RatchetTenantHead struct {

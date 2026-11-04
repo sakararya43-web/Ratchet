@@ -9,6 +9,28 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Phase 3 — in progress (2026-11-05)
+
+The user explicitly authorized Phase 3 and sequential continuation through later
+phases. Phase 2's actual peer passkey/transport/precondition exit gates remain
+open; no runtime substitute or ownership exception is introduced.
+
+- Re-check requester/approver policy authorization at dispatch and require the
+  same enrolled credential when verifying recorded evidence again.
+- Real PostgreSQL/peer-verifier tests reject missing, invalid, revoked, unknown
+  and wrong-context proofs without advancing state. Eight parallel approvals by
+  one human count once; a second credential for that human cannot satisfy quorum.
+- Verify Authority rotation from the pinned original genesis by replaying actual
+  peer proposal/signature/activation methods. Missing old quorum, duplicate
+  signers, forged genesis, altered threshold and epoch gaps are rejected.
+- Schema 6 persists immutable verified registry proofs and a durable epoch floor.
+  A verified rotation invalidates old-epoch policy even before a replacement
+  bundle arrives. Persisted historical proof supports offline restore/replay.
+- Reload private Authority/bundle files every five seconds using fresh peer
+  stores; transient source loss retains verified operation, while an observed
+  rotation requires a valid current-epoch bundle. Native policy tests and real
+  workflow/storage/runtime acceptance pass at this foundation checkpoint.
+
 ## Phase 2 — in progress (2026-11-04)
 
 The user explicitly authorized the next phase after Phase 1's core handoff.

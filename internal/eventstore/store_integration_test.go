@@ -65,6 +65,32 @@ func command(tenant, stream string) eventstore.Command {
 	return eventstore.Command{TenantID: tenant, ID: uuid.New(), ActorReference: uuid.New(), StreamID: stream, Events: []eventstore.Event{{Type: "CoreEvidenceRecorded", Facts: json.RawMessage(`{"evidence_digest":"abc"}`)}}}
 }
 
+func TestCanonicalEventMustFitDurableTransportBeforeCommit(t *testing.T) {
+	ctx, _, store, tenant := setup(t)
+	cmd := command(tenant, "evidence:transport-limit")
+	raw, err := json.Marshal(map[string]string{"padding": string(bytes.Repeat([]byte{'x'}, (1<<20)-40))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd.Events[0].Facts = raw
+	if _, err := store.Append(ctx, cmd); !errors.Is(err, eventstore.ErrInvalid) {
+		t.Fatal("oversized canonical event persisted:", err)
+	}
+	events, err := store.LoadStream(ctx, tenant, cmd.StreamID)
+	if err != nil || len(events) != 0 {
+		t.Fatalf("failed append leaked events: %d %v", len(events), err)
+	}
+	backlog, err := store.OutboxBacklog(ctx, tenant)
+	if err != nil || backlog.Pending != 0 {
+		t.Fatalf("failed append leaked outbox: %+v %v", backlog, err)
+	}
+	cmd.Events[0].Facts = json.RawMessage(`{"evidence_digest":"small"}`)
+	receipt, err := store.Append(ctx, cmd)
+	if err != nil || receipt.FirstSequence != 1 {
+		t.Fatalf("failed append consumed chain position: %+v %v", receipt, err)
+	}
+}
+
 func tenantTx(t *testing.T, ctx context.Context, pool *pgxpool.Pool, tenant string) pgx.Tx {
 	t.Helper()
 	tx, err := pool.Begin(ctx)

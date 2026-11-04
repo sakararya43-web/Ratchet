@@ -173,6 +173,9 @@ func (s *Store) appendTx(ctx context.Context, tx pgx.Tx, command Command) (Recei
 		if err != nil {
 			return Receipt{}, err
 		}
+		if len(entry.Canonical) > 1<<20 {
+			return Receipt{}, fmt.Errorf("%w: canonical event exceeds durable transport limit", ErrInvalid)
+		}
 		if err := q.InsertEvent(ctx, storedb.InsertEventParams{TenantID: command.TenantID, Sequence: seq, EventID: pgUUID(eventID), CommandID: id, StreamID: command.StreamID, StreamVersion: streamVersion, EventType: event.Type, ActorReference: pgUUID(command.ActorReference), PrivateRecordID: privateID, CanonicalContent: entry.Canonical, PreviousHash: previous.Bytes(), Hash: entry.Hash.Bytes(), RecordedAt: pgtype.Timestamptz{Time: now, Valid: true}}); err != nil {
 			return Receipt{}, fmt.Errorf("insert event: %w", err)
 		}

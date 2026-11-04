@@ -113,6 +113,13 @@ Only Phase 1 work is in progress. No later phase has started.
   live APIs and unchanged graph version after simulation; it is not a substitute
   for the peer's actual connector acceptance gate.
 
+### Deliverable transport limits
+
+- Canonical ledger entries must fit the 1 MiB durable broker limit before their
+  event/outbox transaction commits. Envelope overhead cannot strand a tenant's
+  ordered outbox behind an oversized event. A real PostgreSQL regression proves
+  failed oversized appends leave no event, outbox item or consumed chain position.
+
 ## Phase 0 — implemented; joint acceptance pending (2026-11-04)
 
 ### Dependency provenance

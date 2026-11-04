@@ -11,6 +11,11 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
+proof limits, delivered APIs and remaining tasks. The complete core Linux
+integration/race suite, vet, zero-issue lint, Buf compatibility and generated-file
+checks pass. Phase 4 remains unfinished and Phase 5 has not started.
+
 - Schema 8 adds transactionally updated audit projections with tenant RLS and
   actor/time, request, incident and resource indexes. Missing projections rebuild
   against the complete contiguous source chain and captured tenant tip.

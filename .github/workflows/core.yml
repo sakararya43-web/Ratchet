@@ -1,0 +1,84 @@
+name: Core phase checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  core-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install local generators
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.19.1
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: '1.75.0'
+      - name: Lint and check compatibility with peer baseline
+        run: |
+          # Preserve unchanged peer-owned schema formatting during integration.
+          buf format --diff --exit-code --path proto/ratchet/v1/common.proto --path proto/ratchet/v1/change.proto --path proto/ratchet/v1/graph.proto --path proto/ratchet/v1/impact.proto --path proto/ratchet/v1/containment.proto --path proto/ratchet/v1/incident.proto --path proto/ratchet/v1/audit.proto --path proto/ratchet/v1/decision.proto --path proto/ratchet/v1/connector.proto
+          buf lint
+          buf breaking --against testdata/contracts/sakar-v1.binpb
+      - name: Compare with previous main contracts when available
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if test -n "$BASE" && git cat-file -e "$BASE:buf.yaml" 2>/dev/null; then
+            buf breaking --against ".git#ref=$BASE"
+          fi
+      - name: Verify generated bindings
+        run: |
+          buf generate
+          docker run --rm --mount "type=bind,source=$PWD,target=/src" -w /src sqlc/sqlc:1.31.1 generate
+          git diff --exit-code -- proto internal/eventstore/storedb
+          test -z "$(git ls-files --others --exclude-standard proto internal/eventstore/storedb)"
+
+  core-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Verify modules and core code
+        run: |
+          go mod verify
+          go vet ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./proto/...
+          go test -race ./...
+      - name: Core lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          args: --config .golangci-core.yml ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/...
+      - name: Start real local dependencies
+        shell: pwsh
+        run: ./scripts/core-env.ps1
+      - name: Compose PostgreSQL and JetStream
+        run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml up -d --wait
+      - name: Durable storage acceptance
+        shell: pwsh
+        run: |
+          . ./scripts/core-env-load.ps1
+          go test -race -tags=integration -count=1 -timeout=3m ./internal/eventstore/...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: New-process persistence and readiness smoke
+        run: sh scripts/core-smoke.sh
+      - name: Dependency diagnostics on failure
+        if: failure()
+        run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml logs --no-color --tail=100
+      - name: Stop only this job's containers
+        if: always()
+        run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml down

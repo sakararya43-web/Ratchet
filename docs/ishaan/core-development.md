@@ -19,6 +19,11 @@ go test -tags=integration -count=1 ./internal/eventstore/...
 ./scripts/core-smoke.ps1
 ```
 
+On Linux, generate the same private env file with PowerShell and run
+`sh scripts/core-smoke.sh` for the process acceptance check. Both platform smoke
+scripts have been exercised against real PostgreSQL. Environment files use LF
+line endings so Windows-generated credentials also work in Linux containers.
+
 The generated `.local/core.env` is private, ignored and must stay with the volume.
 Existing credentials are never overwritten. The default PostgreSQL port is 55434;
 set `RATCHET_POSTGRES_PORT` in that file before starting if it is occupied.
@@ -80,3 +85,7 @@ The Phase 0 append format places authoritative evidence inside hashed payloads,
 including future approval envelopes/assertions. The core will not rely on any
 unhashed approval field or unsigned bundle. Phase 1 cannot be declared started
 until all Phase 0 exit evidence and shared review are accounted for.
+
+See `phase-0-handoff.md` for the known inherited peer audit-fixture failure and
+the tested shared-file resolution. A merge rehearsal currently compiles both
+halves but does not have a fully green audit test verdict.

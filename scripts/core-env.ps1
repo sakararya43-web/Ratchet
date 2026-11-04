@@ -12,5 +12,5 @@ $lines = foreach ($name in @('POSTGRES_PASSWORD', 'RATCHET_MIGRATOR_PASSWORD', '
     $value = ([System.BitConverter]::ToString($bytes)).Replace('-', '').ToLowerInvariant()
     "$name=$value"
 }
-[System.IO.File]::WriteAllLines($envPath, $lines, (New-Object System.Text.UTF8Encoding($false)))
+[System.IO.File]::WriteAllText($envPath, ($lines -join "`n") + "`n", (New-Object System.Text.UTF8Encoding($false)))
 Write-Output 'Created .local/core.env. Keep it private and retain it with the local database volume.'

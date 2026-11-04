@@ -262,9 +262,9 @@ func ownersFor(a *policy.Active, result graph.Impact) []string {
 	slices.Sort(out)
 	return out
 }
-func factsFor(snapshot *graph.Snapshot, a *policy.Active, c domain.Change, result graph.Impact) policy.Facts {
+func factsFor(ctx context.Context, snapshot *graph.Snapshot, a *policy.Active, c domain.Change, result graph.Impact) policy.Facts {
 	memberships, _ := groups(snapshot, c.Requester)
-	f := policy.Facts{SchemaVersion: 1, GraphVersion: snapshot.Version(), Actor: c.Requester, Operation: "assess", Complete: true, Intent: c.Intent, Reduction: result.MonotonicReduction, Owners: ownersFor(a, result), Impact: result, Responder: slices.Contains(memberships, "role:responder")}
+	f := policy.Facts{SchemaVersion: 1, GraphVersion: snapshot.Version(), Actor: c.Requester, Operation: "assess", Complete: true, Intent: c.Intent, Reduction: result.MonotonicReduction, Owners: ownersFor(a, result), Impact: result, Responder: a.Authorize(ctx, policy.Facts{Actor: c.Requester, Operation: "reduce", Groups: memberships}) == nil}
 	for _, n := range result.Weakened {
 		if n.Tier == 0 {
 			f.Tier0Weakening = true
@@ -306,7 +306,7 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return hold(c, now, "impact context cannot be proved")
 		}
-		facts := factsFor(snapshot, a, c, result)
+		facts := factsFor(ctx, snapshot, a, c, result)
 		decision, err := a.Decision(ctx, facts)
 		if err != nil {
 			return hold(c, now, "policy evaluation unavailable")
@@ -535,7 +535,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		if hash != c.Envelope.ImpactDigest {
 			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
 		}
-		decision, err := a.Decision(ctx, factsFor(snapshot, a, c, result))
+		decision, err := a.Decision(ctx, factsFor(ctx, snapshot, a, c, result))
 		if err != nil {
 			return hold(c, now, "policy reevaluation unavailable")
 		}

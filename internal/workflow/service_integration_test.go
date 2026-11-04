@@ -244,6 +244,14 @@ func TestRealRiverAssessmentIdempotencyContextAndProjectionRecovery(t *testing.T
 	if _, _, err := sys.store.VerifyTenant(sys.ctx, sys.tenant); err != nil {
 		t.Fatal(err)
 	}
+	admin, err := service.Submit(sys.ctx, actor, workflow.Submit{Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: actor.ID, Access: "role:admin"}, Justification: "Security-reviewed wallet administration request", CommandID: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sensitive := waitState(t, sys, admin.ID, domain.AwaitingApproval)
+	if sensitive.Decision.Quorum != 2 || !slices.Equal(sensitive.Decision.Groups, []string{"role:security-lead"}) {
+		t.Fatal("tier-0 request did not require two security leads")
+	}
 }
 func signCapability(t *testing.T, tenant string) (*workflow.Execution, ed25519.PrivateKey) {
 	t.Helper()
@@ -314,7 +322,8 @@ func signedResult(t *testing.T, result workflow.ExecutionResult, key ed25519.Pri
 
 // This is a real-cryptography protocol fixture, not a browser passkey ceremony
 // or the unsafe peer handler. Production mounting remains separately gated.
-func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.T) {
+func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed25519.PrivateKey) {
+	t.Helper()
 	sys := setup(t)
 	credentials := approval.NewCredentialStore()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -349,6 +358,10 @@ func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.
 		t.Fatal(err)
 	}
 	c = waitState(t, sys, c.ID, domain.Executing)
+	return sys, service, c, connectorKey
+}
+func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.T) {
+	sys, service, c, connectorKey := readyExecution(t)
 	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, EnvelopeDigest: c.Digest, Success: true}
 	if err := service.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, result, connectorKey)); err != nil {
 		t.Fatal(err)
@@ -408,5 +421,23 @@ func TestBoundDispatchReadbackRefusalAndUncertainWriteReconciliation(t *testing.
 	result.ObservedRoles = []string{"role:admin"}
 	if err := service.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, result, connectorKey)); !errors.Is(err, eventstore.ErrIdempotencyConflict) {
 		t.Fatal("message ID reused with new evidence", err)
+	}
+}
+
+func TestVerifiedRefusalRecordsFailedWithoutInventingApplication(t *testing.T) {
+	sys, service, c, key := readyExecution(t)
+	result := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "source", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, EnvelopeDigest: c.Digest, Success: false, ReadBackVerified: true, ObservedTenant: sys.tenant, ObservedTarget: c.Intent.Target, ObservedRoles: []string{}, ObservedRevision: 10, ObservedAt: time.Now().UTC()}
+	result.ObservationDigest, _ = canon.New().Digest(struct {
+		Tenant, Target string
+		Roles          []string
+		Revision       int64
+		At             time.Time
+	}{result.ObservedTenant, result.ObservedTarget, result.ObservedRoles, result.ObservedRevision, result.ObservedAt})
+	if err := service.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, result, key)); err != nil {
+		t.Fatal(err)
+	}
+	failed := waitState(t, sys, c.ID, domain.Failed)
+	if len(failed.Facts) == 0 {
+		t.Fatal("verified refusal evidence lost")
 	}
 }

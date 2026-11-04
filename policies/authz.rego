@@ -3,6 +3,11 @@ package ratchet.authz
 default allow := false
 
 allow if {
+ input.operation == "reduce"
+ "role:security-lead" in input.actor_groups
+}
+
+allow if {
  input.operation in {"submit", "view", "simulate"}
  input.actor != ""
 }

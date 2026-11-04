@@ -92,6 +92,16 @@ Phase 1's joint acceptance remains pending. No Phase 3 work has started.
   of certificate-validation builtins with implicit wall-clock behavior. Signed
   test modules prove clock/network/implicit-certificate-time calls cannot load.
 
+- Added explicit verified-refusal handling: only signed independent read-back
+  proving the exact unchanged pre-state records Failed. Uncertain application
+  stays Executing with its signed evidence and read-only reconciliation.
+- Transaction fault injection proves River job, ledger, private row, projection,
+  receipt and outbox all roll back together; the original idempotency key remains
+  usable. Ordinary and actual tier-0 assessments are covered by real-job tests.
+- Responder eligibility comes from the verified Rego authorization query rather
+  than an invented seed role. ALLOW remains subject to passkey authorization;
+  the later containment interface is not implemented early or bypassed.
+
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 
 The user explicitly authorized starting the next phase after the Phase 0 handoff.

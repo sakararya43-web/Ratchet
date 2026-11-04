@@ -89,6 +89,12 @@ func TestSignedPreparedPolicyDecisionsAndAuthorization(t *testing.T) {
 	if a.Authorize(context.Background(), policy.Facts{Actor: "stranger", Operation: "approve"}) == nil {
 		t.Fatal("arbitrary actor approval authorization")
 	}
+	if a.Authorize(context.Background(), policy.Facts{Actor: "stranger", Operation: "reduce"}) == nil {
+		t.Fatal("unprivileged reduction authorization")
+	}
+	if err := a.Authorize(context.Background(), policy.Facts{Actor: "leader", Operation: "reduce", Groups: []string{"role:security-lead"}}); err != nil {
+		t.Fatal(err)
+	}
 	if err := a.Authorize(context.Background(), policy.Facts{Actor: "owner", Operation: "approve", Owners: []string{"owner"}}); err != nil {
 		t.Fatal(err)
 	}

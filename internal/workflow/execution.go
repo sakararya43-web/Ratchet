@@ -67,6 +67,7 @@ type PreparedCommand struct {
 	RequestID        string            `json:"request_id"`
 	ExpectedRevision int64             `json:"expected_target_revision"`
 	ExpectedRoles    []string          `json:"expected_roles"`
+	BeforeRoles      []string          `json:"before_roles"`
 	Envelope         *domain.Envelope  `json:"approved_envelope"`
 	EnvelopeDigest   ports.Digest      `json:"approved_envelope_digest"`
 	Approvals        []domain.Approval `json:"approvals"`
@@ -116,6 +117,9 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 			roles = append(roles, edge.Target)
 		}
 	}
+	slices.Sort(roles)
+	roles = slices.Compact(roles)
+	beforeRoles := slices.Clone(roles)
 	if c.Intent.Kind == "ROLE_ASSIGN" {
 		if !slices.Contains(roles, c.Intent.Access) {
 			roles = append(roles, c.Intent.Access)
@@ -127,6 +131,7 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	roles = slices.Compact(roles)
 	cmd = PreparedCommand{SchemaVersion: 1, Tenant: c.TenantID, Connector: e.Connector, CommandID: id, RequestID: c.ID, ExpectedRevision: revision, ExpectedRoles: roles, Envelope: c.Envelope, EnvelopeDigest: c.Digest, Approvals: c.Approvals, Deadline: c.Envelope.ExpiresAt}
 	cmd.MessageID = id
+	cmd.BeforeRoles = beforeRoles
 	digest, err := signingDigest("RATCHET_EXEC_COMMAND_V1", cmd)
 	if err != nil {
 		return cmd, err
@@ -213,7 +218,7 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		}
 		// Uncertain application stays EXECUTING for reconciliation. It is never
 		// converted into a grant, blind redispatch or an invented failed write.
-		if !r.Success || !r.ReadBackVerified {
+		if !r.ReadBackVerified {
 			events, err := domain.Decide(c, domain.Command{Kind: "RECONCILE", At: now, ExecutionID: c.ExecutionID})
 			if err != nil {
 				return nil, err
@@ -221,6 +226,11 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 			if err := s.enqueue(ctx, tx, JobArgs{tenant, c.ID, c.Revision + 1, "reconcile"}); err != nil {
 				return nil, err
 			}
+			facts, err := json.Marshal(r)
+			if err != nil {
+				return nil, err
+			}
+			events[0].Change.Facts = facts
 			return events, nil
 		}
 		roles := slices.Clone(r.ObservedRoles)
@@ -234,7 +244,25 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		if err != nil {
 			return nil, err
 		}
-		if r.ObservedTenant != tenant || r.ObservedTarget != c.Intent.Target || r.ObservedRevision != command.ExpectedRevision+1 || !slices.Equal(roles, command.ExpectedRoles) || r.ObservedAt.Before(c.UpdatedAt) || r.ObservedAt.After(now.Add(time.Minute)) || r.ObservedAt.After(command.Deadline) || observedDigest != r.ObservationDigest {
+		if r.ObservedTenant != tenant || r.ObservedTarget != c.Intent.Target || r.ObservedAt.Before(c.UpdatedAt) || r.ObservedAt.After(now.Add(time.Minute)) || r.ObservedAt.After(command.Deadline) || observedDigest != r.ObservationDigest {
+			return nil, ErrPermission
+		}
+		if !r.Success {
+			if r.ObservedRevision != command.ExpectedRevision || !slices.Equal(roles, command.BeforeRoles) {
+				return nil, ErrPermission
+			}
+			events, err := domain.Decide(c, domain.Command{Kind: "EXECUTION_FAILED", At: now, ExecutionID: r.CommandID, Reason: "connector refused change; unchanged state independently observed"})
+			if err != nil {
+				return nil, err
+			}
+			facts, err := json.Marshal(r)
+			if err != nil {
+				return nil, err
+			}
+			events[0].Change.Facts = facts
+			return events, nil
+		}
+		if r.ObservedRevision != command.ExpectedRevision+1 || !slices.Equal(roles, command.ExpectedRoles) {
 			return nil, ErrPermission
 		}
 		events, err := domain.Decide(c, domain.Command{Kind: "VERIFIED", At: now, ExecutionID: r.CommandID, Verified: true})

@@ -53,6 +53,9 @@ const (
 	// ChangeServiceRequestMoreInfoProcedure is the fully-qualified name of the ChangeService's
 	// RequestMoreInfo RPC.
 	ChangeServiceRequestMoreInfoProcedure = "/ratchet.v1.ChangeService/RequestMoreInfo"
+	// ChangeServiceProvideContextProcedure is the fully-qualified name of the ChangeService's
+	// ProvideContext RPC.
+	ChangeServiceProvideContextProcedure = "/ratchet.v1.ChangeService/ProvideContext"
 	// ChangeServiceWatchChangesProcedure is the fully-qualified name of the ChangeService's
 	// WatchChanges RPC.
 	ChangeServiceWatchChangesProcedure = "/ratchet.v1.ChangeService/WatchChanges"
@@ -67,6 +70,7 @@ type ChangeServiceClient interface {
 	RejectChange(context.Context, *connect.Request[v1.RejectChangeRequest]) (*connect.Response[v1.RejectChangeResponse], error)
 	HoldChange(context.Context, *connect.Request[v1.HoldChangeRequest]) (*connect.Response[v1.HoldChangeResponse], error)
 	RequestMoreInfo(context.Context, *connect.Request[v1.RequestMoreInfoRequest]) (*connect.Response[v1.RequestMoreInfoResponse], error)
+	ProvideContext(context.Context, *connect.Request[v1.ProvideContextRequest]) (*connect.Response[v1.ProvideContextResponse], error)
 	WatchChanges(context.Context, *connect.Request[v1.WatchChangesRequest]) (*connect.ServerStreamForClient[v1.WatchChangesResponse], error)
 }
 
@@ -123,6 +127,12 @@ func NewChangeServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(changeServiceMethods.ByName("RequestMoreInfo")),
 			connect.WithClientOptions(opts...),
 		),
+		provideContext: connect.NewClient[v1.ProvideContextRequest, v1.ProvideContextResponse](
+			httpClient,
+			baseURL+ChangeServiceProvideContextProcedure,
+			connect.WithSchema(changeServiceMethods.ByName("ProvideContext")),
+			connect.WithClientOptions(opts...),
+		),
 		watchChanges: connect.NewClient[v1.WatchChangesRequest, v1.WatchChangesResponse](
 			httpClient,
 			baseURL+ChangeServiceWatchChangesProcedure,
@@ -141,6 +151,7 @@ type changeServiceClient struct {
 	rejectChange    *connect.Client[v1.RejectChangeRequest, v1.RejectChangeResponse]
 	holdChange      *connect.Client[v1.HoldChangeRequest, v1.HoldChangeResponse]
 	requestMoreInfo *connect.Client[v1.RequestMoreInfoRequest, v1.RequestMoreInfoResponse]
+	provideContext  *connect.Client[v1.ProvideContextRequest, v1.ProvideContextResponse]
 	watchChanges    *connect.Client[v1.WatchChangesRequest, v1.WatchChangesResponse]
 }
 
@@ -179,6 +190,11 @@ func (c *changeServiceClient) RequestMoreInfo(ctx context.Context, req *connect.
 	return c.requestMoreInfo.CallUnary(ctx, req)
 }
 
+// ProvideContext calls ratchet.v1.ChangeService.ProvideContext.
+func (c *changeServiceClient) ProvideContext(ctx context.Context, req *connect.Request[v1.ProvideContextRequest]) (*connect.Response[v1.ProvideContextResponse], error) {
+	return c.provideContext.CallUnary(ctx, req)
+}
+
 // WatchChanges calls ratchet.v1.ChangeService.WatchChanges.
 func (c *changeServiceClient) WatchChanges(ctx context.Context, req *connect.Request[v1.WatchChangesRequest]) (*connect.ServerStreamForClient[v1.WatchChangesResponse], error) {
 	return c.watchChanges.CallServerStream(ctx, req)
@@ -193,6 +209,7 @@ type ChangeServiceHandler interface {
 	RejectChange(context.Context, *connect.Request[v1.RejectChangeRequest]) (*connect.Response[v1.RejectChangeResponse], error)
 	HoldChange(context.Context, *connect.Request[v1.HoldChangeRequest]) (*connect.Response[v1.HoldChangeResponse], error)
 	RequestMoreInfo(context.Context, *connect.Request[v1.RequestMoreInfoRequest]) (*connect.Response[v1.RequestMoreInfoResponse], error)
+	ProvideContext(context.Context, *connect.Request[v1.ProvideContextRequest]) (*connect.Response[v1.ProvideContextResponse], error)
 	WatchChanges(context.Context, *connect.Request[v1.WatchChangesRequest], *connect.ServerStream[v1.WatchChangesResponse]) error
 }
 
@@ -245,6 +262,12 @@ func NewChangeServiceHandler(svc ChangeServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(changeServiceMethods.ByName("RequestMoreInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	changeServiceProvideContextHandler := connect.NewUnaryHandler(
+		ChangeServiceProvideContextProcedure,
+		svc.ProvideContext,
+		connect.WithSchema(changeServiceMethods.ByName("ProvideContext")),
+		connect.WithHandlerOptions(opts...),
+	)
 	changeServiceWatchChangesHandler := connect.NewServerStreamHandler(
 		ChangeServiceWatchChangesProcedure,
 		svc.WatchChanges,
@@ -267,6 +290,8 @@ func NewChangeServiceHandler(svc ChangeServiceHandler, opts ...connect.HandlerOp
 			changeServiceHoldChangeHandler.ServeHTTP(w, r)
 		case ChangeServiceRequestMoreInfoProcedure:
 			changeServiceRequestMoreInfoHandler.ServeHTTP(w, r)
+		case ChangeServiceProvideContextProcedure:
+			changeServiceProvideContextHandler.ServeHTTP(w, r)
 		case ChangeServiceWatchChangesProcedure:
 			changeServiceWatchChangesHandler.ServeHTTP(w, r)
 		default:
@@ -304,6 +329,10 @@ func (UnimplementedChangeServiceHandler) HoldChange(context.Context, *connect.Re
 
 func (UnimplementedChangeServiceHandler) RequestMoreInfo(context.Context, *connect.Request[v1.RequestMoreInfoRequest]) (*connect.Response[v1.RequestMoreInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.ChangeService.RequestMoreInfo is not implemented"))
+}
+
+func (UnimplementedChangeServiceHandler) ProvideContext(context.Context, *connect.Request[v1.ProvideContextRequest]) (*connect.Response[v1.ProvideContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.ChangeService.ProvideContext is not implemented"))
 }
 
 func (UnimplementedChangeServiceHandler) WatchChanges(context.Context, *connect.Request[v1.WatchChangesRequest], *connect.ServerStream[v1.WatchChangesResponse]) error {

@@ -41,13 +41,7 @@ func NewGraphHandler(registry *graph.Registry, cursorKey []byte, readers map[str
 		}
 		acl[name] = reader
 	}
-	a := &GraphAPI{registry: registry, cursorKey: append([]byte(nil), cursorKey...)}
-	mux := http.NewServeMux()
-	options := []connect.HandlerOption{connect.WithReadMaxBytes(1 << 20), connect.WithSendMaxBytes(8 << 20)}
-	p, h := ratchetv1connect.NewGraphServiceHandler(a, options...)
-	mux.Handle(p, h)
-	p, h = ratchetv1connect.NewImpactServiceHandler(a, options...)
-	mux.Handle(p, h)
+	mux := graphRoutes(registry, cursorKey)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil || len(r.TLS.VerifiedChains) == 0 || len(r.TLS.PeerCertificates) == 0 {
 			http.Error(w, "verified client certificate required", http.StatusUnauthorized)
@@ -59,6 +53,39 @@ func NewGraphHandler(registry *graph.Registry, cursorKey []byte, readers map[str
 			return
 		}
 		mux.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), readerContextKey{}, reader)))
+	}), nil
+}
+
+func graphRoutes(registry *graph.Registry, key []byte) http.Handler {
+	a := &GraphAPI{registry: registry, cursorKey: append([]byte(nil), key...)}
+	mux := http.NewServeMux()
+	options := []connect.HandlerOption{connect.WithReadMaxBytes(1 << 20), connect.WithSendMaxBytes(8 << 20)}
+	p, h := ratchetv1connect.NewGraphServiceHandler(a, options...)
+	mux.Handle(p, h)
+	p, h = ratchetv1connect.NewImpactServiceHandler(a, options...)
+	mux.Handle(p, h)
+	return mux
+}
+func NewSessionGraphHandler(registry *graph.Registry, key []byte, authorize func(context.Context, Principal, string) error) (http.Handler, error) {
+	if registry == nil || len(key) != 32 || authorize == nil {
+		return nil, errors.New("graph session dependencies required")
+	}
+	routes := graphRoutes(registry, key)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, ok := SessionPrincipal(r.Context())
+		if !ok {
+			http.Error(w, "session required", http.StatusUnauthorized)
+			return
+		}
+		operation := "view"
+		if strings.Contains(r.URL.Path, "ImpactService") {
+			operation = "simulate"
+		}
+		if err := authorize(r.Context(), p, operation); err != nil {
+			http.Error(w, "graph authorization unavailable", http.StatusForbidden)
+			return
+		}
+		routes.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), readerContextKey{}, Reader(p))))
 	}), nil
 }
 

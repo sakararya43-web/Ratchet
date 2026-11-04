@@ -66,6 +66,18 @@ Phase 1's joint acceptance remains pending. No Phase 3 work has started.
   read-only reconciliation, mismatched read-back rejection and duplicate evidence.
   These fixtures are not browser enrollment or real peer target acceptance.
 
+- Added session-authenticated Connect Change/Overview handlers, bounded signed
+  list cursors, requester context updates and policy-authorized graph/simulation.
+  The exact canonical approval bytes are returned for independent digest checking.
+  Only implemented unary routes are mounted; Watch remains Phase 5 work.
+- Added actual HTTPS `console-serve` and administrative `provision-users` commands.
+  Private configuration supplies TLS/session/graph keys and a pinned Authority
+  artifact. Policy restore/rejection, jobs, graph refresh and event relay perform
+  real operations. Readiness separately exposes missing workflow trust inputs.
+- Native `go test ./...`, workflow integration, vet, scoped lint (zero issues),
+  Buf lint/Phase-1 compatibility and generated SQL/protobuf checks pass at the
+  publication checkpoint. Full runtime integration and Linux race checks follow.
+
 ## Phase 1 — core implemented; joint acceptance pending (2026-11-04)
 
 The user explicitly authorized starting the next phase after the Phase 0 handoff.

@@ -191,7 +191,7 @@ func (s *Sessions) login(w http.ResponseWriter, r *http.Request) {
 	}
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
-		http.Error(w, "login unavailable", 503)
+		http.Error(w, "login unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	token := in.TenantID + "." + base64.RawURLEncoding.EncodeToString(secret)
@@ -201,7 +201,7 @@ func (s *Sessions) login(w http.ResponseWriter, r *http.Request) {
 		return tx.QueryRow(r.Context(), `INSERT INTO ratchet.console_sessions(tenant_id,token_hash,actor_id,expires_at) SELECT $1,$2,$3,clock_timestamp()+$4*interval '1 second' FROM ratchet.console_users WHERE tenant_id=$1 AND actor_id=$3 AND NOT disabled RETURNING expires_at`, in.TenantID, hash[:], in.ActorID, s.ttl.Seconds()).Scan(&expires)
 	})
 	if err != nil {
-		http.Error(w, "login unavailable", 503)
+		http.Error(w, "login unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode, MaxAge: int(s.ttl.Seconds()), Expires: expires})
@@ -210,22 +210,22 @@ func (s *Sessions) login(w http.ResponseWriter, r *http.Request) {
 func (s *Sessions) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil {
-			http.Error(w, "HTTPS required", 401)
+			http.Error(w, "HTTPS required", http.StatusUnauthorized)
 			return
 		}
 		cookie, err := r.Cookie(sessionCookie)
 		if err != nil || len(cookie.Value) > 200 {
-			http.Error(w, "session required", 401)
+			http.Error(w, "session required", http.StatusUnauthorized)
 			return
 		}
 		tenant, _, ok := strings.Cut(cookie.Value, ".")
 		if !ok || !tenantSyntax.MatchString(tenant) {
-			http.Error(w, "invalid session", 401)
+			http.Error(w, "invalid session", http.StatusUnauthorized)
 			return
 		}
 		if r.Method != "GET" && r.Method != "HEAD" {
 			if r.Header.Get("Origin") != s.origin || !hmac.Equal([]byte(r.Header.Get("X-CSRF-Token")), []byte(s.csrf(cookie.Value))) {
-				http.Error(w, "CSRF validation failed", 403)
+				http.Error(w, "CSRF validation failed", http.StatusForbidden)
 				return
 			}
 		}
@@ -236,9 +236,9 @@ func (s *Sessions) Require(next http.Handler) http.Handler {
 		})
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				http.Error(w, "session expired or revoked", 401)
+				http.Error(w, "session expired or revoked", http.StatusUnauthorized)
 			} else {
-				http.Error(w, "session unavailable", 503)
+				http.Error(w, "session unavailable", http.StatusServiceUnavailable)
 			}
 			return
 		}
@@ -260,7 +260,7 @@ func (s *Sessions) logout(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 	if err != nil {
-		http.Error(w, "logout unavailable", 503)
+		http.Error(w, "logout unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})

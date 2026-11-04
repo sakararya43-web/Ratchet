@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 1 core implemented on `main`; actual peer-connector acceptance and shared review remain pending. See [Phase 1 handoff](docs/ishaan/phase-1-handoff.md) and [Ishaan changelog](docs/ishaan/changelog.md). No later phase has started.
+**Status:** Phase 2 in progress on `main`, explicitly authorized after Phase 1's core handoff. Earlier peer-connector acceptance and shared review remain pending. See [Ishaan changelog](docs/ishaan/changelog.md). No Phase 3 work has started.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -142,6 +142,15 @@ baseline is 1.38 s/op; the 100 ms target remains unmet and is scheduled for Phas
 ## 7. Phase 2 - Real decisions and safely executed ordinary access
 
 **Requirements:** FR-C1-C3, FR-C5 rules, FR-C7-C9 core, FR-P1-P2, FR-P4 loading, FR-P6, FR-O1 data, FR-U1, FR-U3, FR-L1. These security checks are required now, not optional Phase 3 additions.
+
+**Execution checkpoint (2026-11-04):** The user explicitly authorized Phase 2.
+Password sessions, the pure state machine, signed prepared OPA policies,
+transactional River workers, guarded command staging/read-back and core API
+operations are implemented. Native component tests use real PostgreSQL, real
+cryptography and real River jobs. Live browser/peer-target acceptance is still
+blocked by the peer session/verifier/connector conformance gaps. No unsafe peer
+handler or simulated assertion endpoint is mounted. Final runtime/CI/contract
+verification and handoff are in progress; do not sign off this phase yet.
 
 ### Ishaan's work
 

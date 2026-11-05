@@ -23,10 +23,16 @@ and implementation plans are unchanged.
 - Exact native admission context, observed actor/UID/group/preimage checks and
   connector-pinned Ed25519 authentication with bounded lifetime and detached
   verified evidence. [Contract and remaining adoption](phase-6-admission-contract.md).
+- Authenticated normalized snapshot ingestion through actual PostgreSQL/JetStream,
+  encrypted source context, non-personal replay, revision conflict protection,
+  cluster ownership and resync quarantine. Whole-organization proposal analysis
+  retains external controllers and unrelated business access.
+  [Native ingestion contract](phase-6-native-ingest.md).
 
 ## Remaining work and gates
 
-- Adopt normalized graph projection in authenticated ingestion and policy/workflow.
+- Adopt normalized graph projection and retained source context in policy/workflow
+  and DecisionService. Authenticated native ingestion is implemented.
 - Authenticate native admission identity and exact context; correlate approved
   commands through DecisionService, independently observed target state and
   durable execution records. Pure context/authentication checks are implemented;
@@ -44,6 +50,16 @@ Actual combined-source tests reproduce five failed acceptance assertions; see
 
 ## Validation
 
-The pure domain suite and Linux race tests for domain/graph pass. The real kind
-authorizer comparison passes independently of the peer adapter. Phase 6 is not
-signed off and no claim of 100% integrated success is made.
+Passing local checks include the full serialized Linux race/integration suite
+against actual PostgreSQL/JetStream (workflow: 202.669 seconds), native-source
+privacy/replay/resync tests, 300-case properties at seed `20261105`, integration
+vet, module verification, Buf lint and breaking checks against both the peer
+baseline and preceding `main`, and reproducible protobuf generation. Core lint
+reports zero issues. A final aggregation work bound and detached rule-result
+regression also pass the domain/graph/bus/eventstore integration/race suites.
+
+The real kind authorizer comparison passes independently of the peer adapter.
+The actual peer assertions in the gate report remain failing. Phase 6 is not
+signed off and no claim of 100% integrated success is made. Native policy,
+approval/DecisionService, command/observation and drift/incident adoption are
+still required core work; those are not attributed to the peer or silently cut.

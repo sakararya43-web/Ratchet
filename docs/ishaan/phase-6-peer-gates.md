@@ -44,7 +44,7 @@ replace the adapter, API parsing, webhook or target watch.
 |---|---|---|
 | D1 ordinary access | Normalized role/binding matching and exact mutation validation | Real request, approval, target write and independent read-back |
 | D2 sensitive access | Wildcards, token creation, bind/escalate/impersonation closure | Policy/DecisionService integration and actual webhook decision |
-| D3 impact | Namespaced/aggregated roles, other beneficiaries and common-basis graph impact | Native ingestion, UI and target comparison |
+| D3 impact | Authenticated normalized ingestion, namespaced/aggregated roles, external controllers, other beneficiaries and common-basis graph impact | Peer source adoption, UI and target comparison |
 | D4 independent review | Existing core reviewer controls; technical token takeover and separate human impersonation semantics | Trusted core/native identity association and native approval/execution tests |
 | D5 critical rule | RBAC changes are modeled; simulator withdrawal safeguards are not Kubernetes RBAC rules | Admission configuration, webhook removal, external authorizers and financial safeguards are unsupported native mappings |
 | D6 containment | Pure reduction/expansion analysis | Native drift publisher, durable decision/incident and verified correction |

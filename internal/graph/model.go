@@ -9,6 +9,8 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 )
 
 var (
@@ -37,8 +39,10 @@ type Edge struct {
 }
 
 type Data struct {
-	Nodes []Node `json:"nodes"`
-	Edges []Edge `json:"edges"`
+	Nodes             []Node                `json:"nodes"`
+	Edges             []Edge                `json:"edges"`
+	Kubernetes        map[string]kube.State `json:"kubernetes,omitempty"`
+	KubernetesDigests map[string]string     `json:"kubernetes_digests,omitempty"`
 }
 type Delta struct {
 	NodesAdded   []Node   `json:"nodes_added"`
@@ -57,6 +61,8 @@ type Snapshot struct {
 	offsets, reverseOffsets  []uint32
 	forward, reverse         []uint32
 	edgeSources, edgeTargets []uint32
+	kubernetes               map[string]kube.State
+	kubernetesDigests        map[string]string
 }
 
 func Identity(kind string) bool { return kind == "Human" || kind == "ServiceAccount" }
@@ -80,6 +86,9 @@ func Build(version int64, data Data) (*Snapshot, error) {
 		return nil, ErrInvalid
 	}
 	s := &Snapshot{version: version, index: make(map[string]uint32, len(data.Nodes)), nodes: make([]Node, len(data.Nodes)), edges: make([]Edge, len(data.Edges))}
+	if err := s.setKubernetes(data); err != nil {
+		return nil, err
+	}
 	for i, n := range data.Nodes {
 		if !idPattern.MatchString(n.ID) || n.Tier < 0 || n.Tier > 3 {
 			return nil, fmt.Errorf("%w: node identity or tier", ErrInvalid)
@@ -214,6 +223,13 @@ func validateEdge(a, b Node, e Edge) error {
 func (s *Snapshot) Version() int64 { return s.version }
 func (s *Snapshot) Data() Data {
 	d := Data{Nodes: make([]Node, len(s.nodes)), Edges: make([]Edge, len(s.edges))}
+	d.KubernetesDigests = maps.Clone(s.kubernetesDigests)
+	if s.kubernetes != nil {
+		d.Kubernetes = map[string]kube.State{}
+		for key, state := range s.kubernetes {
+			d.Kubernetes[key], _ = state.Clone()
+		}
+	}
 	for i, n := range s.nodes {
 		d.Nodes[i] = cloneNode(n)
 	}
@@ -282,6 +298,8 @@ func (s *Snapshot) Overlay(version int64, d Delta) (*Snapshot, error) {
 		edges[e.ID] = e
 	}
 	data := Data{Nodes: make([]Node, 0, len(nodes)), Edges: make([]Edge, 0, len(edges))}
+	data.Kubernetes = s.kubernetes
+	data.KubernetesDigests = s.kubernetesDigests
 	for _, n := range nodes {
 		data.Nodes = append(data.Nodes, n)
 	}

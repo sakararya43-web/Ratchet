@@ -273,7 +273,8 @@ func kubeAtoms(states []kube.State) (map[string]kube.Permission, error) {
 							}
 							scopes := []string{scoped.Namespace}
 							namespaced, known := kubeResourceScope(state, group, resource)
-							if scoped.Namespace != "" && known && !namespaced && !(group == kube.RBACGroup && resource == "clusterroles" && verb == "bind") {
+							namespacedBind := group == kube.RBACGroup && resource == "clusterroles" && verb == "bind"
+							if scoped.Namespace != "" && known && !namespaced && !namespacedBind {
 								continue
 							}
 							if scoped.Namespace == "" {
@@ -305,7 +306,7 @@ func kubeAtoms(states []kube.State) (map[string]kube.Permission, error) {
 }
 
 func kubeTier(p kube.Permission) int {
-	if strings.HasPrefix(p.APIGroup, kubeFuture) || strings.HasPrefix(p.Resource, kubeFuture) || strings.HasPrefix(p.Verb, kubeFuture) || strings.HasPrefix(p.Namespace, kubeFuture) || strings.Contains(p.NonResourceURL,kubeFuture) {
+	if strings.HasPrefix(p.APIGroup, kubeFuture) || strings.HasPrefix(p.Resource, kubeFuture) || strings.HasPrefix(p.Verb, kubeFuture) || strings.HasPrefix(p.Namespace, kubeFuture) || strings.Contains(p.NonResourceURL, kubeFuture) {
 		return 0
 	}
 	if p.Verb == "bind" || p.Verb == "escalate" || p.Verb == "impersonate" || (p.Resource == "serviceaccounts" && p.Subresource == "token" && p.Verb == "create") {

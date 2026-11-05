@@ -2,6 +2,7 @@ package graph
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 	"slices"
 	"testing"
@@ -345,5 +346,52 @@ func TestKubernetesAggregateLabelChangeAffectsBoundIdentity(t *testing.T) {
 	}
 	if len(impact.Affected) != 1 || impact.Affected[0].IdentityID != KubernetesNodeID(s.Cluster, "identity", "bob") {
 		t.Fatal("wrong affected beneficiary", impact.Affected)
+	}
+}
+
+func TestKubernetesProposalIncludesExternalControllersAndPreservesBusinessAccess(t *testing.T) {
+	s := kubeState()
+	reader := kubeRole("report", "finance", kubeRule("", "pods", "get"))
+	s.Objects = []kube.Object{reader}
+	native := kubeCompile(t, s)
+	data := native.Data()
+	data.Nodes = append(data.Nodes, Node{ID: "core:operator", Type: "Human"}, Node{ID: "business:reports", Type: "Resource", Tier: 2})
+	data.Edges = append(data.Edges, Edge{ID: "core:controls-account", Source: "core:operator", Target: KubernetesNodeID(s.Cluster, "identity", "bob"), Kind: "CAN_ASSUME"}, Edge{ID: "business:read", Source: "core:operator", Target: "business:reports", Kind: "GRANTS", Action: "read"})
+	base, err := Build(44, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeData := base.Data()
+	binding := kubeBinding("grant", "finance", reader, kube.Subject{Kind: "User", Name: "bob"})
+	binding.UID = ""
+	binding.ResourceVersion = ""
+	before, after, result, err := base.KubernetesProposal(s, kube.Mutation{Cluster: s.Cluster, Connector: "source", Operation: "CREATE", After: &binding, ObjectDigest: ports.Digest{1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.MonotonicReduction {
+		t.Fatal("native increase misclassified")
+	}
+	beneficiaries := map[string]bool{}
+	for _, a := range result.Affected {
+		if len(a.NewPowers) > 0 {
+			beneficiaries[a.IdentityID] = true
+		}
+	}
+	if !beneficiaries["core:operator"] || !beneficiaries[KubernetesNodeID(s.Cluster, "identity", "bob")] {
+		t.Fatal("external controller or direct beneficiary omitted", beneficiaries)
+	}
+	for _, view := range []*Snapshot{before, after} {
+		reach, err := view.Reach("core:operator")
+		if err != nil || !slices.Contains(reach.Powers, Power{NodeID: "business:reports", Action: "read"}) {
+			t.Fatal("unrelated business capability lost", err)
+		}
+	}
+	if !reflect.DeepEqual(beforeData, base.Data()) {
+		t.Fatal("proposal changed current graph")
+	}
+	missing, _ := Build(44, Data{Nodes: []Node{{ID: "core:operator", Type: "Human"}}})
+	if _, _, _, err := missing.KubernetesProposal(s, kube.Mutation{Cluster: s.Cluster, Connector: "source", Operation: "CREATE", After: &binding, ObjectDigest: ports.Digest{1}}); !errors.Is(err, ErrUnavailable) {
+		t.Fatal("missing native source projection was accepted", err)
 	}
 }

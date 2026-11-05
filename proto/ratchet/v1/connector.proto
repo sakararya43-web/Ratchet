@@ -126,6 +126,18 @@ message SignedGraphSync {
   oneof payload {
     GraphSnapshot snapshot = 2;
     GraphDelta delta = 3;
+    NormalizedKubernetesSnapshot kubernetes = 5;
   }
   bytes signature = 4;
+}
+
+// Core-owned normalized authority input; raw Kubernetes API parsing stays in
+// the connector. The complete state uses the published domain/kubernetes JSON
+// model, not arbitrary caller-supplied graph nodes/edges. The outer sync
+// signature binds these bytes and all source metadata.
+message NormalizedKubernetesSnapshot {
+  string tenant_id = 1;
+  string connector_id = 2;
+  int64 source_revision = 3;
+  bytes normalized_state_json = 4;
 }

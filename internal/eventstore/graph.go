@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore/storedb"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
@@ -97,6 +99,11 @@ func (s *Store) IngestGraph(ctx context.Context, input GraphInput, key []byte) (
 		current = sources[idx]
 	}
 	gap := input.Delta != nil && (current.revision == 0 || current.resync || input.FromRevision != current.revision || input.ToRevision <= input.FromRevision)
+	// Selected native sources publish complete normalized cuts. A generic edge
+	// delta cannot leave an apparently current but stale RBAC preimage behind.
+	if input.Delta != nil && len(current.data.KubernetesDigests) > 0 {
+		gap = true
+	}
 	if input.ToRevision < current.revision {
 		gap = true
 	}
@@ -269,6 +276,21 @@ func mergeSources(version int64, sources []sourceGraph) (*graph.Snapshot, error)
 	nodes := map[string]graph.Node{}
 	edges := map[string]graph.Edge{}
 	for _, source := range sources {
+		for key, digest := range source.data.KubernetesDigests {
+			if d.KubernetesDigests == nil {
+				d.KubernetesDigests = map[string]string{}
+			}
+			if _, exists := d.KubernetesDigests[key]; exists {
+				return nil, fmt.Errorf("%w: native cluster source ownership conflicts", graph.ErrInvalid)
+			}
+			d.KubernetesDigests[key] = digest
+		}
+		for key, state := range source.data.Kubernetes {
+			if d.Kubernetes == nil {
+				d.Kubernetes = map[string]kube.State{}
+			}
+			d.Kubernetes[key] = state
+		}
 		for _, n := range source.data.Nodes {
 			if old, ok := nodes[n.ID]; ok {
 				a, _ := json.Marshal(old)
@@ -300,6 +322,7 @@ func mergeSources(version int64, sources []sourceGraph) (*graph.Snapshot, error)
 
 func publicGraph(data graph.Data) graph.Data {
 	out := graph.Data{Nodes: make([]graph.Node, len(data.Nodes)), Edges: make([]graph.Edge, len(data.Edges))}
+	out.KubernetesDigests = maps.Clone(data.KubernetesDigests)
 	for i, n := range data.Nodes {
 		out.Nodes[i] = graph.Node{ID: n.ID, Type: n.Type, Tier: n.Tier}
 		if disabled := n.Properties["disabled"]; disabled != "" {

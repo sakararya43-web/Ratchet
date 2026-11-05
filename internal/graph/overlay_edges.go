@@ -44,6 +44,8 @@ func (s *Snapshot) overlayEdges(version int64, d Delta) (*Snapshot, error) {
 		}
 	}
 	after := &Snapshot{version: version, nodes: s.nodes, index: s.index, edges: make([]Edge, 0, len(s.edges)+len(added))}
+	after.kubernetes = s.kubernetes
+	after.kubernetesDigests = s.kubernetesDigests
 	after.edgeSources, after.edgeTargets = make([]uint32, 0, cap(after.edges)), make([]uint32, 0, cap(after.edges))
 	appendEdge := func(e Edge, source, target uint32) {
 		after.edges = append(after.edges, e)

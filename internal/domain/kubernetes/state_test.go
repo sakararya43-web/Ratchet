@@ -1,6 +1,8 @@
 package kubernetes_test
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
@@ -89,5 +91,25 @@ func TestDeletingRoleLeavesInertBindingAndProposalDoesNotMutateObservation(t *te
 	created.Objects[1].Rules[0].Verbs[0] = "delete"
 	if s.Objects[0].Rules[0].Verbs[0] != "get" {
 		t.Fatal("proposal retained caller-owned arrays")
+	}
+}
+
+func TestAggregationWorkBoundRefusesIncompleteAuthorityAndResultsAreDetached(t *testing.T) {
+	s := state()
+	rules, err := s.EffectiveRules("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules[0].Rule.Verbs[0] = "delete"
+	if s.Objects[0].Rules[0].Verbs[0] != "get" {
+		t.Fatal("resolved rule aliases normalized observation")
+	}
+	s.Objects = nil
+	for i := range 1500 {
+		name := fmt.Sprintf("agg-%04d", i)
+		s.Objects = append(s.Objects, kube.Object{Kind: "ClusterRole", Name: name, UID: name, ResourceVersion: "opaque", Aggregation: []kube.Selector{{}}})
+	}
+	if _, err := s.RoleRules(); !errors.Is(err, kube.ErrUnsupported) {
+		t.Fatal("oversized aggregation returned an apparently complete rule set", err)
 	}
 }

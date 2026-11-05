@@ -1,13 +1,17 @@
 package bus
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"sync"
 
 	"github.com/google/uuid"
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
@@ -99,7 +103,28 @@ func (i *Ingestor) Handle(ctx context.Context, tenant string, raw []byte) error 
 		return eventstore.ErrInvalid
 	}
 	input := eventstore.GraphInput{TenantID: tenant, ConnectorID: e.ConnectorId, MessageID: id, CorrelationID: e.CorrelationId, WireDigest: digest.String()}
-	if snapshot := message.GetSnapshot(); snapshot != nil {
+	if native := message.GetKubernetes(); native != nil {
+		if native.TenantId != tenant || native.ConnectorId != e.ConnectorId || native.SourceRevision != e.SourceRevision || len(native.NormalizedStateJson) == 0 {
+			return eventstore.ErrInvalid
+		}
+		var state kube.State
+		decoder := json.NewDecoder(bytes.NewReader(native.NormalizedStateJson))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&state) != nil {
+			return eventstore.ErrInvalid
+		}
+		if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+			return eventstore.ErrInvalid
+		}
+		compiled, err := graph.KubernetesSource(0, state)
+		if err != nil {
+			return err
+		}
+		data := compiled.Data()
+		input.Snapshot = &data
+		input.Complete = true
+		input.ToRevision = native.SourceRevision
+	} else if snapshot := message.GetSnapshot(); snapshot != nil {
 		if snapshot.TenantId != tenant || snapshot.ConnectorId != e.ConnectorId || snapshot.SourceRevision != e.SourceRevision || !snapshot.Complete {
 			return eventstore.ErrInvalid
 		}

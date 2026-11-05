@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"encoding/json"
+	"maps"
 	"slices"
 	"strings"
 )
@@ -36,6 +37,26 @@ type State struct {
 }
 
 func ObjectKey(o Object) string { return o.Kind + "/" + o.Namespace + "/" + o.Name }
+
+func (s State) Clone() (State, error) {
+	raw, err := json.Marshal(s)
+	if err != nil {
+		return State{}, err
+	}
+	var out State
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return State{}, err
+	}
+	out.proposed = s.proposed
+	return out, nil
+}
+
+func (s State) ValidateObserved() error {
+	if s.proposed {
+		return ErrInvalid
+	}
+	return s.Validate()
+}
 
 func (s State) Validate() error {
 	if !s.Complete || !bounded(s.Cluster, false, 128) || !bounded(s.ResourceVersion, false, 128) || len(s.Namespaces) > 128 || len(s.Principals) > 1024 || len(s.Objects) > 4096 || len(s.Resources) > 2048 || !valuesOK(s.Namespaces, false) {
@@ -137,11 +158,19 @@ func (s State) RoleRules() (map[string][]Rule, error) {
 			sets[key][string(raw)] = rule
 		}
 	}
+	roleKeys := slices.Sorted(maps.Keys(roles))
+	work := 0
 	for pass := 0; pass <= len(roles); pass++ {
 		changed := false
-		for key, object := range roles {
+		for _, key := range roleKeys {
+			object := roles[key]
 			for _, selector := range object.Aggregation {
-				for candidateKey, candidate := range roles {
+				for _, candidateKey := range roleKeys {
+					candidate := roles[candidateKey]
+					work++
+					if work > 2_000_000 {
+						return nil, ErrUnsupported
+					}
 					if candidate.Kind != "ClusterRole" || candidateKey == key {
 						continue
 					}
@@ -153,6 +182,10 @@ func (s State) RoleRules() (map[string][]Rule, error) {
 						continue
 					}
 					for signature, rule := range sets[candidateKey] {
+						work++
+						if work > 2_000_000 {
+							return nil, ErrUnsupported
+						}
 						if _, exists := sets[key][signature]; !exists {
 							sets[key][signature] = rule
 							changed = true
@@ -170,7 +203,13 @@ func (s State) RoleRules() (map[string][]Rule, error) {
 				}
 				slices.Sort(signatures)
 				for _, signature := range signatures {
-					out[key] = append(out[key], set[signature])
+					r := set[signature]
+					r.APIGroups = slices.Clone(r.APIGroups)
+					r.Resources = slices.Clone(r.Resources)
+					r.Verbs = slices.Clone(r.Verbs)
+					r.ResourceNames = slices.Clone(r.ResourceNames)
+					r.NonResourceURLs = slices.Clone(r.NonResourceURLs)
+					out[key] = append(out[key], r)
 				}
 			}
 			return out, nil

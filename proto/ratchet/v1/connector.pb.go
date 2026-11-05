@@ -1040,6 +1040,7 @@ type SignedGraphSync struct {
 	//
 	//	*SignedGraphSync_Snapshot
 	//	*SignedGraphSync_Delta
+	//	*SignedGraphSync_Kubernetes
 	Payload       isSignedGraphSync_Payload `protobuf_oneof:"payload"`
 	Signature     []byte                    `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1108,6 +1109,15 @@ func (x *SignedGraphSync) GetDelta() *GraphDelta {
 	return nil
 }
 
+func (x *SignedGraphSync) GetKubernetes() *NormalizedKubernetesSnapshot {
+	if x != nil {
+		if x, ok := x.Payload.(*SignedGraphSync_Kubernetes); ok {
+			return x.Kubernetes
+		}
+	}
+	return nil
+}
+
 func (x *SignedGraphSync) GetSignature() []byte {
 	if x != nil {
 		return x.Signature
@@ -1127,9 +1137,87 @@ type SignedGraphSync_Delta struct {
 	Delta *GraphDelta `protobuf:"bytes,3,opt,name=delta,proto3,oneof"`
 }
 
+type SignedGraphSync_Kubernetes struct {
+	Kubernetes *NormalizedKubernetesSnapshot `protobuf:"bytes,5,opt,name=kubernetes,proto3,oneof"`
+}
+
 func (*SignedGraphSync_Snapshot) isSignedGraphSync_Payload() {}
 
 func (*SignedGraphSync_Delta) isSignedGraphSync_Payload() {}
+
+func (*SignedGraphSync_Kubernetes) isSignedGraphSync_Payload() {}
+
+// Core-owned normalized authority input; raw Kubernetes API parsing stays in
+// the connector. The complete state uses the published domain/kubernetes JSON
+// model, not arbitrary caller-supplied graph nodes/edges. The outer sync
+// signature binds these bytes and all source metadata.
+type NormalizedKubernetesSnapshot struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ConnectorId         string                 `protobuf:"bytes,2,opt,name=connector_id,json=connectorId,proto3" json:"connector_id,omitempty"`
+	SourceRevision      int64                  `protobuf:"varint,3,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	NormalizedStateJson []byte                 `protobuf:"bytes,4,opt,name=normalized_state_json,json=normalizedStateJson,proto3" json:"normalized_state_json,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *NormalizedKubernetesSnapshot) Reset() {
+	*x = NormalizedKubernetesSnapshot{}
+	mi := &file_ratchet_v1_connector_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NormalizedKubernetesSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NormalizedKubernetesSnapshot) ProtoMessage() {}
+
+func (x *NormalizedKubernetesSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_connector_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NormalizedKubernetesSnapshot.ProtoReflect.Descriptor instead.
+func (*NormalizedKubernetesSnapshot) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_connector_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *NormalizedKubernetesSnapshot) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *NormalizedKubernetesSnapshot) GetConnectorId() string {
+	if x != nil {
+		return x.ConnectorId
+	}
+	return ""
+}
+
+func (x *NormalizedKubernetesSnapshot) GetSourceRevision() int64 {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return 0
+}
+
+func (x *NormalizedKubernetesSnapshot) GetNormalizedStateJson() []byte {
+	if x != nil {
+		return x.NormalizedStateJson
+	}
+	return nil
+}
 
 var File_ratchet_v1_connector_proto protoreflect.FileDescriptor
 
@@ -1258,13 +1346,21 @@ const file_ratchet_v1_connector_proto_rawDesc = "" +
 	"\x11observed_revision\x18\b \x01(\x03R\x10observedRevision\"b\n" +
 	"\x11SignedDriftReport\x12/\n" +
 	"\x06report\x18\x01 \x01(\v2\x17.ratchet.v1.DriftReportR\x06report\x12\x1c\n" +
-	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xde\x01\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xaa\x02\n" +
 	"\x0fSignedGraphSync\x129\n" +
 	"\benvelope\x18\x01 \x01(\v2\x1d.ratchet.v1.ConnectorEnvelopeR\benvelope\x127\n" +
 	"\bsnapshot\x18\x02 \x01(\v2\x19.ratchet.v1.GraphSnapshotH\x00R\bsnapshot\x12.\n" +
-	"\x05delta\x18\x03 \x01(\v2\x16.ratchet.v1.GraphDeltaH\x00R\x05delta\x12\x1c\n" +
+	"\x05delta\x18\x03 \x01(\v2\x16.ratchet.v1.GraphDeltaH\x00R\x05delta\x12J\n" +
+	"\n" +
+	"kubernetes\x18\x05 \x01(\v2(.ratchet.v1.NormalizedKubernetesSnapshotH\x00R\n" +
+	"kubernetes\x12\x1c\n" +
 	"\tsignature\x18\x04 \x01(\fR\tsignatureB\t\n" +
-	"\apayloadB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
+	"\apayload\"\xbb\x01\n" +
+	"\x1cNormalizedKubernetesSnapshot\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12!\n" +
+	"\fconnector_id\x18\x02 \x01(\tR\vconnectorId\x12'\n" +
+	"\x0fsource_revision\x18\x03 \x01(\x03R\x0esourceRevision\x122\n" +
+	"\x15normalized_state_json\x18\x04 \x01(\fR\x13normalizedStateJsonB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
 
 var (
 	file_ratchet_v1_connector_proto_rawDescOnce sync.Once
@@ -1278,51 +1374,53 @@ func file_ratchet_v1_connector_proto_rawDescGZIP() []byte {
 	return file_ratchet_v1_connector_proto_rawDescData
 }
 
-var file_ratchet_v1_connector_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_ratchet_v1_connector_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_ratchet_v1_connector_proto_goTypes = []any{
-	(*GraphNode)(nil),         // 0: ratchet.v1.GraphNode
-	(*GraphEdge)(nil),         // 1: ratchet.v1.GraphEdge
-	(*GraphSnapshot)(nil),     // 2: ratchet.v1.GraphSnapshot
-	(*GraphDelta)(nil),        // 3: ratchet.v1.GraphDelta
-	(*ExecCommand)(nil),       // 4: ratchet.v1.ExecCommand
-	(*ObservedState)(nil),     // 5: ratchet.v1.ObservedState
-	(*ExecResult)(nil),        // 6: ratchet.v1.ExecResult
-	(*AuditEvent)(nil),        // 7: ratchet.v1.AuditEvent
-	(*DriftReport)(nil),       // 8: ratchet.v1.DriftReport
-	(*SignedDriftReport)(nil), // 9: ratchet.v1.SignedDriftReport
-	(*SignedGraphSync)(nil),   // 10: ratchet.v1.SignedGraphSync
-	nil,                       // 11: ratchet.v1.GraphNode.PropertiesEntry
-	nil,                       // 12: ratchet.v1.GraphEdge.PropertiesEntry
-	nil,                       // 13: ratchet.v1.AuditEvent.DetailsEntry
-	(*ConnectorEnvelope)(nil), // 14: ratchet.v1.ConnectorEnvelope
+	(*GraphNode)(nil),                    // 0: ratchet.v1.GraphNode
+	(*GraphEdge)(nil),                    // 1: ratchet.v1.GraphEdge
+	(*GraphSnapshot)(nil),                // 2: ratchet.v1.GraphSnapshot
+	(*GraphDelta)(nil),                   // 3: ratchet.v1.GraphDelta
+	(*ExecCommand)(nil),                  // 4: ratchet.v1.ExecCommand
+	(*ObservedState)(nil),                // 5: ratchet.v1.ObservedState
+	(*ExecResult)(nil),                   // 6: ratchet.v1.ExecResult
+	(*AuditEvent)(nil),                   // 7: ratchet.v1.AuditEvent
+	(*DriftReport)(nil),                  // 8: ratchet.v1.DriftReport
+	(*SignedDriftReport)(nil),            // 9: ratchet.v1.SignedDriftReport
+	(*SignedGraphSync)(nil),              // 10: ratchet.v1.SignedGraphSync
+	(*NormalizedKubernetesSnapshot)(nil), // 11: ratchet.v1.NormalizedKubernetesSnapshot
+	nil,                                  // 12: ratchet.v1.GraphNode.PropertiesEntry
+	nil,                                  // 13: ratchet.v1.GraphEdge.PropertiesEntry
+	nil,                                  // 14: ratchet.v1.AuditEvent.DetailsEntry
+	(*ConnectorEnvelope)(nil),            // 15: ratchet.v1.ConnectorEnvelope
 }
 var file_ratchet_v1_connector_proto_depIdxs = []int32{
-	11, // 0: ratchet.v1.GraphNode.properties:type_name -> ratchet.v1.GraphNode.PropertiesEntry
-	12, // 1: ratchet.v1.GraphEdge.properties:type_name -> ratchet.v1.GraphEdge.PropertiesEntry
+	12, // 0: ratchet.v1.GraphNode.properties:type_name -> ratchet.v1.GraphNode.PropertiesEntry
+	13, // 1: ratchet.v1.GraphEdge.properties:type_name -> ratchet.v1.GraphEdge.PropertiesEntry
 	0,  // 2: ratchet.v1.GraphSnapshot.nodes:type_name -> ratchet.v1.GraphNode
 	1,  // 3: ratchet.v1.GraphSnapshot.edges:type_name -> ratchet.v1.GraphEdge
-	14, // 4: ratchet.v1.GraphSnapshot.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	15, // 4: ratchet.v1.GraphSnapshot.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	0,  // 5: ratchet.v1.GraphDelta.nodes_added:type_name -> ratchet.v1.GraphNode
 	1,  // 6: ratchet.v1.GraphDelta.edges_added:type_name -> ratchet.v1.GraphEdge
 	1,  // 7: ratchet.v1.GraphDelta.edges_removed:type_name -> ratchet.v1.GraphEdge
-	14, // 8: ratchet.v1.GraphDelta.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	14, // 9: ratchet.v1.ExecCommand.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	14, // 10: ratchet.v1.ObservedState.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	15, // 8: ratchet.v1.GraphDelta.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	15, // 9: ratchet.v1.ExecCommand.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	15, // 10: ratchet.v1.ObservedState.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	5,  // 11: ratchet.v1.ExecResult.observed_state:type_name -> ratchet.v1.ObservedState
-	14, // 12: ratchet.v1.ExecResult.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	13, // 13: ratchet.v1.AuditEvent.details:type_name -> ratchet.v1.AuditEvent.DetailsEntry
-	14, // 14: ratchet.v1.AuditEvent.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	15, // 12: ratchet.v1.ExecResult.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	14, // 13: ratchet.v1.AuditEvent.details:type_name -> ratchet.v1.AuditEvent.DetailsEntry
+	15, // 14: ratchet.v1.AuditEvent.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	7,  // 15: ratchet.v1.DriftReport.unapproved_operation:type_name -> ratchet.v1.AuditEvent
-	14, // 16: ratchet.v1.DriftReport.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	15, // 16: ratchet.v1.DriftReport.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	8,  // 17: ratchet.v1.SignedDriftReport.report:type_name -> ratchet.v1.DriftReport
-	14, // 18: ratchet.v1.SignedGraphSync.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	15, // 18: ratchet.v1.SignedGraphSync.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	2,  // 19: ratchet.v1.SignedGraphSync.snapshot:type_name -> ratchet.v1.GraphSnapshot
 	3,  // 20: ratchet.v1.SignedGraphSync.delta:type_name -> ratchet.v1.GraphDelta
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	11, // 21: ratchet.v1.SignedGraphSync.kubernetes:type_name -> ratchet.v1.NormalizedKubernetesSnapshot
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_connector_proto_init() }
@@ -1334,6 +1432,7 @@ func file_ratchet_v1_connector_proto_init() {
 	file_ratchet_v1_connector_proto_msgTypes[10].OneofWrappers = []any{
 		(*SignedGraphSync_Snapshot)(nil),
 		(*SignedGraphSync_Delta)(nil),
+		(*SignedGraphSync_Kubernetes)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1341,7 +1440,7 @@ func file_ratchet_v1_connector_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_connector_proto_rawDesc), len(file_ratchet_v1_connector_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

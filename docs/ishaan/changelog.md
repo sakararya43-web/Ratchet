@@ -11,6 +11,15 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Added additive signed normalized snapshot ingestion. Real PostgreSQL/JetStream
+  tests prove persistence/reload, private context separation, same-revision
+  preimage conflicts, cluster ownership, quarantine/recovery and retained replay
+  after private-record deletion. Native proposal analysis includes external core
+  controllers while retaining unrelated business access. Simulator wire shapes
+  stay unchanged; no native execution success or peer adoption is inferred.
+  Aggregation work is deterministically bounded and returned rule arrays are
+  detached from observations. Full Linux integration/race, 300-case properties,
+  vet, module verification, Buf compatibility and generation checks pass.
 - Added exact native admission context/preimage/actor checks and connector-pinned
   signatures with strict lifetime and detached verified evidence. Tamper, stale
   revision, namespace, group, UID and expiry tests pass. This boundary grants no

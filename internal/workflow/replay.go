@@ -153,7 +153,19 @@ func ReplayDecision(ctx context.Context, e DecisionEvidence, root, expectedHash 
 		return result, err
 	}
 	var recorded recordedFacts
-	if json.Unmarshal(c.Facts, &recorded) != nil || !((recorded.Evaluator == evaluatorVersion && recorded.Input.SchemaVersion == 3) || (recorded.Evaluator == "opa-1.22.0/ratchet-facts-v2" && recorded.Input.SchemaVersion == 2)) {
+	if json.Unmarshal(c.Facts, &recorded) != nil {
+		return result, ErrDependency
+	}
+	switch recorded.Evaluator {
+	case evaluatorVersion:
+		if recorded.Input.SchemaVersion != 3 {
+			return result, ErrDependency
+		}
+	case "opa-1.22.0/ratchet-facts-v2":
+		if recorded.Input.SchemaVersion != 2 {
+			return result, ErrDependency
+		}
+	default:
 		return result, ErrDependency
 	}
 	graphDigest, err := canon.New().Digest(snapshot.Data())

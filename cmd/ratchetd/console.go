@@ -236,6 +236,11 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	apiMux.Handle("/ratchet.v1.OverviewService/", changes)
 	apiMux.Handle("/ratchet.v1.GraphService/", graphs)
 	apiMux.Handle("/ratchet.v1.ImpactService/", graphs)
+	decisions, err := api.NewDecisionHandler(service)
+	if err != nil {
+		return err
+	}
+	apiMux.Handle("/ratchet.v1.DecisionService/", decisions)
 	checkpointAuthorities := map[string]*workflow.CheckpointAuthority{}
 	for _, tenant := range config.Tenants {
 		if tenant.CheckpointAuthorityURL == "" {

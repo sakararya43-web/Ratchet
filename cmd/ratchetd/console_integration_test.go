@@ -624,4 +624,23 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 		}
 		_ = badWatch.Close()
 	}
+	inline := ratchetv1connect.NewDecisionServiceClient(requester, base+"/api")
+	exact := domain.Intent{Kind: "ROLE_ASSIGN", Target: "user:requester", Access: "role:finance"}
+	objectDigest, err := canon.New().Digest(exact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decisionInput := &v1.DecisionRequest{Intent: &v1.ChangeIntent{TenantId: tenant, Kind: "SIM_ROLE_ASSIGN", TargetIdentity: exact.Target, RequestedAccess: exact.Access, RequestedBy: exact.Target}, AdmissionRequestId: uuid.NewString(), ExactObjectDigest: objectDigest.String(), TargetRevision: "11"}
+	decision, err := inline.Decide(ctx, connect.NewRequest(decisionInput))
+	if err != nil || decision.Msg.Outcome != "REQUIRE_APPROVAL" || decision.Msg.ExecutionAuthorized || len(decision.Msg.RequiredApproverGroups) != 0 || decision.Msg.PolicyBundleHash != "" {
+		t.Fatal("authenticated inline policy/redaction", err)
+	}
+	decisionInput.Intent.RequestedBy = "user:investigator"
+	if _, err := inline.Decide(ctx, connect.NewRequest(decisionInput)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("inline requester impersonation", err)
+	}
+	anonymousDecision := ratchetv1connect.NewDecisionServiceClient(client, base+"/api")
+	if _, err := anonymousDecision.Decide(ctx, connect.NewRequest(decisionInput)); err == nil {
+		t.Fatal("anonymous inline decision accepted")
+	}
 }

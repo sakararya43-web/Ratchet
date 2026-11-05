@@ -94,7 +94,8 @@ func (s *Service) ExpireGrant(ctx context.Context, args GrantExpiryArgs) error {
 		var raw []byte
 		var cmd PreparedCommand
 		kind := "EXPIRY_RECONCILE"
-		if current.ExpiryStatus == "SCHEDULED" {
+		switch current.ExpiryStatus {
+		case "SCHEDULED":
 			if !now.Before(execution.capability.Expires) {
 				return nil, ErrDependency
 			}
@@ -117,7 +118,7 @@ func (s *Service) ExpireGrant(ctx context.Context, args GrantExpiryArgs) error {
 				cmd.Deadline = execution.capability.Expires
 			}
 			first, kind = true, "EXPIRE_GRANT"
-		} else if current.ExpiryStatus == "REVOKING" {
+		case "REVOKING":
 			if err := tx.QueryRow(ctx, `SELECT command_payload FROM ratchet.execution_attempts WHERE tenant_id=$1 AND command_id=$2::uuid`, args.Tenant, current.ExpiryExecutionID).Scan(&raw); err != nil {
 				return nil, err
 			}
@@ -126,7 +127,7 @@ func (s *Service) ExpireGrant(ctx context.Context, args GrantExpiryArgs) error {
 			}
 			cmd.VerifyOnly = true
 			cmd.MessageID = uuid.NewSHA1(id, []byte("verify-expiry")).String()
-		} else {
+		default:
 			return nil, eventstore.ErrIntegrity
 		}
 		cmd.Signature = nil

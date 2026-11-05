@@ -24,7 +24,7 @@ message DecisionRequest {
   ChangeIntent intent = 1;
   int64 min_graph_version = 2;
   string admission_request_id = 3;
-  string exact_object_digest = 4;
+  string exact_object_digest = 4; // Simulator: canonical ExactChangeIntent mapped to the core Intent digest.
   string target_revision = 5;
   string approved_request_id = 6;
 }
@@ -39,4 +39,9 @@ message DecisionResponse {
   DecisionOutcome typed_outcome = 7;
   string decision_id = 8;
   string exact_object_digest = 9;
+  bool execution_authorized = 10; // One consumed staged command only; outcome alone never authorizes a write.
+  string admission_request_id = 11;
+  string target_revision = 12;
+  string expires_at = 13;
+  string policy_outcome = 14; // Policy result before the one-use execution binding is checked.
 }

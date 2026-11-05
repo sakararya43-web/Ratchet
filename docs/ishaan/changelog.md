@@ -15,6 +15,15 @@ The user explicitly authorized advancing while leaving Sakar's dependencies alon
 Phase 4's unfinished work remains in its handoff; it is not marked complete.
 Only Phase 5 is active.
 
+- Mounted authenticated DecisionService using the same verified graph, policy,
+  registry and independence checks as the normal guard. Inline decisions commit
+  immutable evidence before returning. An allow requires the exact staged command,
+  intent digest, target revision and admission ID; concurrent consumption releases
+  exactly one authorization. Replays after replacement return HOLD, changed inputs
+  conflict, and policy-only reduction allows cannot create an execution shortcut.
+  Real PostgreSQL and TLS tests cover these boundaries, session impersonation and
+  requester redaction. `phase-5-decision-contract.md` defines caller obligations;
+  arbitrary Kubernetes object mapping remains Phase 6 and is not advertised.
 - Added core temporary/emergency grant expiry: dispatch freezes a database-time
   deadline and atomically commits the durable timer, signed command and outbox.
   Replacement workers recover overdue timers; uncertain grant writes reconcile.

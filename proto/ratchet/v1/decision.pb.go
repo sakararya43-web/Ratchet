@@ -118,7 +118,7 @@ type DecisionRequest struct {
 	Intent             *ChangeIntent          `protobuf:"bytes,1,opt,name=intent,proto3" json:"intent,omitempty"`
 	MinGraphVersion    int64                  `protobuf:"varint,2,opt,name=min_graph_version,json=minGraphVersion,proto3" json:"min_graph_version,omitempty"`
 	AdmissionRequestId string                 `protobuf:"bytes,3,opt,name=admission_request_id,json=admissionRequestId,proto3" json:"admission_request_id,omitempty"`
-	ExactObjectDigest  string                 `protobuf:"bytes,4,opt,name=exact_object_digest,json=exactObjectDigest,proto3" json:"exact_object_digest,omitempty"`
+	ExactObjectDigest  string                 `protobuf:"bytes,4,opt,name=exact_object_digest,json=exactObjectDigest,proto3" json:"exact_object_digest,omitempty"` // Simulator: canonical ExactChangeIntent mapped to the core Intent digest.
 	TargetRevision     string                 `protobuf:"bytes,5,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
 	ApprovedRequestId  string                 `protobuf:"bytes,6,opt,name=approved_request_id,json=approvedRequestId,proto3" json:"approved_request_id,omitempty"`
 	unknownFields      protoimpl.UnknownFields
@@ -208,6 +208,11 @@ type DecisionResponse struct {
 	TypedOutcome           DecisionOutcome        `protobuf:"varint,7,opt,name=typed_outcome,json=typedOutcome,proto3,enum=ratchet.v1.DecisionOutcome" json:"typed_outcome,omitempty"`
 	DecisionId             string                 `protobuf:"bytes,8,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
 	ExactObjectDigest      string                 `protobuf:"bytes,9,opt,name=exact_object_digest,json=exactObjectDigest,proto3" json:"exact_object_digest,omitempty"`
+	ExecutionAuthorized    bool                   `protobuf:"varint,10,opt,name=execution_authorized,json=executionAuthorized,proto3" json:"execution_authorized,omitempty"` // One consumed staged command only; outcome alone never authorizes a write.
+	AdmissionRequestId     string                 `protobuf:"bytes,11,opt,name=admission_request_id,json=admissionRequestId,proto3" json:"admission_request_id,omitempty"`
+	TargetRevision         string                 `protobuf:"bytes,12,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
+	ExpiresAt              string                 `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	PolicyOutcome          string                 `protobuf:"bytes,14,opt,name=policy_outcome,json=policyOutcome,proto3" json:"policy_outcome,omitempty"` // Policy result before the one-use execution binding is checked.
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -305,6 +310,41 @@ func (x *DecisionResponse) GetExactObjectDigest() string {
 	return ""
 }
 
+func (x *DecisionResponse) GetExecutionAuthorized() bool {
+	if x != nil {
+		return x.ExecutionAuthorized
+	}
+	return false
+}
+
+func (x *DecisionResponse) GetAdmissionRequestId() string {
+	if x != nil {
+		return x.AdmissionRequestId
+	}
+	return ""
+}
+
+func (x *DecisionResponse) GetTargetRevision() string {
+	if x != nil {
+		return x.TargetRevision
+	}
+	return ""
+}
+
+func (x *DecisionResponse) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *DecisionResponse) GetPolicyOutcome() string {
+	if x != nil {
+		return x.PolicyOutcome
+	}
+	return ""
+}
+
 var File_ratchet_v1_decision_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_decision_proto_rawDesc = "" +
@@ -328,7 +368,7 @@ const file_ratchet_v1_decision_proto_rawDesc = "" +
 	"\x14admission_request_id\x18\x03 \x01(\tR\x12admissionRequestId\x12.\n" +
 	"\x13exact_object_digest\x18\x04 \x01(\tR\x11exactObjectDigest\x12'\n" +
 	"\x0ftarget_revision\x18\x05 \x01(\tR\x0etargetRevision\x12.\n" +
-	"\x13approved_request_id\x18\x06 \x01(\tR\x11approvedRequestId\"\x8f\x03\n" +
+	"\x13approved_request_id\x18\x06 \x01(\tR\x11approvedRequestId\"\xe3\x04\n" +
 	"\x10DecisionResponse\x12\x18\n" +
 	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12\x18\n" +
 	"\areasons\x18\x02 \x03(\tR\areasons\x128\n" +
@@ -339,7 +379,14 @@ const file_ratchet_v1_decision_proto_rawDesc = "" +
 	"\rtyped_outcome\x18\a \x01(\x0e2\x1b.ratchet.v1.DecisionOutcomeR\ftypedOutcome\x12\x1f\n" +
 	"\vdecision_id\x18\b \x01(\tR\n" +
 	"decisionId\x12.\n" +
-	"\x13exact_object_digest\x18\t \x01(\tR\x11exactObjectDigest2V\n" +
+	"\x13exact_object_digest\x18\t \x01(\tR\x11exactObjectDigest\x121\n" +
+	"\x14execution_authorized\x18\n" +
+	" \x01(\bR\x13executionAuthorized\x120\n" +
+	"\x14admission_request_id\x18\v \x01(\tR\x12admissionRequestId\x12'\n" +
+	"\x0ftarget_revision\x18\f \x01(\tR\x0etargetRevision\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\r \x01(\tR\texpiresAt\x12%\n" +
+	"\x0epolicy_outcome\x18\x0e \x01(\tR\rpolicyOutcome2V\n" +
 	"\x0fDecisionService\x12C\n" +
 	"\x06Decide\x12\x1b.ratchet.v1.DecisionRequest\x1a\x1c.ratchet.v1.DecisionResponseB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
 

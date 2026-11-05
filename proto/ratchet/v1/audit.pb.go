@@ -497,12 +497,452 @@ func (x *ExportHashChainResponse) GetPagePreviousHash() string {
 	return ""
 }
 
+type PrepareCheckpointRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	EndSequence   int64                  `protobuf:"varint,2,opt,name=end_sequence,json=endSequence,proto3" json:"end_sequence,omitempty"` // Zero captures a bounded range at the current tip.
+	Mutation      *MutationContext       `protobuf:"bytes,3,opt,name=mutation,proto3" json:"mutation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PrepareCheckpointRequest) Reset() {
+	*x = PrepareCheckpointRequest{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareCheckpointRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareCheckpointRequest) ProtoMessage() {}
+
+func (x *PrepareCheckpointRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareCheckpointRequest.ProtoReflect.Descriptor instead.
+func (*PrepareCheckpointRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PrepareCheckpointRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *PrepareCheckpointRequest) GetEndSequence() int64 {
+	if x != nil {
+		return x.EndSequence
+	}
+	return 0
+}
+
+func (x *PrepareCheckpointRequest) GetMutation() *MutationContext {
+	if x != nil {
+		return x.Mutation
+	}
+	return nil
+}
+
+type PrepareCheckpointResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ProposalJson     []byte                 `protobuf:"bytes,1,opt,name=proposal_json,json=proposalJson,proto3" json:"proposal_json,omitempty"` // Frozen candidate and historical public registry proof.
+	CheckpointDigest string                 `protobuf:"bytes,2,opt,name=checkpoint_digest,json=checkpointDigest,proto3" json:"checkpoint_digest,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *PrepareCheckpointResponse) Reset() {
+	*x = PrepareCheckpointResponse{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrepareCheckpointResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrepareCheckpointResponse) ProtoMessage() {}
+
+func (x *PrepareCheckpointResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrepareCheckpointResponse.ProtoReflect.Descriptor instead.
+func (*PrepareCheckpointResponse) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PrepareCheckpointResponse) GetProposalJson() []byte {
+	if x != nil {
+		return x.ProposalJson
+	}
+	return nil
+}
+
+func (x *PrepareCheckpointResponse) GetCheckpointDigest() string {
+	if x != nil {
+		return x.CheckpointDigest
+	}
+	return ""
+}
+
+type SubmitCheckpointRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	TenantId         string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	CheckpointDigest string                 `protobuf:"bytes,2,opt,name=checkpoint_digest,json=checkpointDigest,proto3" json:"checkpoint_digest,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SubmitCheckpointRequest) Reset() {
+	*x = SubmitCheckpointRequest{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitCheckpointRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitCheckpointRequest) ProtoMessage() {}
+
+func (x *SubmitCheckpointRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitCheckpointRequest.ProtoReflect.Descriptor instead.
+func (*SubmitCheckpointRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SubmitCheckpointRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *SubmitCheckpointRequest) GetCheckpointDigest() string {
+	if x != nil {
+		return x.CheckpointDigest
+	}
+	return ""
+}
+
+type SubmitCheckpointResponse struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	AuthorityCheckpointJson []byte                 `protobuf:"bytes,1,opt,name=authority_checkpoint_json,json=authorityCheckpointJson,proto3" json:"authority_checkpoint_json,omitempty"` // Submission result; not proof of acceptance.
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *SubmitCheckpointResponse) Reset() {
+	*x = SubmitCheckpointResponse{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitCheckpointResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitCheckpointResponse) ProtoMessage() {}
+
+func (x *SubmitCheckpointResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitCheckpointResponse.ProtoReflect.Descriptor instead.
+func (*SubmitCheckpointResponse) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SubmitCheckpointResponse) GetAuthorityCheckpointJson() []byte {
+	if x != nil {
+		return x.AuthorityCheckpointJson
+	}
+	return nil
+}
+
+type AcceptCheckpointRequest struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	TenantId                string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	AuthorityCheckpointJson []byte                 `protobuf:"bytes,2,opt,name=authority_checkpoint_json,json=authorityCheckpointJson,proto3" json:"authority_checkpoint_json,omitempty"` // Complete peer AuditCheckpoint with signatures.
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *AcceptCheckpointRequest) Reset() {
+	*x = AcceptCheckpointRequest{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptCheckpointRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptCheckpointRequest) ProtoMessage() {}
+
+func (x *AcceptCheckpointRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptCheckpointRequest.ProtoReflect.Descriptor instead.
+func (*AcceptCheckpointRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AcceptCheckpointRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *AcceptCheckpointRequest) GetAuthorityCheckpointJson() []byte {
+	if x != nil {
+		return x.AuthorityCheckpointJson
+	}
+	return nil
+}
+
+type AcceptCheckpointResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	CheckpointRecordJson []byte                 `protobuf:"bytes,1,opt,name=checkpoint_record_json,json=checkpointRecordJson,proto3" json:"checkpoint_record_json,omitempty"`
+	ReferenceSequence    int64                  `protobuf:"varint,2,opt,name=reference_sequence,json=referenceSequence,proto3" json:"reference_sequence,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AcceptCheckpointResponse) Reset() {
+	*x = AcceptCheckpointResponse{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptCheckpointResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptCheckpointResponse) ProtoMessage() {}
+
+func (x *AcceptCheckpointResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptCheckpointResponse.ProtoReflect.Descriptor instead.
+func (*AcceptCheckpointResponse) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AcceptCheckpointResponse) GetCheckpointRecordJson() []byte {
+	if x != nil {
+		return x.CheckpointRecordJson
+	}
+	return nil
+}
+
+func (x *AcceptCheckpointResponse) GetReferenceSequence() int64 {
+	if x != nil {
+		return x.ReferenceSequence
+	}
+	return 0
+}
+
+type ListCheckpointsRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	SnapshotEndSequence int64                  `protobuf:"varint,2,opt,name=snapshot_end_sequence,json=snapshotEndSequence,proto3" json:"snapshot_end_sequence,omitempty"`
+	PageSize            int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken           string                 `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *ListCheckpointsRequest) Reset() {
+	*x = ListCheckpointsRequest{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCheckpointsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCheckpointsRequest) ProtoMessage() {}
+
+func (x *ListCheckpointsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCheckpointsRequest.ProtoReflect.Descriptor instead.
+func (*ListCheckpointsRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListCheckpointsRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *ListCheckpointsRequest) GetSnapshotEndSequence() int64 {
+	if x != nil {
+		return x.SnapshotEndSequence
+	}
+	return 0
+}
+
+func (x *ListCheckpointsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListCheckpointsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type ListCheckpointsResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CheckpointRecordsJson [][]byte               `protobuf:"bytes,1,rep,name=checkpoint_records_json,json=checkpointRecordsJson,proto3" json:"checkpoint_records_json,omitempty"`
+	SnapshotEndSequence   int64                  `protobuf:"varint,2,opt,name=snapshot_end_sequence,json=snapshotEndSequence,proto3" json:"snapshot_end_sequence,omitempty"`
+	NextPageToken         string                 `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ListCheckpointsResponse) Reset() {
+	*x = ListCheckpointsResponse{}
+	mi := &file_ratchet_v1_audit_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCheckpointsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCheckpointsResponse) ProtoMessage() {}
+
+func (x *ListCheckpointsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_audit_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCheckpointsResponse.ProtoReflect.Descriptor instead.
+func (*ListCheckpointsResponse) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_audit_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListCheckpointsResponse) GetCheckpointRecordsJson() [][]byte {
+	if x != nil {
+		return x.CheckpointRecordsJson
+	}
+	return nil
+}
+
+func (x *ListCheckpointsResponse) GetSnapshotEndSequence() int64 {
+	if x != nil {
+		return x.SnapshotEndSequence
+	}
+	return 0
+}
+
+func (x *ListCheckpointsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 var File_ratchet_v1_audit_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_audit_proto_rawDesc = "" +
 	"\n" +
 	"\x16ratchet/v1/audit.proto\x12\n" +
-	"ratchet.v1\"\xc3\x03\n" +
+	"ratchet.v1\x1a\x17ratchet/v1/common.proto\"\xc3\x03\n" +
 	"\vLedgerEvent\x12'\n" +
 	"\x0fsequence_number\x18\x01 \x01(\x03R\x0esequenceNumber\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1d\n" +
@@ -554,10 +994,42 @@ const file_ratchet_v1_audit_proto_rawDesc = "" +
 	"\x15snapshot_end_sequence\x18\x05 \x01(\x03R\x13snapshotEndSequence\x12*\n" +
 	"\x11snapshot_end_hash\x18\x06 \x01(\tR\x0fsnapshotEndHash\x12%\n" +
 	"\x0eexport_profile\x18\a \x01(\tR\rexportProfile\x12,\n" +
-	"\x12page_previous_hash\x18\b \x01(\tR\x10pagePreviousHash2\xc9\x01\n" +
+	"\x12page_previous_hash\x18\b \x01(\tR\x10pagePreviousHash\"\x93\x01\n" +
+	"\x18PrepareCheckpointRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12!\n" +
+	"\fend_sequence\x18\x02 \x01(\x03R\vendSequence\x127\n" +
+	"\bmutation\x18\x03 \x01(\v2\x1b.ratchet.v1.MutationContextR\bmutation\"m\n" +
+	"\x19PrepareCheckpointResponse\x12#\n" +
+	"\rproposal_json\x18\x01 \x01(\fR\fproposalJson\x12+\n" +
+	"\x11checkpoint_digest\x18\x02 \x01(\tR\x10checkpointDigest\"c\n" +
+	"\x17SubmitCheckpointRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12+\n" +
+	"\x11checkpoint_digest\x18\x02 \x01(\tR\x10checkpointDigest\"V\n" +
+	"\x18SubmitCheckpointResponse\x12:\n" +
+	"\x19authority_checkpoint_json\x18\x01 \x01(\fR\x17authorityCheckpointJson\"r\n" +
+	"\x17AcceptCheckpointRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12:\n" +
+	"\x19authority_checkpoint_json\x18\x02 \x01(\fR\x17authorityCheckpointJson\"\x7f\n" +
+	"\x18AcceptCheckpointResponse\x124\n" +
+	"\x16checkpoint_record_json\x18\x01 \x01(\fR\x14checkpointRecordJson\x12-\n" +
+	"\x12reference_sequence\x18\x02 \x01(\x03R\x11referenceSequence\"\xa5\x01\n" +
+	"\x16ListCheckpointsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x122\n" +
+	"\x15snapshot_end_sequence\x18\x02 \x01(\x03R\x13snapshotEndSequence\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tR\tpageToken\"\xad\x01\n" +
+	"\x17ListCheckpointsResponse\x126\n" +
+	"\x17checkpoint_records_json\x18\x01 \x03(\fR\x15checkpointRecordsJson\x122\n" +
+	"\x15snapshot_end_sequence\x18\x02 \x01(\x03R\x13snapshotEndSequence\x12&\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tR\rnextPageToken2\xc5\x04\n" +
 	"\fAuditService\x12]\n" +
 	"\x10QueryAuditEvents\x12#.ratchet.v1.QueryAuditEventsRequest\x1a$.ratchet.v1.QueryAuditEventsResponse\x12Z\n" +
-	"\x0fExportHashChain\x12\".ratchet.v1.ExportHashChainRequest\x1a#.ratchet.v1.ExportHashChainResponseB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
+	"\x0fExportHashChain\x12\".ratchet.v1.ExportHashChainRequest\x1a#.ratchet.v1.ExportHashChainResponse\x12`\n" +
+	"\x11PrepareCheckpoint\x12$.ratchet.v1.PrepareCheckpointRequest\x1a%.ratchet.v1.PrepareCheckpointResponse\x12]\n" +
+	"\x10SubmitCheckpoint\x12#.ratchet.v1.SubmitCheckpointRequest\x1a$.ratchet.v1.SubmitCheckpointResponse\x12]\n" +
+	"\x10AcceptCheckpoint\x12#.ratchet.v1.AcceptCheckpointRequest\x1a$.ratchet.v1.AcceptCheckpointResponse\x12Z\n" +
+	"\x0fListCheckpoints\x12\".ratchet.v1.ListCheckpointsRequest\x1a#.ratchet.v1.ListCheckpointsResponseB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
 
 var (
 	file_ratchet_v1_audit_proto_rawDescOnce sync.Once
@@ -571,26 +1043,44 @@ func file_ratchet_v1_audit_proto_rawDescGZIP() []byte {
 	return file_ratchet_v1_audit_proto_rawDescData
 }
 
-var file_ratchet_v1_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_ratchet_v1_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_ratchet_v1_audit_proto_goTypes = []any{
-	(*LedgerEvent)(nil),              // 0: ratchet.v1.LedgerEvent
-	(*QueryAuditEventsRequest)(nil),  // 1: ratchet.v1.QueryAuditEventsRequest
-	(*QueryAuditEventsResponse)(nil), // 2: ratchet.v1.QueryAuditEventsResponse
-	(*ExportHashChainRequest)(nil),   // 3: ratchet.v1.ExportHashChainRequest
-	(*ExportHashChainResponse)(nil),  // 4: ratchet.v1.ExportHashChainResponse
+	(*LedgerEvent)(nil),               // 0: ratchet.v1.LedgerEvent
+	(*QueryAuditEventsRequest)(nil),   // 1: ratchet.v1.QueryAuditEventsRequest
+	(*QueryAuditEventsResponse)(nil),  // 2: ratchet.v1.QueryAuditEventsResponse
+	(*ExportHashChainRequest)(nil),    // 3: ratchet.v1.ExportHashChainRequest
+	(*ExportHashChainResponse)(nil),   // 4: ratchet.v1.ExportHashChainResponse
+	(*PrepareCheckpointRequest)(nil),  // 5: ratchet.v1.PrepareCheckpointRequest
+	(*PrepareCheckpointResponse)(nil), // 6: ratchet.v1.PrepareCheckpointResponse
+	(*SubmitCheckpointRequest)(nil),   // 7: ratchet.v1.SubmitCheckpointRequest
+	(*SubmitCheckpointResponse)(nil),  // 8: ratchet.v1.SubmitCheckpointResponse
+	(*AcceptCheckpointRequest)(nil),   // 9: ratchet.v1.AcceptCheckpointRequest
+	(*AcceptCheckpointResponse)(nil),  // 10: ratchet.v1.AcceptCheckpointResponse
+	(*ListCheckpointsRequest)(nil),    // 11: ratchet.v1.ListCheckpointsRequest
+	(*ListCheckpointsResponse)(nil),   // 12: ratchet.v1.ListCheckpointsResponse
+	(*MutationContext)(nil),           // 13: ratchet.v1.MutationContext
 }
 var file_ratchet_v1_audit_proto_depIdxs = []int32{
-	0, // 0: ratchet.v1.QueryAuditEventsResponse.events:type_name -> ratchet.v1.LedgerEvent
-	0, // 1: ratchet.v1.ExportHashChainResponse.chain:type_name -> ratchet.v1.LedgerEvent
-	1, // 2: ratchet.v1.AuditService.QueryAuditEvents:input_type -> ratchet.v1.QueryAuditEventsRequest
-	3, // 3: ratchet.v1.AuditService.ExportHashChain:input_type -> ratchet.v1.ExportHashChainRequest
-	2, // 4: ratchet.v1.AuditService.QueryAuditEvents:output_type -> ratchet.v1.QueryAuditEventsResponse
-	4, // 5: ratchet.v1.AuditService.ExportHashChain:output_type -> ratchet.v1.ExportHashChainResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0,  // 0: ratchet.v1.QueryAuditEventsResponse.events:type_name -> ratchet.v1.LedgerEvent
+	0,  // 1: ratchet.v1.ExportHashChainResponse.chain:type_name -> ratchet.v1.LedgerEvent
+	13, // 2: ratchet.v1.PrepareCheckpointRequest.mutation:type_name -> ratchet.v1.MutationContext
+	1,  // 3: ratchet.v1.AuditService.QueryAuditEvents:input_type -> ratchet.v1.QueryAuditEventsRequest
+	3,  // 4: ratchet.v1.AuditService.ExportHashChain:input_type -> ratchet.v1.ExportHashChainRequest
+	5,  // 5: ratchet.v1.AuditService.PrepareCheckpoint:input_type -> ratchet.v1.PrepareCheckpointRequest
+	7,  // 6: ratchet.v1.AuditService.SubmitCheckpoint:input_type -> ratchet.v1.SubmitCheckpointRequest
+	9,  // 7: ratchet.v1.AuditService.AcceptCheckpoint:input_type -> ratchet.v1.AcceptCheckpointRequest
+	11, // 8: ratchet.v1.AuditService.ListCheckpoints:input_type -> ratchet.v1.ListCheckpointsRequest
+	2,  // 9: ratchet.v1.AuditService.QueryAuditEvents:output_type -> ratchet.v1.QueryAuditEventsResponse
+	4,  // 10: ratchet.v1.AuditService.ExportHashChain:output_type -> ratchet.v1.ExportHashChainResponse
+	6,  // 11: ratchet.v1.AuditService.PrepareCheckpoint:output_type -> ratchet.v1.PrepareCheckpointResponse
+	8,  // 12: ratchet.v1.AuditService.SubmitCheckpoint:output_type -> ratchet.v1.SubmitCheckpointResponse
+	10, // 13: ratchet.v1.AuditService.AcceptCheckpoint:output_type -> ratchet.v1.AcceptCheckpointResponse
+	12, // 14: ratchet.v1.AuditService.ListCheckpoints:output_type -> ratchet.v1.ListCheckpointsResponse
+	9,  // [9:15] is the sub-list for method output_type
+	3,  // [3:9] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_audit_proto_init() }
@@ -598,13 +1088,14 @@ func file_ratchet_v1_audit_proto_init() {
 	if File_ratchet_v1_audit_proto != nil {
 		return
 	}
+	file_ratchet_v1_common_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_audit_proto_rawDesc), len(file_ratchet_v1_audit_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

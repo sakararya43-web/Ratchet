@@ -337,6 +337,65 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	if _, err := ordinaryAudit.QueryAuditEvents(ctx, connect.NewRequest(&v1.QueryAuditEventsRequest{TenantId: tenant})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatal("ordinary session searched investigator audit", err)
 	}
+	var lastCheckpoint string
+	for range 2 {
+		prepareInput := &v1.PrepareCheckpointRequest{TenantId: tenant, Mutation: mutation(0)}
+		prepared, err := audits.PrepareCheckpoint(ctx, connect.NewRequest(prepareInput))
+		if err != nil {
+			t.Fatal("authenticated checkpoint preparation", err)
+		}
+		duplicate, err := audits.PrepareCheckpoint(ctx, connect.NewRequest(prepareInput))
+		if err != nil || !bytes.Equal(prepared.Msg.ProposalJson, duplicate.Msg.ProposalJson) {
+			t.Fatal("HTTP checkpoint retry changed snapshot", err)
+		}
+		var proposal workflow.CheckpointProposal
+		if err := json.Unmarshal(prepared.Msg.ProposalJson, &proposal); err != nil {
+			t.Fatal(err)
+		}
+		signed := proposal.Candidate.Checkpoint
+		challenge := trust.ComputeCheckpointSigningDigest(tenant, signed.Epoch, signed.CheckpointDigest)
+		sig, err := ecdsa.SignASN1(rand.Reader, leader, challenge[:])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := authority.SignCheckpoint(&signed, trust.MemberSignature{ActorID: "authority", Signature: sig}); err != nil {
+			t.Fatal(err)
+		}
+		raw, err := json.Marshal(signed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		accepted, err := audits.AcceptCheckpoint(ctx, connect.NewRequest(&v1.AcceptCheckpointRequest{TenantId: tenant, AuthorityCheckpointJson: raw}))
+		if err != nil || accepted.Msg.ReferenceSequence <= signed.ToSequence {
+			t.Fatal("verified HTTP checkpoint acceptance", err)
+		}
+		if _, err := ordinaryAudit.AcceptCheckpoint(ctx, connect.NewRequest(&v1.AcceptCheckpointRequest{TenantId: tenant, AuthorityCheckpointJson: raw})); connect.CodeOf(err) != connect.CodePermissionDenied {
+			t.Fatal("ordinary session accepted checkpoint", err)
+		}
+		lastCheckpoint = signed.CheckpointDigest.String()
+	}
+	checkpointPage, err := audits.ListCheckpoints(ctx, connect.NewRequest(&v1.ListCheckpointsRequest{TenantId: tenant, PageSize: 1}))
+	if err != nil || len(checkpointPage.Msg.CheckpointRecordsJson) != 1 || checkpointPage.Msg.NextPageToken == "" {
+		t.Fatal("checkpoint evidence pagination", err)
+	}
+	checkpointTail, err := audits.ListCheckpoints(ctx, connect.NewRequest(&v1.ListCheckpointsRequest{TenantId: tenant, PageSize: 1, PageToken: checkpointPage.Msg.NextPageToken}))
+	if err != nil || len(checkpointTail.Msg.CheckpointRecordsJson) != 1 || checkpointTail.Msg.SnapshotEndSequence != checkpointPage.Msg.SnapshotEndSequence || checkpointTail.Msg.NextPageToken != "" {
+		t.Fatal("checkpoint evidence continuation", err)
+	}
+	if _, err := audits.ListCheckpoints(ctx, connect.NewRequest(&v1.ListCheckpointsRequest{TenantId: tenant, PageToken: checkpointPage.Msg.NextPageToken + "x"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatal("forged checkpoint cursor", err)
+	}
+	if _, err := ordinaryAudit.ListCheckpoints(ctx, connect.NewRequest(&v1.ListCheckpointsRequest{TenantId: tenant})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary session obtained checkpoint proof", err)
+	}
+	anchored, err := audits.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant}))
+	if err != nil || anchored.Msg.LatestCheckpointDigest != lastCheckpoint {
+		t.Fatal("raw export missing accepted anchor", err)
+	}
+	frozen, err := audits.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant, EndSequence: end}))
+	if err != nil || frozen.Msg.LatestCheckpointDigest != "" {
+		t.Fatal("future checkpoint escaped frozen export boundary", err)
+	}
 	evidence, err := investigations.GetDecisionEvidence(ctx, connect.NewRequest(&v1.GetDecisionEvidenceRequest{TenantId: tenant, RequestId: id}))
 	if err != nil {
 		t.Fatal("real authenticated evidence export", err)

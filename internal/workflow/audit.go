@@ -12,11 +12,18 @@ import (
 func (s *Service) ExportAudit(ctx context.Context, actor Actor, after, end int64, limit int, previous, tip *ports.Digest) (eventstore.ChainPage, error) {
 	var page eventstore.ChainPage
 	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, _ time.Time) error {
-		if _, _, err := s.context(ctx, tx, actor, "audit_export", nil); err != nil {
+		_, active, err := s.context(ctx, tx, actor, "audit_export", nil)
+		if err != nil {
 			return err
 		}
-		var err error
 		page, err = s.Store.ExportWithin(ctx, tx, actor.TenantID, after, end, limit, previous, tip)
+		if err != nil {
+			return err
+		}
+		checkpoint, err := s.latestCheckpoint(ctx, tx, actor.TenantID, page.End, active.Root)
+		if checkpoint != nil {
+			page.AcceptedCheckpointDigest = checkpoint.Evidence.Signed.CheckpointDigest
+		}
 		return err
 	})
 	return page, err

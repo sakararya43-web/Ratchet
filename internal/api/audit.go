@@ -23,8 +23,9 @@ import (
 )
 
 type auditAPI struct {
-	service *workflow.Service
-	key     []byte
+	service     *workflow.Service
+	key         []byte
+	authorities map[string]*workflow.CheckpointAuthority
 }
 type auditCursor struct {
 	Tenant                          string
@@ -32,14 +33,28 @@ type auditCursor struct {
 	Previous, Tip                   ports.Digest
 }
 
-func NewAuditHandler(service *workflow.Service, key []byte) (http.Handler, error) {
-	if service == nil || len(key) != 32 {
+func NewAuditHandler(service *workflow.Service, key []byte, configured ...map[string]*workflow.CheckpointAuthority) (http.Handler, error) {
+	if service == nil || len(key) != 32 || len(configured) > 1 {
 		return nil, domain.ErrInvalid
 	}
-	a := &auditAPI{service, append([]byte(nil), key...)}
+	a := &auditAPI{service: service, key: append([]byte(nil), key...), authorities: map[string]*workflow.CheckpointAuthority{}}
+	if len(configured) == 1 {
+		for tenant, authority := range configured[0] {
+			if tenant == "" || authority == nil {
+				return nil, domain.ErrInvalid
+			}
+			a.authorities[tenant] = authority
+		}
+	}
 	mux := http.NewServeMux()
 	mux.Handle(ratchetv1connect.AuditServiceExportHashChainProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServiceExportHashChainProcedure, a.ExportHashChain, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
 	mux.Handle(ratchetv1connect.AuditServiceQueryAuditEventsProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServiceQueryAuditEventsProcedure, a.QueryAuditEvents, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
+	mux.Handle(ratchetv1connect.AuditServicePrepareCheckpointProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServicePrepareCheckpointProcedure, a.PrepareCheckpoint, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(4<<20)))
+	if len(a.authorities) > 0 {
+		mux.Handle(ratchetv1connect.AuditServiceSubmitCheckpointProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServiceSubmitCheckpointProcedure, a.SubmitCheckpoint, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(1<<20)))
+	}
+	mux.Handle(ratchetv1connect.AuditServiceAcceptCheckpointProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServiceAcceptCheckpointProcedure, a.AcceptCheckpoint, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(4<<20)))
+	mux.Handle(ratchetv1connect.AuditServiceListCheckpointsProcedure, connect.NewUnaryHandler(ratchetv1connect.AuditServiceListCheckpointsProcedure, a.ListCheckpoints, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
 	return mux, nil
 }
 
@@ -191,6 +206,9 @@ func (a *auditAPI) ExportHashChain(ctx context.Context, r *connect.Request[v1.Ex
 		return nil, changeError(err)
 	}
 	response := &v1.ExportHashChainResponse{TenantId: p.TenantID, SnapshotEndSequence: page.End, SnapshotEndHash: page.EndHash.String(), ExportProfile: "RATCHET_LEDGER_CHAIN_V1", PagePreviousHash: page.Previous.String()}
+	if !page.AcceptedCheckpointDigest.IsZero() {
+		response.LatestCheckpointDigest = page.AcceptedCheckpointDigest.String()
+	}
 	for _, event := range page.Events {
 		response.Chain = append(response.Chain, &v1.LedgerEvent{SequenceNumber: event.Sequence, TenantId: p.TenantID, EventType: event.Type, PreviousEventHash: event.Entry.Previous.String(), EventHash: event.Entry.Hash.String(), RecordedAt: event.RecordedAt.UTC().Format(time.RFC3339Nano), FormatVersion: 1, CanonicalContent: event.Entry.Canonical, StreamId: event.StreamID, StreamVersion: event.StreamVersion, EventId: event.ID.String()})
 	}

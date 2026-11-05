@@ -20,6 +20,15 @@
   forged-signature refusal, competing-range rejection, sequential coverage,
   fixed-tip evidence pagination, replacement-process recovery and runtime
   deletion denial. Proof artifacts are digest-bound by their ledger events.
+- Mounted authenticated Prepare/Accept/ListCheckpoints operations and optional
+  configured SubmitCheckpoint. The HTTP adapter consumes the actual peer
+  create/list contract, checks returned metadata and looks up candidates before
+  retrying create so lost acknowledgements cannot erase collected signatures.
+  Redirects, invalid responses and altered ranges are refused. Raw chain pages
+  now identify the latest verified acceptance within their captured tip.
+- PostgreSQL/TLS regressions cover the real checkpoint API, evidence pagination,
+  forged cursors and ordinary-session refusal. Linux integration/race checks and
+  Buf compatibility pass; submission remains distinct from signed acceptance.
 
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux

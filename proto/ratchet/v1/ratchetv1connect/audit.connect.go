@@ -39,12 +39,28 @@ const (
 	// AuditServiceExportHashChainProcedure is the fully-qualified name of the AuditService's
 	// ExportHashChain RPC.
 	AuditServiceExportHashChainProcedure = "/ratchet.v1.AuditService/ExportHashChain"
+	// AuditServicePrepareCheckpointProcedure is the fully-qualified name of the AuditService's
+	// PrepareCheckpoint RPC.
+	AuditServicePrepareCheckpointProcedure = "/ratchet.v1.AuditService/PrepareCheckpoint"
+	// AuditServiceSubmitCheckpointProcedure is the fully-qualified name of the AuditService's
+	// SubmitCheckpoint RPC.
+	AuditServiceSubmitCheckpointProcedure = "/ratchet.v1.AuditService/SubmitCheckpoint"
+	// AuditServiceAcceptCheckpointProcedure is the fully-qualified name of the AuditService's
+	// AcceptCheckpoint RPC.
+	AuditServiceAcceptCheckpointProcedure = "/ratchet.v1.AuditService/AcceptCheckpoint"
+	// AuditServiceListCheckpointsProcedure is the fully-qualified name of the AuditService's
+	// ListCheckpoints RPC.
+	AuditServiceListCheckpointsProcedure = "/ratchet.v1.AuditService/ListCheckpoints"
 )
 
 // AuditServiceClient is a client for the ratchet.v1.AuditService service.
 type AuditServiceClient interface {
 	QueryAuditEvents(context.Context, *connect.Request[v1.QueryAuditEventsRequest]) (*connect.Response[v1.QueryAuditEventsResponse], error)
 	ExportHashChain(context.Context, *connect.Request[v1.ExportHashChainRequest]) (*connect.Response[v1.ExportHashChainResponse], error)
+	PrepareCheckpoint(context.Context, *connect.Request[v1.PrepareCheckpointRequest]) (*connect.Response[v1.PrepareCheckpointResponse], error)
+	SubmitCheckpoint(context.Context, *connect.Request[v1.SubmitCheckpointRequest]) (*connect.Response[v1.SubmitCheckpointResponse], error)
+	AcceptCheckpoint(context.Context, *connect.Request[v1.AcceptCheckpointRequest]) (*connect.Response[v1.AcceptCheckpointResponse], error)
+	ListCheckpoints(context.Context, *connect.Request[v1.ListCheckpointsRequest]) (*connect.Response[v1.ListCheckpointsResponse], error)
 }
 
 // NewAuditServiceClient constructs a client for the ratchet.v1.AuditService service. By default, it
@@ -70,13 +86,41 @@ func NewAuditServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(auditServiceMethods.ByName("ExportHashChain")),
 			connect.WithClientOptions(opts...),
 		),
+		prepareCheckpoint: connect.NewClient[v1.PrepareCheckpointRequest, v1.PrepareCheckpointResponse](
+			httpClient,
+			baseURL+AuditServicePrepareCheckpointProcedure,
+			connect.WithSchema(auditServiceMethods.ByName("PrepareCheckpoint")),
+			connect.WithClientOptions(opts...),
+		),
+		submitCheckpoint: connect.NewClient[v1.SubmitCheckpointRequest, v1.SubmitCheckpointResponse](
+			httpClient,
+			baseURL+AuditServiceSubmitCheckpointProcedure,
+			connect.WithSchema(auditServiceMethods.ByName("SubmitCheckpoint")),
+			connect.WithClientOptions(opts...),
+		),
+		acceptCheckpoint: connect.NewClient[v1.AcceptCheckpointRequest, v1.AcceptCheckpointResponse](
+			httpClient,
+			baseURL+AuditServiceAcceptCheckpointProcedure,
+			connect.WithSchema(auditServiceMethods.ByName("AcceptCheckpoint")),
+			connect.WithClientOptions(opts...),
+		),
+		listCheckpoints: connect.NewClient[v1.ListCheckpointsRequest, v1.ListCheckpointsResponse](
+			httpClient,
+			baseURL+AuditServiceListCheckpointsProcedure,
+			connect.WithSchema(auditServiceMethods.ByName("ListCheckpoints")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // auditServiceClient implements AuditServiceClient.
 type auditServiceClient struct {
-	queryAuditEvents *connect.Client[v1.QueryAuditEventsRequest, v1.QueryAuditEventsResponse]
-	exportHashChain  *connect.Client[v1.ExportHashChainRequest, v1.ExportHashChainResponse]
+	queryAuditEvents  *connect.Client[v1.QueryAuditEventsRequest, v1.QueryAuditEventsResponse]
+	exportHashChain   *connect.Client[v1.ExportHashChainRequest, v1.ExportHashChainResponse]
+	prepareCheckpoint *connect.Client[v1.PrepareCheckpointRequest, v1.PrepareCheckpointResponse]
+	submitCheckpoint  *connect.Client[v1.SubmitCheckpointRequest, v1.SubmitCheckpointResponse]
+	acceptCheckpoint  *connect.Client[v1.AcceptCheckpointRequest, v1.AcceptCheckpointResponse]
+	listCheckpoints   *connect.Client[v1.ListCheckpointsRequest, v1.ListCheckpointsResponse]
 }
 
 // QueryAuditEvents calls ratchet.v1.AuditService.QueryAuditEvents.
@@ -89,10 +133,34 @@ func (c *auditServiceClient) ExportHashChain(ctx context.Context, req *connect.R
 	return c.exportHashChain.CallUnary(ctx, req)
 }
 
+// PrepareCheckpoint calls ratchet.v1.AuditService.PrepareCheckpoint.
+func (c *auditServiceClient) PrepareCheckpoint(ctx context.Context, req *connect.Request[v1.PrepareCheckpointRequest]) (*connect.Response[v1.PrepareCheckpointResponse], error) {
+	return c.prepareCheckpoint.CallUnary(ctx, req)
+}
+
+// SubmitCheckpoint calls ratchet.v1.AuditService.SubmitCheckpoint.
+func (c *auditServiceClient) SubmitCheckpoint(ctx context.Context, req *connect.Request[v1.SubmitCheckpointRequest]) (*connect.Response[v1.SubmitCheckpointResponse], error) {
+	return c.submitCheckpoint.CallUnary(ctx, req)
+}
+
+// AcceptCheckpoint calls ratchet.v1.AuditService.AcceptCheckpoint.
+func (c *auditServiceClient) AcceptCheckpoint(ctx context.Context, req *connect.Request[v1.AcceptCheckpointRequest]) (*connect.Response[v1.AcceptCheckpointResponse], error) {
+	return c.acceptCheckpoint.CallUnary(ctx, req)
+}
+
+// ListCheckpoints calls ratchet.v1.AuditService.ListCheckpoints.
+func (c *auditServiceClient) ListCheckpoints(ctx context.Context, req *connect.Request[v1.ListCheckpointsRequest]) (*connect.Response[v1.ListCheckpointsResponse], error) {
+	return c.listCheckpoints.CallUnary(ctx, req)
+}
+
 // AuditServiceHandler is an implementation of the ratchet.v1.AuditService service.
 type AuditServiceHandler interface {
 	QueryAuditEvents(context.Context, *connect.Request[v1.QueryAuditEventsRequest]) (*connect.Response[v1.QueryAuditEventsResponse], error)
 	ExportHashChain(context.Context, *connect.Request[v1.ExportHashChainRequest]) (*connect.Response[v1.ExportHashChainResponse], error)
+	PrepareCheckpoint(context.Context, *connect.Request[v1.PrepareCheckpointRequest]) (*connect.Response[v1.PrepareCheckpointResponse], error)
+	SubmitCheckpoint(context.Context, *connect.Request[v1.SubmitCheckpointRequest]) (*connect.Response[v1.SubmitCheckpointResponse], error)
+	AcceptCheckpoint(context.Context, *connect.Request[v1.AcceptCheckpointRequest]) (*connect.Response[v1.AcceptCheckpointResponse], error)
+	ListCheckpoints(context.Context, *connect.Request[v1.ListCheckpointsRequest]) (*connect.Response[v1.ListCheckpointsResponse], error)
 }
 
 // NewAuditServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +182,44 @@ func NewAuditServiceHandler(svc AuditServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(auditServiceMethods.ByName("ExportHashChain")),
 		connect.WithHandlerOptions(opts...),
 	)
+	auditServicePrepareCheckpointHandler := connect.NewUnaryHandler(
+		AuditServicePrepareCheckpointProcedure,
+		svc.PrepareCheckpoint,
+		connect.WithSchema(auditServiceMethods.ByName("PrepareCheckpoint")),
+		connect.WithHandlerOptions(opts...),
+	)
+	auditServiceSubmitCheckpointHandler := connect.NewUnaryHandler(
+		AuditServiceSubmitCheckpointProcedure,
+		svc.SubmitCheckpoint,
+		connect.WithSchema(auditServiceMethods.ByName("SubmitCheckpoint")),
+		connect.WithHandlerOptions(opts...),
+	)
+	auditServiceAcceptCheckpointHandler := connect.NewUnaryHandler(
+		AuditServiceAcceptCheckpointProcedure,
+		svc.AcceptCheckpoint,
+		connect.WithSchema(auditServiceMethods.ByName("AcceptCheckpoint")),
+		connect.WithHandlerOptions(opts...),
+	)
+	auditServiceListCheckpointsHandler := connect.NewUnaryHandler(
+		AuditServiceListCheckpointsProcedure,
+		svc.ListCheckpoints,
+		connect.WithSchema(auditServiceMethods.ByName("ListCheckpoints")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/ratchet.v1.AuditService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AuditServiceQueryAuditEventsProcedure:
 			auditServiceQueryAuditEventsHandler.ServeHTTP(w, r)
 		case AuditServiceExportHashChainProcedure:
 			auditServiceExportHashChainHandler.ServeHTTP(w, r)
+		case AuditServicePrepareCheckpointProcedure:
+			auditServicePrepareCheckpointHandler.ServeHTTP(w, r)
+		case AuditServiceSubmitCheckpointProcedure:
+			auditServiceSubmitCheckpointHandler.ServeHTTP(w, r)
+		case AuditServiceAcceptCheckpointProcedure:
+			auditServiceAcceptCheckpointHandler.ServeHTTP(w, r)
+		case AuditServiceListCheckpointsProcedure:
+			auditServiceListCheckpointsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +235,20 @@ func (UnimplementedAuditServiceHandler) QueryAuditEvents(context.Context, *conne
 
 func (UnimplementedAuditServiceHandler) ExportHashChain(context.Context, *connect.Request[v1.ExportHashChainRequest]) (*connect.Response[v1.ExportHashChainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.AuditService.ExportHashChain is not implemented"))
+}
+
+func (UnimplementedAuditServiceHandler) PrepareCheckpoint(context.Context, *connect.Request[v1.PrepareCheckpointRequest]) (*connect.Response[v1.PrepareCheckpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.AuditService.PrepareCheckpoint is not implemented"))
+}
+
+func (UnimplementedAuditServiceHandler) SubmitCheckpoint(context.Context, *connect.Request[v1.SubmitCheckpointRequest]) (*connect.Response[v1.SubmitCheckpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.AuditService.SubmitCheckpoint is not implemented"))
+}
+
+func (UnimplementedAuditServiceHandler) AcceptCheckpoint(context.Context, *connect.Request[v1.AcceptCheckpointRequest]) (*connect.Response[v1.AcceptCheckpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.AuditService.AcceptCheckpoint is not implemented"))
+}
+
+func (UnimplementedAuditServiceHandler) ListCheckpoints(context.Context, *connect.Request[v1.ListCheckpointsRequest]) (*connect.Response[v1.ListCheckpointsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.AuditService.ListCheckpoints is not implemented"))
 }

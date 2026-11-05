@@ -13,6 +13,7 @@ type ChainPage struct {
 	Events                      []StoredEvent
 	After, End                  int64
 	Previous, LastHash, EndHash ports.Digest
+	AcceptedCheckpointDigest    ports.Digest
 }
 
 func (s *Store) hashAt(ctx context.Context, tx pgx.Tx, tenant string, sequence int64) (ports.Digest, error) {

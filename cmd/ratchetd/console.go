@@ -42,10 +42,11 @@ type consoleConfig struct {
 	NATSCredentials  string           `json:"nats_credentials"`
 	ContainmentCosts map[string]int64 `json:"containment_costs"`
 	Tenants          []struct {
-		ID            string `json:"tenant_id"`
-		AuthorityFile string `json:"authority_file"`
-		GenesisDigest string `json:"genesis_digest"`
-		BundleFile    string `json:"bundle_file"`
+		ID                     string `json:"tenant_id"`
+		AuthorityFile          string `json:"authority_file"`
+		GenesisDigest          string `json:"genesis_digest"`
+		BundleFile             string `json:"bundle_file"`
+		CheckpointAuthorityURL string `json:"checkpoint_authority_url"`
 	} `json:"tenants"`
 }
 
@@ -231,7 +232,18 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	apiMux.Handle("/ratchet.v1.OverviewService/", changes)
 	apiMux.Handle("/ratchet.v1.GraphService/", graphs)
 	apiMux.Handle("/ratchet.v1.ImpactService/", graphs)
-	audit, err := api.NewAuditHandler(service, cursorKey)
+	checkpointAuthorities := map[string]*workflow.CheckpointAuthority{}
+	for _, tenant := range config.Tenants {
+		if tenant.CheckpointAuthorityURL == "" {
+			continue
+		}
+		authority, err := workflow.NewCheckpointAuthority(tenant.CheckpointAuthorityURL, nil)
+		if err != nil {
+			return err
+		}
+		checkpointAuthorities[tenant.ID] = authority
+	}
+	audit, err := api.NewAuditHandler(service, cursorKey, checkpointAuthorities)
 	if err != nil {
 		return err
 	}

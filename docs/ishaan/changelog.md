@@ -11,6 +11,16 @@
 
 ## Phase 4 — in progress (2026-11-05)
 
+- Schema 9 persists immutable checkpoint candidates and accepted references with
+  tenant RLS. Preparation freezes a verified bounded range; acceptance verifies
+  every real Authority signature, rechecks the covered chain and requires the
+  next contiguous range/prior digest. Pending candidates cannot survive a trust
+  rotation as a new acceptance. References are appended after their covered tip.
+- Real PostgreSQL checks cover concurrent acceptance, stable preparation retries,
+  forged-signature refusal, competing-range rejection, sequential coverage,
+  fixed-tip evidence pagination, replacement-process recovery and runtime
+  deletion denial. Proof artifacts are digest-bound by their ledger events.
+
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux
 integration/race suite, vet, zero-issue lint, Buf compatibility and generated-file

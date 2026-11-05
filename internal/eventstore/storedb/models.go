@@ -8,6 +8,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type RatchetAcceptedCheckpoint struct {
+	TenantID      string
+	Digest        []byte
+	FromSequence  int64
+	ToSequence    int64
+	Document      []byte
+	EventPosition int64
+}
+
 type RatchetAuditProjection struct {
 	TenantID       string
 	Sequence       int64
@@ -26,6 +35,15 @@ type RatchetChangeProjection struct {
 	State         string
 	UpdatedAt     pgtype.Timestamptz
 	Document      []byte
+}
+
+type RatchetCheckpointCandidate struct {
+	TenantID      string
+	Digest        []byte
+	CommandID     pgtype.UUID
+	InputDigest   []byte
+	Document      []byte
+	EventPosition int64
 }
 
 type RatchetCommandReceipt struct {

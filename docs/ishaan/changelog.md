@@ -11,6 +11,14 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Added authenticated native drift ingestion with exact committed baselines,
+  current observed cuts, policy/impact evidence, consumed-admission correlation,
+  durable deduplication and native incident get/list/watch. Raw reports remain
+  encrypted and retained evidence survives deletion. Explicitly recorded native
+  automatic-reverter and real-peer D6/D7 gaps. Added UPDATE/DELETE UID/version
+  execution regressions and source-advance refusal. Updated runtime schema to 14.
+  Full candidate checks are in progress; Phase 7 is not started.
+
 - Implemented native request submission and encrypted raw review context, signed
   policy identity associations, independent approval, committed anonymous replay,
   native capability-gated command staging and TLS DecisionService enforcement.

@@ -1,10 +1,12 @@
 package workflow
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"io"
 	"slices"
 	"time"
 
@@ -221,6 +223,13 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 	var r ExecutionResult
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return domain.ErrInvalid
+	}
+	if r.Kubernetes != nil {
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&r) != nil || decoder.Decode(new(any)) != io.EOF {
+			return domain.ErrInvalid
+		}
 	}
 	e := s.executions[tenant]
 	if e == nil || r.SchemaVersion != 1 || r.Tenant != tenant || r.Connector != e.Connector {

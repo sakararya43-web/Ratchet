@@ -43,13 +43,13 @@ replace the adapter, API parsing, webhook or target watch.
 | Scenario | Core semantics available | Remaining native acceptance |
 |---|---|---|
 | D1 ordinary access | Normalized role/binding matching and exact mutation validation | Real request, approval, target write and independent read-back |
-| D2 sensitive access | Wildcards, token creation, bind/escalate/impersonation closure | Policy/DecisionService integration and actual webhook decision |
+| D2 sensitive access | Wildcards, token creation, bind/escalate/impersonation closure, signed policy/DecisionService one-use native enforcement | Actual webhook invocation, target preconditions and decision adoption |
 | D3 impact | Authenticated normalized ingestion, namespaced/aggregated roles, external controllers, other beneficiaries and common-basis graph impact | Peer source adoption, UI and target comparison |
-| D4 independent review | Existing core reviewer controls; technical token takeover and separate human impersonation semantics | Trusted core/native identity association and native approval/execution tests |
+| D4 independent review | Signed-policy core/native identity association, mapped-beneficiary independence, exact passkey approval and native command/read-back tests | Actual peer passkey ceremony, native admission and independent cluster observation |
 | D5 critical rule | RBAC changes are modeled; simulator withdrawal safeguards are not Kubernetes RBAC rules | Admission configuration, webhook removal, external authorizers and financial safeguards are unsupported native mappings |
-| D6 containment | Pure reduction/expansion analysis | Native drift publisher, durable decision/incident and verified correction |
+| D6 containment | Signed native drift, committed baseline/current-cut verification, durable impact/policy/incident evidence, get/list/watch and exact approved correlation | Real native watch/reverter, proven inverse, verified target correction and residual containment; automatic native rollback is unsupported |
 | D7 continuity | Namespace separation and reduced-authority comparisons | Live application continuity during actual native containment |
-| D8 audit | Existing core append-only decisions and signed-boundary primitives | Native decision/observation events and actual peer offline verification |
+| D8 audit | Append-only native submission/assessment/admission/read-back/drift events, encrypted raw context, anonymous assessment replay and retained incident evidence after erasure | Actual peer publisher, target observation and offline verifier acceptance |
 
 This is selected RBAC scope. It does not claim coverage of every Kubernetes
 authorizer, external identity provider, constrained impersonation extension,

@@ -627,7 +627,7 @@ func (s *Service) Review(ctx context.Context, actor Actor, request string, id uu
 		if err != nil {
 			return nil, err
 		}
-		snapshot, result, _, err := s.changeImpactWithin(ctx, tx, snapshot, a, c)
+		_, result, _, err := s.changeImpactWithin(ctx, tx, snapshot, a, c)
 		if err != nil {
 			return nil, err
 		}

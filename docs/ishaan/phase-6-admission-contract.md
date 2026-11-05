@@ -1,9 +1,10 @@
 # Core native admission evidence contract
 
 This is an implemented core validation/authentication boundary and a proposed
-connector handoff, not a frozen joint contract or an enabled execution route.
-DecisionService adoption, staged native commands and independent native read-back
-remain open in [the progress record](phase-6-progress.md).
+connector handoff, not a frozen joint contract. Core DecisionService enforcement,
+staged commands and signed independent native read-back are implemented in
+[the native workflow](phase-6-native-workflow.md). Actual peer adoption and
+integrated acceptance remain open in [the progress record](phase-6-progress.md).
 
 `kubernetes.Admission` binds tenant, Kubernetes-assigned admission UID, full
 userInfo, GVK/GVR, object name/namespace, dry-run status, source resourceVersion,
@@ -29,7 +30,7 @@ bound. Recreated service accounts cannot reuse an old UID. Unmodeled userInfo
 extras, anonymous identities, subresources and other API versions stay unsupported.
 
 Authentication and context matching **do not authorize an execution**. The
-eventual DecisionService path must also recheck current policy, graph/registry
+implemented DecisionService path also rechecks current policy, graph/registry
 floors, independent current passkeys/quorum, approved object/context, deadline,
 target revision and the durable one-use command claim. A dry-run must not consume
 or create an actual-write permit. Retrying an already consumed admission must

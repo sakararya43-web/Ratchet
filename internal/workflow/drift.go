@@ -67,6 +67,14 @@ func (s *Service) RecordDrift(ctx context.Context, tenant string, raw []byte) (r
 	if len(raw) == 0 || len(raw) > 1<<20 {
 		return receipt, domain.ErrInvalid
 	}
+	nativeEnvelope := new(v1.SignedKubernetesDriftReport)
+	if protojson.Unmarshal(raw, nativeEnvelope) == nil && len(nativeEnvelope.SignedKubernetesDriftJson) > 0 {
+		native, err := s.RecordKubernetesDrift(ctx, tenant, nativeEnvelope.SignedKubernetesDriftJson)
+		if err != nil {
+			return receipt, err
+		}
+		return DriftReceipt{Observation: DriftObservation{DriftID: native.DriftID, OperationID: native.OperationID, Tenant: native.Tenant, Connector: native.Connector, Correlation: native.CorrelationID, Target: native.ObjectKey, Revision: native.SourceRevision}, Outcome: native.Outcome, IncidentID: native.IncidentID, ReportDigest: native.InputDigest, At: native.At}, nil
+	}
 	message := new(v1.SignedDriftReport)
 	if protojson.Unmarshal(raw, message) != nil {
 		return receipt, domain.ErrInvalid

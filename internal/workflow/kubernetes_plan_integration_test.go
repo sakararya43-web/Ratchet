@@ -39,8 +39,31 @@ import (
 
 func nativeWorkflow(t *testing.T, beneficiary string, configure ...func(system, ports.ApprovalVerifier) *workflow.Service) (system, *workflow.Service, kube.State, kube.Mutation, *ecdsa.PrivateKey, []byte) {
 	t.Helper()
+	return nativeWorkflowOperation(t, beneficiary, "CREATE", configure...)
+}
+
+func nativeWorkflowOperation(t *testing.T, beneficiary, operation string, configure ...func(system, ports.ApprovalVerifier) *workflow.Service) (system, *workflow.Service, kube.State, kube.Mutation, *ecdsa.PrivateKey, []byte) {
+	t.Helper()
 	sys := setup(t)
 	state := kube.State{Cluster: "phase6-cluster", ResourceVersion: "opaque/source-cut", Complete: true, Namespaces: []string{"finance"}, Principals: []kube.Principal{{ID: "requester", UID: "native-requester-uid", Kind: "User", Name: "Native Private Requester"}, {ID: "owner", UID: "native-owner-uid", Kind: "User", Name: "Native Private Owner"}}, Resources: []kube.APIResource{{Resource: "pods", Namespaced: true}}, Objects: []kube.Object{{Kind: "ClusterRole", Name: "reader", UID: "role-uid", ResourceVersion: "opaque/role-rv", Rules: []kube.Rule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get"}}}}}}
+	name := "Native Private Requester"
+	if beneficiary == "owner" {
+		name = "Native Private Owner"
+	}
+	after := kube.Object{Kind: "RoleBinding", Name: "grant", Namespace: "finance", RoleKind: "ClusterRole", RoleName: "reader", Subjects: []kube.Subject{{Kind: "User", Name: name}}}
+	mutation := kube.Mutation{Cluster: state.Cluster, Connector: "native", Operation: operation, After: &after, ObjectDigest: ports.Digest{8}}
+	if operation != "CREATE" {
+		before := after
+		before.UID, before.ResourceVersion = "existing-binding-uid", "opaque/existing-binding-rv"
+		mutation.Before, mutation.OldObjectDigest = &before, ports.Digest{7}
+		if operation == "UPDATE" {
+			before.Subjects = []kube.Subject{}
+			after.UID, after.ResourceVersion = before.UID, before.ResourceVersion
+		} else {
+			mutation.After = nil
+		}
+		state.Objects = append(state.Objects, before)
+	}
 	projected, err := graph.KubernetesSource(0, state)
 	if err != nil {
 		t.Fatal(err)
@@ -49,12 +72,6 @@ func nativeWorkflow(t *testing.T, beneficiary string, configure ...func(system, 
 	if _, err := sys.store.IngestGraph(sys.ctx, eventstore.GraphInput{TenantID: sys.tenant, ConnectorID: "native", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{3}).String(), ToRevision: 10, Complete: true, Snapshot: &data}, sys.key); err != nil {
 		t.Fatal(err)
 	}
-	name := "Native Private Requester"
-	if beneficiary == "owner" {
-		name = "Native Private Owner"
-	}
-	after := kube.Object{Kind: "RoleBinding", Name: "grant", Namespace: "finance", RoleKind: "ClusterRole", RoleName: "reader", Subjects: []kube.Subject{{Kind: "User", Name: name}}}
-	mutation := kube.Mutation{Cluster: state.Cluster, Connector: "native", Operation: "CREATE", After: &after, ObjectDigest: ports.Digest{8}}
 	impact, err := graph.KubernetesImpact(1, state, mutation)
 	if err != nil {
 		t.Fatal(err)
@@ -63,6 +80,9 @@ func nativeWorkflow(t *testing.T, beneficiary string, configure ...func(system, 
 	for _, a := range impact.Affected {
 		for _, n := range a.NewResources {
 			owners[n.ID] = []string{"user:owner", "user:sec1"}
+		}
+		for _, p := range a.RemovedPowers {
+			owners[p.NodeID] = []string{"user:owner", "user:sec1"}
 		}
 	}
 	modules := map[string]string{}
@@ -121,7 +141,7 @@ func nativeWorkflow(t *testing.T, beneficiary string, configure ...func(system, 
 	return sys, service, state, mutation, key, credential
 }
 
-func readyNativeExecution(t *testing.T) (system, *workflow.Service, domain.Change, kube.Admission, ed25519.PrivateKey, ed25519.PublicKey, func() *workflow.Service) {
+func readyNativeExecution(t *testing.T, operations ...string) (system, *workflow.Service, domain.Change, kube.Admission, ed25519.PrivateKey, ed25519.PublicKey, func() *workflow.Service) {
 	t.Helper()
 	public, connector, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -132,7 +152,11 @@ func readyNativeExecution(t *testing.T) (system, *workflow.Service, domain.Chang
 		t.Fatal(err)
 	}
 	var open func() *workflow.Service
-	sys, service, state, mutation, key, credential := nativeWorkflow(t, "requester", func(sys system, verifier ports.ApprovalVerifier) *workflow.Service {
+	operation := "CREATE"
+	if len(operations) > 0 {
+		operation = operations[0]
+	}
+	sys, service, state, mutation, key, credential := nativeWorkflowOperation(t, "requester", operation, func(sys system, verifier ports.ApprovalVerifier) *workflow.Service {
 		capability := workflow.Capability{Tenant: sys.tenant, Connector: "native", Protocol: "RATCHET_EXEC_V1", Expires: time.Now().Add(time.Hour), BoundCommands: true, AtomicPreconditions: true, DurableDedup: true, IndependentReadBack: true, NativeRBAC: true}
 		digest, err := canon.New().Digest(struct {
 			Domain string `json:"domain"`
@@ -147,7 +171,7 @@ func readyNativeExecution(t *testing.T) (system, *workflow.Service, domain.Chang
 			t.Fatal(err)
 		}
 		open = func() *workflow.Service {
-			s, err := workflow.NewConfigured(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, workflow.Config{KubernetesConnectors: []kube.KubernetesConnectorKey{{Tenant: sys.tenant, Connector: "native", Cluster: "phase6-cluster", PublicKey: public}}}, execution)
+			s, err := workflow.NewConfigured(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, workflow.Config{DriftResponders: map[string]string{sys.tenant: "user:sec1"}, KubernetesConnectors: []kube.KubernetesConnectorKey{{Tenant: sys.tenant, Connector: "native", Cluster: "phase6-cluster", PublicKey: public}}}, execution)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -177,7 +201,11 @@ func readyNativeExecution(t *testing.T) (system, *workflow.Service, domain.Chang
 	if err != nil || c.State != domain.Executing {
 		t.Fatalf("native dispatch %s %+v %v", c.State, c.Decision, err)
 	}
-	a := kube.Admission{Tenant: sys.tenant, AdmissionUID: "actual-kubernetes-uid-" + uuid.NewString(), User: kube.UserInfo{Username: state.Principals[0].Name, UID: state.Principals[0].UID, Groups: kube.PrincipalGroups(state.Principals[0])}, APIGroup: kube.RBACGroup, APIVersion: "v1", Kind: "RoleBinding", Resource: "rolebindings", Namespace: mutation.After.Namespace, Name: mutation.After.Name, SourceResourceVersion: state.ResourceVersion, ApprovedRequestID: c.ID, CommandID: c.ExecutionID, Mutation: mutation}
+	target := mutation.After
+	if target == nil {
+		target = mutation.Before
+	}
+	a := kube.Admission{Tenant: sys.tenant, AdmissionUID: "actual-kubernetes-uid-" + uuid.NewString(), User: kube.UserInfo{Username: state.Principals[0].Name, UID: state.Principals[0].UID, Groups: kube.PrincipalGroups(state.Principals[0])}, APIGroup: kube.RBACGroup, APIVersion: "v1", Kind: "RoleBinding", Resource: "rolebindings", Namespace: target.Namespace, Name: target.Name, SourceResourceVersion: state.ResourceVersion, ApprovedRequestID: c.ID, CommandID: c.ExecutionID, Mutation: mutation}
 	return sys, service, c, a, connector, corePublic, open
 }
 
@@ -291,6 +319,31 @@ func TestNativeAdmissionRefusesChangedContextAndAuthenticatesConnector(t *testin
 	}
 }
 
+func TestNativeSourceAdvanceInvalidatesAnOtherwiseExactApprovedAdmission(t *testing.T) {
+	sys, service, _, admission, connector, _, _ := readyNativeExecution(t)
+	snapshot, err := sys.store.CurrentGraph(sys.ctx, sys.tenant, sys.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := snapshot.KubernetesState(admission.Mutation.Cluster)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.ResourceVersion = "a-new-cut-with-the-same-powers"
+	next, err := graph.KubernetesSource(0, state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := next.Data()
+	if _, err := sys.store.IngestGraph(sys.ctx, eventstore.GraphInput{TenantID: sys.tenant, ConnectorID: "native", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{31}).String(), ToRevision: 11, Complete: true, Snapshot: &data}, sys.key); err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.DecideKubernetes(sys.ctx, signedNativeAdmission(t, admission, connector))
+	if err != nil || result.ExecutionAuthorized || result.Decision.Outcome != "HOLD" {
+		t.Fatal("old source cut admitted after source advancement", err)
+	}
+}
+
 func TestNativeExecutionRequiresConsumedAdmissionAndIndependentExactReadBack(t *testing.T) {
 	sys, service, c, a, connector, _, _ := readyNativeExecution(t)
 	observed := *a.Mutation.After
@@ -384,6 +437,56 @@ func TestNativeExecutionRequiresConsumedAdmissionAndIndependentExactReadBack(t *
 		if bytes.Contains(e.Entry.Canonical, []byte("Native Private")) {
 			t.Fatal("native read-back leaked private subjects")
 		}
+	}
+}
+
+func TestNativeUpdateAndDeleteRequireExactPreimageAndOpaqueObservedVersions(t *testing.T) {
+	for _, operation := range []string{"UPDATE", "DELETE"} {
+		t.Run(operation, func(t *testing.T) {
+			sys, service, c, a, connector, _, _ := readyNativeExecution(t, operation)
+			permit, err := service.DecideKubernetes(sys.ctx, signedNativeAdmission(t, a, connector))
+			if err != nil || !permit.ExecutionAuthorized {
+				t.Fatal("exact native preimage not admitted", operation, err)
+			}
+			observation := &workflow.NativeObservation{AdmissionUID: a.AdmissionUID, ContextDigest: permit.ContextDigest}
+			if operation == "UPDATE" {
+				object := *a.Mutation.After
+				object.ResourceVersion = "opaque/new-version-without-numeric-increment"
+				observation.Object = &object
+			} else {
+				observation.DeletedUID = a.Mutation.Before.UID
+			}
+			stamp := time.Now().UTC()
+			r := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "native", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, CorrelationID: c.CorrelationID, EnvelopeDigest: c.Digest, Success: true, ReadBackVerified: true, ObservedTenant: sys.tenant, ObservedTarget: c.Intent.Target, ObservedRevision: 12, ObservedAt: stamp, AppliedAt: stamp, Kubernetes: observation}
+			wrong := *observation
+			if operation == "UPDATE" {
+				object := *observation.Object
+				object.UID = "same-name-recreated-object"
+				wrong.Object = &object
+			} else {
+				wrong.DeletedUID = "different-object-uid"
+			}
+			bad := r
+			bad.MessageID, bad.Kubernetes = uuid.NewString(), &wrong
+			bad.ObservationDigest, err = workflow.NativeObservationDigest(bad)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := service.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, bad, connector)); !errors.Is(err, workflow.ErrPermission) {
+				t.Fatal("same-name different UID accepted", err)
+			}
+			r.ObservationDigest, err = workflow.NativeObservationDigest(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := service.RecordExecutionResult(sys.ctx, sys.tenant, signedResult(t, r, connector)); err != nil {
+				t.Fatal("exact native observation rejected", operation, err)
+			}
+			c, err = sys.store.ReadChange(sys.ctx, sys.tenant, c.ID)
+			if err != nil || c.State != domain.Executed {
+				t.Fatal("native lifecycle incomplete", operation, c.State, err)
+			}
+		})
 	}
 }
 

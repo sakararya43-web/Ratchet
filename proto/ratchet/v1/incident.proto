@@ -39,6 +39,7 @@ message Incident {
   string source_drift_id = 21;
   string corrective_request_id = 22;
   string corrective_verified_at = 23;
+  bytes native_drift_evidence_json = 24; // Anonymous normalized RBAC impact, policy facts and committed source digests.
 }
 
 message ListIncidentsRequest {

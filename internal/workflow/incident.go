@@ -17,23 +17,24 @@ import (
 )
 
 type Incident struct {
-	ID                   string       `json:"incident_id"`
-	Tenant               string       `json:"tenant_id"`
-	CorrelationID        string       `json:"correlation_id"`
-	Identity             string       `json:"affected_identity"`
-	PlanID               string       `json:"plan_id"`
-	PlanDigest           ports.Digest `json:"plan_digest"`
-	Status               string       `json:"status"`
-	OpenedAt             time.Time    `json:"opened_at"`
-	Revision             int64        `json:"revision"`
-	OpenFingerprint      ports.Digest `json:"open_fingerprint"`
-	RestorationRequests  []string     `json:"restoration_request_ids"`
-	Origin               string       `json:"origin,omitempty"`
-	SourceDrift          string       `json:"source_drift_id,omitempty"`
-	CorrectiveRequest    string       `json:"corrective_request_id,omitempty"`
-	CorrectiveVerifiedAt time.Time    `json:"corrective_verified_at,omitempty"`
-	ContainedAt          time.Time    `json:"contained_at,omitempty"`
-	ObservedRevision     int64        `json:"verified_observed_revision,omitempty"`
+	ID                   string                  `json:"incident_id"`
+	Tenant               string                  `json:"tenant_id"`
+	CorrelationID        string                  `json:"correlation_id"`
+	Identity             string                  `json:"affected_identity"`
+	PlanID               string                  `json:"plan_id"`
+	PlanDigest           ports.Digest            `json:"plan_digest"`
+	Status               string                  `json:"status"`
+	OpenedAt             time.Time               `json:"opened_at"`
+	Revision             int64                   `json:"revision"`
+	OpenFingerprint      ports.Digest            `json:"open_fingerprint"`
+	RestorationRequests  []string                `json:"restoration_request_ids"`
+	Origin               string                  `json:"origin,omitempty"`
+	SourceDrift          string                  `json:"source_drift_id,omitempty"`
+	CorrectiveRequest    string                  `json:"corrective_request_id,omitempty"`
+	CorrectiveVerifiedAt time.Time               `json:"corrective_verified_at,omitempty"`
+	ContainedAt          time.Time               `json:"contained_at,omitempty"`
+	ObservedRevision     int64                   `json:"verified_observed_revision,omitempty"`
+	Kubernetes           *KubernetesDriftReceipt `json:"kubernetes,omitempty"`
 }
 type incidentRestoration struct {
 	ID            string    `json:"incident_id"`
@@ -254,6 +255,10 @@ func (s *Service) incidentView(ctx context.Context, tx pgx.Tx, incident Incident
 	if incident.Origin == "DRIFT" {
 		n, err := snapshot.Node(incident.Identity)
 		if err != nil {
+			if incident.Kubernetes != nil {
+				view.Observed = graph.Paths{Version: snapshot.Version(), Routes: []graph.Route{}, Truncated: true}
+				return view, nil
+			}
 			return view, err
 		}
 		if !graph.Identity(n.Type) {

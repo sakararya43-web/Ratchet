@@ -56,6 +56,14 @@ func incidentView(view workflow.IncidentView) (*v1.Incident, error) {
 		result.Title = "Unauthorized IAM change"
 		result.RootCauseType = "UNAUTHORIZED_DRIFT"
 		result.SourceDriftId, result.CorrectiveRequestId = view.Incident.SourceDrift, view.Incident.CorrectiveRequest
+		if view.Incident.Kubernetes != nil {
+			result.Title, result.RootCauseType = "Unapproved Kubernetes RBAC change", "KUBERNETES_RBAC_DRIFT"
+			var err error
+			result.NativeDriftEvidenceJson, err = json.Marshal(view.Incident.Kubernetes)
+			if err != nil {
+				return nil, err
+			}
+		}
 		if !view.Incident.ContainedAt.IsZero() {
 			result.ContainedAt = view.Incident.ContainedAt.Format(time.RFC3339Nano)
 		}

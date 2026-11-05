@@ -142,10 +142,32 @@ type RatchetIngestReceipt struct {
 	Outcome      string
 }
 
+type RatchetNativeAdmission struct {
+	TenantID       string
+	ConnectorID    string
+	CommandID      pgtype.UUID
+	RequestID      pgtype.UUID
+	AdmissionUid   string
+	ContextDigest  []byte
+	MutationDigest []byte
+	AuthorizedAt   pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+}
+
 type RatchetNativeChangePlan struct {
 	TenantID      string
 	RequestID     pgtype.UUID
 	PlanDigest    []byte
+	Document      []byte
+	EventPosition int64
+}
+
+type RatchetNativeDriftReceipt struct {
+	TenantID      string
+	ConnectorID   string
+	DriftID       pgtype.UUID
+	OperationID   pgtype.UUID
+	InputDigest   []byte
 	Document      []byte
 	EventPosition int64
 }

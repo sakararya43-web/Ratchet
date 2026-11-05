@@ -119,6 +119,11 @@ message SignedDriftReport {
   bytes signature = 2;
 }
 
+// Separate envelope preserves the legacy signature's default-valued proto JSON.
+message SignedKubernetesDriftReport {
+  bytes signed_kubernetes_drift_json = 1; // RATCHET_KUBERNETES_DRIFT_V1, connector-pinned signature inside.
+}
+
 // Connector-authenticated sync; signature covers canonical proto JSON with this
 // signature field empty. Trusted keys are pinned by tenant and connector.
 message SignedGraphSync {

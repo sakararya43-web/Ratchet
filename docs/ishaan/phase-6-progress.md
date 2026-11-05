@@ -28,19 +28,26 @@ and implementation plans are unchanged.
   cluster ownership and resync quarantine. Whole-organization proposal analysis
   retains external controllers and unrelated business access.
   [Native ingestion contract](phase-6-native-ingest.md).
-
-## Remaining work and gates
-
 - Native submission, policy/independent approval, anonymous assessment replay,
   guarded command staging, authenticated DecisionService one-use permits and
   exact signed independent read-back are implemented. Concurrent consumption,
   restart, mismatch, HTTPS and private-deletion checks pass against PostgreSQL.
-  See [the workflow contract](phase-6-native-workflow.md). Full candidate checks
-  will be rerun after the remaining native drift work; these core tests do not
-  substitute for actual peer execution acceptance.
-- Native drift/read-model evidence and explicit supported/unsupported D1–D8 scope.
+  CREATE/UPDATE/DELETE read-back tests check opaque versions and recreated UIDs.
+  See [the workflow contract](phase-6-native-workflow.md).
+- Signed native drift evidence validates committed baselines and current source
+  cuts, computes whole-organization impact and current policy, correlates exact
+  consumed admissions and atomically opens unapproved-change incidents. Get,
+  list and watch retain anonymous evidence after private report deletion. See
+  [the native drift contract](phase-6-native-drift.md).
+
+## Remaining work and gates
+
 - Real peer adapter admission, outage, approved execution/read-back and latency
   acceptance on kind. Matcher tests alone do not satisfy this gate.
+- Actual connector adoption of native normalized input, identity directory facts,
+  signed capability/commands, admission permits, target CAS, independent read-back
+  and drift watch. Native automatic correction/live continuity remain unresolved
+  D6/D7 mappings; no unproved inverse or blind rollback is implemented.
 
 The final peer source still uses an in-memory cluster state and local intent
 matching. Its webhook does not call the core DecisionService. Peer completion
@@ -61,5 +68,8 @@ regression also pass the domain/graph/bus/eventstore integration/race suites.
 
 The real kind authorizer comparison passes independently of the peer adapter.
 The actual peer assertions in the gate report remain failing. Phase 6 is not
-signed off and no claim of 100% integrated success is made. Native drift/incident
-adoption is still required core work; it is not attributed to the peer or cut.
+signed off and no claim of 100% integrated success is made. Native core workflow,
+DecisionService, command/read-back and drift/incident implementation now exist;
+the new candidate's full checks are being rerun. Peer adoption and the real kind
+exit evidence remain required, and are not silently deferred or cut. Phase 7
+cannot be called complete while the selected Phase 6 acceptance is failing.

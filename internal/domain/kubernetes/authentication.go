@@ -11,7 +11,7 @@ import (
 )
 
 var ErrAuthentication = errors.New("native connector authentication failed")
-var connectorToken = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
+var connectorToken = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
 type KubernetesConnectorKey struct {
 	Tenant, Connector, Cluster string

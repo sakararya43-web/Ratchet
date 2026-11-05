@@ -42,7 +42,7 @@ func (s *Snapshot) impactCandidates(after *Snapshot, delta Delta) map[string]boo
 				candidates[view.nodes[i].ID] = true
 			}
 			for _, edge := range view.reverse[view.reverseOffsets[i]:view.reverseOffsets[i+1]] {
-				parent := view.index[view.edges[edge].Source]
+				parent := view.edgeSources[edge]
 				if !seen[parent] {
 					seen[parent] = true
 					queue = append(queue, parent)

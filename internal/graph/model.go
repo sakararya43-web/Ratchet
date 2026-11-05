@@ -50,12 +50,13 @@ type Delta struct {
 // Snapshot owns dense node IDs, forward/reverse CSR and a fixed event position.
 // None of its backing arrays or maps escape to callers.
 type Snapshot struct {
-	version                 int64
-	nodes                   []Node
-	edges                   []Edge
-	index                   map[string]uint32
-	offsets, reverseOffsets []uint32
-	forward, reverse        []uint32
+	version                  int64
+	nodes                    []Node
+	edges                    []Edge
+	index                    map[string]uint32
+	offsets, reverseOffsets  []uint32
+	forward, reverse         []uint32
+	edgeSources, edgeTargets []uint32
 }
 
 func Identity(kind string) bool { return kind == "Human" || kind == "ServiceAccount" }
@@ -157,9 +158,12 @@ func Build(version int64, data Data) (*Snapshot, error) {
 	})
 	s.offsets = make([]uint32, len(s.nodes)+1)
 	s.reverseOffsets = make([]uint32, len(s.nodes)+1)
-	for _, e := range s.edges {
-		s.offsets[s.index[e.Source]+1]++
-		s.reverseOffsets[s.index[e.Target]+1]++
+	s.edgeSources, s.edgeTargets = make([]uint32, len(s.edges)), make([]uint32, len(s.edges))
+	for i, e := range s.edges {
+		a, b := s.index[e.Source], s.index[e.Target]
+		s.edgeSources[i], s.edgeTargets[i] = a, b
+		s.offsets[a+1]++
+		s.reverseOffsets[b+1]++
 	}
 	for i := 1; i < len(s.offsets); i++ {
 		s.offsets[i] += s.offsets[i-1]
@@ -168,8 +172,8 @@ func Build(version int64, data Data) (*Snapshot, error) {
 	s.forward = make([]uint32, len(s.edges))
 	s.reverse = make([]uint32, len(s.edges))
 	f, r := slices.Clone(s.offsets), slices.Clone(s.reverseOffsets)
-	for i, e := range s.edges {
-		a, b := s.index[e.Source], s.index[e.Target]
+	for i := range s.edges {
+		a, b := s.edgeSources[i], s.edgeTargets[i]
 		s.forward[f[a]] = uint32(i)
 		f[a]++
 		s.reverse[r[b]] = uint32(i)

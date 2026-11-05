@@ -9,16 +9,17 @@ percentiles use nearest rank. Race instrumentation is excluded from timing runs.
 
 The checked-in JSON includes exact node/edge compositions, sample and warmup
 counts, p50/p95/p99/max/mean, targets and whether each measured target was met.
-Before-final-profile files retain the earlier measurements; they are not deleted
-when an optimization improves the result. The current Linux run is:
+Before-final-profile files and the earlier Linux sample retain previous results;
+they are not deleted when an optimization improves the result. The final Linux
+run (`performance-linux-final.json`) is:
 
 | Workload | Samples / warmups | p50 | p95 | p99 | Max |
 |---|---:|---:|---:|---:|---:|
-| Durable inline core, exchange demo | 100 / 5 | 19.60 ms | 27.81 ms | 33.65 ms | 38.35 ms |
-| ImpactDiff, 100,000 shared edges | 50 / 3 | 29.69 ms | 44.90 ms | 104.06 ms | 104.06 ms |
+| Durable inline core, exchange demo | 100 / 5 | 18.95 ms | 31.83 ms | 35.31 ms | 35.69 ms |
+| ImpactDiff, 100,000 shared edges | 50 / 3 | 24.09 ms | 53.94 ms | 84.03 ms | 84.03 ms |
 
-The inline sample meets the 50 ms core p99 target for its measured branch. The
-ImpactDiff tail still exceeds 100 ms; performance work is not marked complete.
+Both measured workloads meet their respective 50 ms / 100 ms core tail targets.
+The preceding Linux ImpactDiff p99 of 104.06 ms remains retained in the evidence.
 The earlier Windows sample missed both targets (85.90 ms / 204.08 ms p99) before
 the final profiling improvement. Neither machine's result is generalized to all
 supported operations, concurrent load, network latency or very large fan-out.
@@ -44,7 +45,10 @@ increase had already been proved. That proof now runs only while a reduction is
 still possible. Edge-only overlays share immutable node indexes and merge sorted
 relations, preserving isolated proposal state. Analysis derives a conservative
 reverse dependency closure in both snapshots and reuses each traversal result.
-The 300-seed property suite compares the resulting impact with full-principal
+Dense immutable edge endpoints now avoid repeated string-map lookups while
+rebuilding proposal adjacency and traversing reach. Every overlay preserves the
+original endpoint mapping, including sorted additions and grant removals.
+The 300-case property suite compares the resulting impact with full-principal
 analysis, including controllers, denials, disabled identities and safeguards.
 The shared-edge one-CPU native benchmark improved from approximately 163 ms to
 45 ms after the profiled allocation was removed. This average is not a p99 claim.

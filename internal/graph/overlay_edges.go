@@ -44,33 +44,41 @@ func (s *Snapshot) overlayEdges(version int64, d Delta) (*Snapshot, error) {
 		}
 	}
 	after := &Snapshot{version: version, nodes: s.nodes, index: s.index, edges: make([]Edge, 0, len(s.edges)+len(added))}
+	after.edgeSources, after.edgeTargets = make([]uint32, 0, cap(after.edges)), make([]uint32, 0, cap(after.edges))
+	appendEdge := func(e Edge, source, target uint32) {
+		after.edges = append(after.edges, e)
+		after.edgeSources = append(after.edgeSources, source)
+		after.edgeTargets = append(after.edgeTargets, target)
+	}
 	j, found := 0, 0
-	for _, e := range s.edges {
+	for i, e := range s.edges {
 		if removed[e.ID] {
 			found++
 			continue
 		}
 		for j < len(added) && added[j].ID < e.ID {
-			after.edges = append(after.edges, added[j])
+			appendEdge(added[j], s.index[added[j].Source], s.index[added[j].Target])
 			j++
 		}
 		if j < len(added) && added[j].ID == e.ID {
 			return nil, ErrInvalid
 		}
-		after.edges = append(after.edges, e)
+		appendEdge(e, s.edgeSources[i], s.edgeTargets[i])
 	}
 	if found != len(removed) {
 		return nil, ErrNotFound
 	}
-	after.edges = append(after.edges, added[j:]...)
+	for _, e := range added[j:] {
+		appendEdge(e, s.index[e.Source], s.index[e.Target])
+	}
 	if len(after.edges) > 20_000_000 {
 		return nil, ErrInvalid
 	}
 	after.offsets = make([]uint32, len(s.nodes)+1)
 	after.reverseOffsets = make([]uint32, len(s.nodes)+1)
-	for _, e := range after.edges {
-		after.offsets[s.index[e.Source]+1]++
-		after.reverseOffsets[s.index[e.Target]+1]++
+	for i := range after.edges {
+		after.offsets[after.edgeSources[i]+1]++
+		after.reverseOffsets[after.edgeTargets[i]+1]++
 	}
 	for i := 1; i < len(after.offsets); i++ {
 		after.offsets[i] += after.offsets[i-1]
@@ -78,8 +86,8 @@ func (s *Snapshot) overlayEdges(version int64, d Delta) (*Snapshot, error) {
 	}
 	after.forward, after.reverse = make([]uint32, len(after.edges)), make([]uint32, len(after.edges))
 	f, r := slices.Clone(after.offsets), slices.Clone(after.reverseOffsets)
-	for i, e := range after.edges {
-		a, b := s.index[e.Source], s.index[e.Target]
+	for i := range after.edges {
+		a, b := after.edgeSources[i], after.edgeTargets[i]
 		after.forward[f[a]] = uint32(i)
 		f[a]++
 		after.reverse[r[b]] = uint32(i)

@@ -48,7 +48,7 @@ func (s *Snapshot) analyze(identity string) (analysis, error) {
 		}
 		for _, ei := range s.forward[s.offsets[i]:s.offsets[i+1]] {
 			e := s.edges[ei]
-			target := s.index[e.Target]
+			target := s.edgeTargets[ei]
 			n := s.nodes[target]
 			walk := false
 			switch e.Kind {
@@ -214,7 +214,7 @@ func (s *Snapshot) PathsTo(identity string, limit, workLimit int) (Paths, error)
 		}
 		for _, ei := range s.forward[s.offsets[i]:s.offsets[i+1]] {
 			e := s.edges[ei]
-			j := s.index[e.Target]
+			j := s.edgeTargets[ei]
 			if visited[j] || !a.seen[j] {
 				continue
 			}

@@ -11,6 +11,10 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Added real-peer admission/snapshot and live-kind observation conformance tests.
+  Five required assertions fail against unchanged final `d823a10`; the known
+  cluster-admin refusal passes. Failures stay open in
+  [phase-6-peer-gates.md](phase-6-peer-gates.md), with explicit D1–D8 limitations.
 - Added deterministic Kubernetes graph projection and impact comparison using
   common symbolic permission witnesses. Combined token, bind, escalate and
   impersonation paths are tested, including future role creation, unrelated

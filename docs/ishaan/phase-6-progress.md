@@ -34,6 +34,8 @@ The final peer source still uses an in-memory cluster state and local intent
 matching. Its webhook does not call the core DecisionService. Peer completion
 checkboxes therefore do not prove the integrated exit requirements. No runtime
 substitute or trust bypass is authorized to conceal those gaps.
+Actual combined-source tests reproduce five failed acceptance assertions; see
+[final peer gates and D1–D8 scope](phase-6-peer-gates.md).
 
 ## Validation
 

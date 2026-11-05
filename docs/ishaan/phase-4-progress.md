@@ -6,6 +6,10 @@ phase began. Earlier actual-peer integration gates remain open. Phase 5 has not
 started. Read this page and the changelog before resuming; unchecked tasks in the
 implementation plan remain required.
 
+The [integration and continuation handoff](phase-4-peer-handoff.md) pins the tested
+core/peer candidates, records the actual failing boundaries and lists the next
+required Phase 4 implementation steps.
+
 ## Delivered containment planning
 
 The graph now proves `IsMonotonicReduction` for all identities and preserves

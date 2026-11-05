@@ -69,6 +69,13 @@
   releases on completion/process loss. A blocked real HTTP request regression
   proves another ledger append can commit, competing submissions refuse quickly
   and a completed submission releases its lock for retry.
+- Final code candidate `0178de0` passes the full core Linux integration/race suite,
+  vet, module verification, zero-issue lint, Buf/generation checks, 300 seeded
+  properties, real-process smoke and both hosted CI jobs. Ordinary combined-tree
+  race checks and actual peer Authority HTTP/restart also pass. Actual peer
+  conformance remains failed, including the new altered-checkpoint-link case.
+  See [the continuation handoff](phase-4-peer-handoff.md) for pinned evidence and
+  the remaining own/peer work. Phase 4 stays open; Phase 5 has not started.
 
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux

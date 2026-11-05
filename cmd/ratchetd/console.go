@@ -315,13 +315,16 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}, PolicyBundle: service.PolicyReady, Workflow: service.Ready}.Handler())
 	var wg sync.WaitGroup
 	defer func() { cancel(); wg.Wait() }()
-	failures := make(chan error, 2*len(tenants)+2)
+	failures := make(chan error, 1)
 	start := func(work func() error) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			if err := work(); err != nil && ctx.Err() == nil {
-				failures <- err
+				select {
+				case failures <- err:
+				case <-ctx.Done():
+				}
 			}
 		}()
 	}

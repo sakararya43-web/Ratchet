@@ -47,6 +47,13 @@ func (s *Service) checkpointEntries(ctx context.Context, tx pgx.Tx, tenant strin
 	if from < 1 || to < from || to-from >= 4096 {
 		return nil, domain.ErrInvalid
 	}
+	var storedBytes int64
+	if err := tx.QueryRow(ctx, `SELECT coalesce(sum(octet_length(canonical_content)),0) FROM ratchet.events WHERE tenant_id=$1 AND sequence BETWEEN $2 AND $3`, tenant, from, to).Scan(&storedBytes); err != nil {
+		return nil, err
+	}
+	if storedBytes > 16<<20 {
+		return nil, domain.ErrInvalid
+	}
 	entries := []ledger.Entry{}
 	after, head, size := from-1, previous, 0
 	for after < to {
@@ -247,6 +254,12 @@ func (s *Service) prepareCheckpointWithin(ctx context.Context, tx pgx.Tx, now ti
 		end := input.EndSequence
 		if end == 0 {
 			end = min(head, from+4095)
+			// Select both bounds before exporting. A count-only default can exceed
+			// the byte budget and permanently stall automatic catch-up on large
+			// events, even though several smaller consecutive roots are valid.
+			if err := tx.QueryRow(ctx, `SELECT coalesce(max(sequence),$2::bigint-1) FROM (SELECT sequence,sum(octet_length(canonical_content)) OVER (ORDER BY sequence) AS bytes FROM ratchet.events WHERE tenant_id=$1 AND sequence BETWEEN $2 AND $3) bounded WHERE bytes<=$4`, actor.TenantID, from, end, 16<<20).Scan(&end); err != nil {
+				return err
+			}
 		}
 		if end > head {
 			return domain.ErrInvalid

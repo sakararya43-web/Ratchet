@@ -3,11 +3,13 @@
 package workflow_test
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +23,69 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
+
+func TestCheckpointDefaultBoundsLargeEventBytesAndContinuesWithoutGaps(t *testing.T) {
+	sys := setup(t)
+	// This intentionally appends and independently canonicalizes/verifies over
+	// 16 MiB several times. Allow race instrumentation's CPU cost without changing
+	// production HTTP or workflow deadlines.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, nil, []string{sys.tenant})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Keep the same large document volume with bounded evidence fields. A single
+	// nearly-megabyte string instead stresses the peer canonicalizer's string
+	// handling, independently of checkpoint range selection.
+	chunks := make([]string, 3500)
+	for i := range chunks {
+		chunks[i] = strings.Repeat("x", 256)
+	}
+	facts, err := json.Marshal(map[string][]string{"evidence": chunks})
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := make([]eventstore.Event, 20)
+	for i := range events {
+		events[i] = eventstore.Event{Type: "LargeCheckpointEvidence", Facts: facts}
+	}
+	receipt, err := sys.store.Append(ctx, eventstore.Command{TenantID: sys.tenant, ID: uuid.New(), ActorReference: uuid.New(), StreamID: "checkpoint:large-evidence", Events: events})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := workflow.Actor{TenantID: sys.tenant, ID: "user:sec1"}
+	if _, err := service.PrepareCheckpoint(ctx, actor, workflow.PrepareCheckpointInput{CommandID: uuid.New(), EndSequence: receipt.LastSequence}); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatal("explicit oversized range was silently trimmed or accepted", err)
+	}
+	p, err := service.PrepareCheckpoint(ctx, actor, workflow.PrepareCheckpointInput{CommandID: uuid.New()})
+	if err != nil {
+		t.Fatal("automatic range did not fit the byte budget", err)
+	}
+	to := p.Candidate.Checkpoint.ToSequence
+	var total, next int64
+	if err := sys.store.WithTenantTx(ctx, sys.tenant, func(tx pgx.Tx, _ time.Time) error {
+		if err := tx.QueryRow(ctx, `SELECT sum(octet_length(canonical_content)) FROM ratchet.events WHERE tenant_id=$1 AND sequence<=$2`, sys.tenant, to).Scan(&total); err != nil {
+			return err
+		}
+		return tx.QueryRow(ctx, `SELECT octet_length(canonical_content) FROM ratchet.events WHERE tenant_id=$1 AND sequence=$2`, sys.tenant, to+1).Scan(&next)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if to >= receipt.LastSequence || total > 16<<20 || total+next <= 16<<20 {
+		t.Fatal("default did not select the maximal bounded prefix", to, total, next)
+	}
+	if _, err := service.AcceptCheckpoint(ctx, actor, signCheckpoint(t, sys, p)); err != nil {
+		t.Fatal(err)
+	}
+	successor, err := service.PrepareCheckpoint(ctx, actor, workflow.PrepareCheckpointInput{CommandID: uuid.New()})
+	if err != nil || successor.Candidate.Checkpoint.FromSequence != to+1 || successor.Candidate.Checkpoint.ToSequence < receipt.LastSequence || successor.Candidate.Checkpoint.PriorCheckpointDigest != p.Candidate.Checkpoint.CheckpointDigest {
+		t.Fatal("large-event catch-up skipped or stalled the remainder", err)
+	}
+	if _, err := service.AcceptCheckpoint(ctx, actor, signCheckpoint(t, sys, successor)); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func signCheckpoint(t *testing.T, sys system, p workflow.CheckpointProposal) trust.AuditCheckpoint {
 	t.Helper()

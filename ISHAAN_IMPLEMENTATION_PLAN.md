@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 5 is in progress on `main` under the user's explicit authorization to advance while leaving Sakar's work untouched. Phase 4's unfinished own work and joint gates remain recorded in its handoff and are not marked complete. See [Ishaan changelog](docs/ishaan/changelog.md). No other phase runs alongside Phase 5.
+**Status:** Phase 5's Ishaan-owned implementation and local core validation are complete on `main`; integrated exit acceptance remains open for the actual peer expiry/drift contracts and earlier trust/target gates. No requirement was removed or shortened. See [Phase 5 evidence](docs/ishaan/phase-5-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 4's unfinished own work and joint gates remain required and are not marked complete. Phase 6 has not started.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -232,13 +232,22 @@ on 2026-11-05 while these peer gates remain open.
 - [x] Add temporary-grant review read models, including failed expiry/revocation requiring attention. Flag over-broad access from explicit requested resources/permissions; do not infer business intent through AI or invented scores.
 - [x] Implement resumable Change/Incident Watch streams with stable cursors and explicit reconnect behavior, backed by real projections/events. Avoid data races between list results and streamed updates.
 - [ ] Consume actual `DriftReport`/audit observations. Correlate against approved commands, decide whether a reversal is a proven reduction, open the incident and publish the authorized corrective command. Unknown/unsafe restoration is held for review rather than labeled reduction.
-- [ ] Prevent drift-reversion loops, duplicate incidents and false drift alarms from normal read-back delay. Preserve provenance of the observed and corrective changes.
+- [x] Prevent drift-reversion loops, duplicate incidents and false drift alarms from normal read-back delay. Preserve provenance of the observed and corrective changes.
 - [x] Expose authenticated `DecisionService` from the same graph/policy engine; keep inline decisions side-effect semantics explicit in the shared contract and record enforcement decisions durably. A previous allow response is not a reusable execution authorization.
-- [ ] Optimize prepared policy queries, graph snapshots and bounded traversal using measurements. Benchmark inline p99 < 50 ms on the demo dataset and ImpactDiff < 100 ms at 100k edges; publish hardware, graph composition, sample counts and tail results. Do not advertise targets as achieved without evidence.
+- [x] Optimize prepared policy queries, graph snapshots and bounded traversal using measurements. Benchmark inline p99 < 50 ms on the demo dataset and ImpactDiff < 100 ms at 100k edges; publish hardware, graph composition, sample counts and tail results. Do not advertise targets as achieved without evidence.
 - [x] Build the core benign-change replay/metrics harness in Ishaan-owned packages. Measure unexpected delays/rejections against expected legitimate outcomes, report denominator and causes, and target < 5%. Do not modify the peer's `e2e/` scripts.
-- [ ] Add trace spans across submit, assessment, decision, outbox, connector result and verification, preserving correlation IDs. Emit backlog, graph-lag, policy-version, job failure and containment-duration metrics without leaking approval secrets or personal data.
+- [x] Add trace spans across submit, assessment, decision, outbox, connector result and verification, preserving correlation IDs. Emit backlog, graph-lag, policy-version, job failure and containment-duration metrics without leaking approval secrets or personal data.
+- [x] Schedule FR-L2 core checkpoint candidates periodically with durable database-time jobs, bounded consecutive ranges, pending-root reuse and restart recovery. Submit through the actual Authority HTTP contract and accept only independently verified member quorum; Authority member signing remains peer-owned.
 
 **Exit evidence:** Temporary access actually expires after restart; requester redaction survives direct API access; live streams recover; unauthorized target drift creates one incident and a verified corrective action; realistic benign and performance results are recorded. Any unfinished P1 item is explicitly marked deferred, never represented by a stub.
+
+**Implementation/acceptance distinction:** Both remaining unchecked items have
+working core implementations and real PostgreSQL/River/JetStream evidence. They
+remain unchecked for actual peer publisher/target acceptance, including signed
+capability adoption and independent read-back. No requirement was removed or
+shortened. See [Phase 5 evidence and remaining gates](docs/ishaan/phase-5-progress.md),
+[expiry contract](docs/ishaan/phase-5-expiry-contract.md) and
+[drift contract](docs/ishaan/phase-5-drift-contract.md). Phase 6 has not started.
 
 ## 11. Phase 6 - Optional Kubernetes core integration
 

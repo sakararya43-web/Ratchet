@@ -1,9 +1,9 @@
 # Phase 4 implementation checkpoint
 
-Prepared 2026-11-05. **Phase 4 is in progress.** Phase 3's core implementation,
+Prepared 2026-11-05. **Phase 4 is unfinished; advancement was authorized.** Phase 3's core implementation,
 adversarial checks and [handoff](phase-3-handoff.md) were committed before this
-phase began. Earlier actual-peer integration gates remain open. Phase 5 has not
-started. Read this page and the changelog before resuming; unchecked tasks in the
+phase began. Earlier actual-peer integration gates remain open. Phase 5 subsequently
+started under the user's instruction. Read this page and the changelog before resuming; unchecked tasks in the
 implementation plan remain required.
 
 The [integration and continuation handoff](phase-4-peer-handoff.md) pins the tested

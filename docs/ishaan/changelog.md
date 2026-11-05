@@ -9,11 +9,54 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Phase 5 — in progress (2026-11-05)
+## Phase 5 — core implemented; integrated acceptance open (2026-11-05)
 
 The user explicitly authorized advancing while leaving Sakar's dependencies alone.
 Phase 4's unfinished work remains in its handoff; it is not marked complete.
 Only Phase 5 is active.
+
+- Final core code candidate `efd80c4` passes the full Linux integration/race suite,
+  including actual PostgreSQL/JetStream and the large signed checkpoint regression.
+  Lint reports zero issues; generated code, Buf compatibility, property tests,
+  module verification and process smoke pass. The final combined-source ordinary
+  race suite and actual peer Authority HTTP/sign/restart acceptance also pass.
+  Actual peer conformance still fails at the unchanged boundaries recorded in
+  `phase-5-progress.md`; expiry/drift publisher and target adoption remain required.
+  No Phase 5 requirement is removed, no earlier gate is marked complete, and
+  Phase 6 has not started.
+
+- Final review bounded default checkpoint ranges by both event count and actual
+  canonical byte size, so large valid events cannot stall automatic catch-up.
+  A real large-event regression verifies the maximal bounded prefix, refusal to
+  silently trim an explicit range, and consecutive signed successor acceptance.
+  Console worker failure reporting now observes cancellation, including the new
+  drift consumer, so simultaneous failures cannot block shutdown on a full channel.
+
+- Added authenticated drift decisions over a real durable JetStream consumer.
+  Immutable operation receipts prevent duplicate incidents and corrective writes;
+  exact approved-command correlation handles normal read-back delay and correction
+  feedback. Unsafe/protected reversals and missing retained source security facts
+  stay in review. Proven role reductions require explicit signed connector opt-in,
+  current policy/authorization and exact revision/role-bound commands. Correction,
+  incident, evidence and recovery jobs commit atomically. Signed independent
+  read-back and synchronized zero-residual-path analysis are required for verified
+  containment; restoration needs a fresh reviewed increase. PostgreSQL/JetStream
+  tests cover concurrency, forgery, privacy erasure and atomic rollback. The actual
+  peer publisher/target adoption remains a joint gate in `phase-5-drift-contract.md`.
+- Implemented FR-L2 periodic candidates with durable database-time slots, bounded
+  ranges, missed-period coalescing, pending-root reuse and atomic successor jobs.
+  A separate worker submits through the actual Authority HTTP contract, verifies
+  each signature and polls valid incomplete quorums. Acceptance rechecks normal
+  continuity and registry constraints; no member signatures are synthesized.
+  Restart/concurrent-tick and actual signed HTTP protocol tests cover recovery.
+- Cached immutable dense edge endpoints to remove repeated map lookup work from
+  proposal adjacency and reach traversal. The final Linux two-CPU sample records
+  inline p99 35.31 ms and 100k-edge ImpactDiff p99/max 84.03 ms, meeting the measured
+  targets. Previous misses are retained. Benign assessment replay remains 0/100
+  unexpected outcomes. Details and limits are in `phase-5-measurements.md`.
+- Serializing full race/integration package execution removed resource-contention
+  timeouts without skipping cases or changing HTTP deadlines. CI uses `-p=1` and
+  a six-minute package budget for the expanded real-dependency suite.
 
 - Added privacy-restricted structured spans across submit, assessment, policy
   decision, execution guard, outbox publication, connector result and verification.
@@ -23,14 +66,15 @@ Only Phase 5 is active.
   graph publication lag/observation age/quarantine, policy/registry versions,
   due/failed jobs, overdue/failed expiry and span aggregates. Real PostgreSQL/TLS
   tests cover values, access restrictions and privacy. Open investigation age is
-  distinct from verified containment duration, which remains an unfinished gate.
+  distinct from durable verified containment samples/total/max, recorded only
+  after independent corrective verification and complete residual-path analysis.
   Full semantics and limitations are in `phase-5-observability.md`.
 - Added reproducible core measurement/replay harnesses without changing peer
   e2e scripts. Published hardware, exact demo/100k-edge compositions, samples,
   warmups, latency tails and native/Linux results in `phase-5-measurements.md`.
   Actual PostgreSQL benign assessment replay reports 0/100 unexpected outcomes,
   explicitly excluding ceremony, user waiting and target execution. Earlier
-  performance misses remain retained; the ImpactDiff tail is still above target.
+  performance misses remain retained; the final measured workloads meet target.
 - Optimized immutable edge overlays, reused traversal results and conservatively
   bounded affected-principal analysis, including non-requester controllers.
   CPU profiling removed an unnecessary full structural-proof map after an

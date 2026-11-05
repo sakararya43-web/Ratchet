@@ -1,6 +1,8 @@
 # Phase 4 integration and continuation handoff
 
-Prepared 2026-11-05. Continue **Phase 4**, on `main` only. Phase 5 has not started.
+Prepared 2026-11-05. This records the unfinished **Phase 4** handoff on `main`.
+The user subsequently authorized Phase 5 while preserving these remaining tasks;
+see [the Phase 5 record](phase-5-progress.md). Phase 4 is not marked complete.
 Read [the current implementation checkpoint](phase-4-progress.md) for the delivered
 operations and [the changelog](changelog.md) for committed increments. Preserve
 Sakar's branch, source ownership and implementation plan.

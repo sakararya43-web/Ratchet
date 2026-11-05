@@ -587,4 +587,41 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	if _, err := ordinaryContainment.RestoreAccess(ctx, connect.NewRequest(restoreInput)); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatal("ordinary session bypassed restoration authorization", err)
 	}
+	window, err := changes.ListChanges(ctx, connect.NewRequest(&v1.ListChangesRequest{TenantId: tenant}))
+	if err != nil || window.Msg.WatchCursor == "" {
+		t.Fatal("list/watch cursor", err)
+	}
+	if _, err := reviews.HoldChange(ctx, connect.NewRequest(&v1.HoldChangeRequest{TenantId: tenant, RequestId: id, ActorId: "user:owner", Reason: "Internal investigation detail must remain private", Mutation: mutation(reassessed.Revision)})); err != nil {
+		t.Fatal(err)
+	}
+	watch, err := changes.WatchChanges(ctx, connect.NewRequest(&v1.WatchChangesRequest{TenantId: tenant, Cursor: &v1.WatchCursor{AfterCursor: window.Msg.WatchCursor}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !watch.Receive() {
+		t.Fatal("durable watch update missing", watch.Err())
+	}
+	frame := watch.Msg()
+	if frame.Request == nil || frame.Request.RequestId != id || frame.Request.Status != "HELD" || frame.Request.ChangeDigest != "" || strings.Contains(strings.Join(frame.Request.DecisionReasons, " "), "Internal investigation") {
+		t.Fatal("watch leaked reviewer detail or lost update")
+	}
+	resumeCursor := frame.Cursor
+	if err := watch.Close(); err != nil {
+		t.Fatal(err)
+	}
+	resume, err := changes.WatchChanges(ctx, connect.NewRequest(&v1.WatchChangesRequest{TenantId: tenant, Cursor: &v1.WatchCursor{AfterCursor: resumeCursor}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resume.Receive() || !resume.Msg().Heartbeat || resume.Msg().Request != nil {
+		t.Fatal("watch replayed already consumed revision", resume.Err())
+	}
+	_ = resume.Close()
+	badWatch, err := changes.WatchChanges(ctx, connect.NewRequest(&v1.WatchChangesRequest{TenantId: tenant, Cursor: &v1.WatchCursor{AfterCursor: resumeCursor + "x"}}))
+	if err == nil {
+		if badWatch.Receive() || connect.CodeOf(badWatch.Err()) != connect.CodeInvalidArgument {
+			t.Fatal("forged watch cursor accepted", badWatch.Err())
+		}
+		_ = badWatch.Close()
+	}
 }

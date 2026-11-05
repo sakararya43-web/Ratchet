@@ -82,6 +82,8 @@ message ListChangesRequest {
 message ListChangesResponse {
   repeated ChangeRequest requests = 1;
   string next_page_token = 2;
+  int64 snapshot_end_sequence = 3;
+  string watch_cursor = 4;
 }
 
 message ApproveChangeRequest {
@@ -153,6 +155,7 @@ message ProvideContextResponse {
 message WatchChangesResponse {
   ChangeRequest request = 1;
   string cursor = 2;
+  bool heartbeat = 3;
 }
 
 message GetDecisionEvidenceRequest {

@@ -46,7 +46,7 @@ func NewChangeHandler(service *workflow.Service, key []byte) (http.Handler, erro
 	mux.Handle(ratchetv1connect.ChangeServiceGetDecisionEvidenceProcedure, connect.NewUnaryHandler(ratchetv1connect.ChangeServiceGetDecisionEvidenceProcedure, a.GetDecisionEvidence, opts...))
 	mux.Handle(ratchetv1connect.ChangeServiceListPolicyHistoryProcedure, connect.NewUnaryHandler(ratchetv1connect.ChangeServiceListPolicyHistoryProcedure, a.ListPolicyHistory, opts...))
 	mux.Handle(ratchetv1connect.OverviewServiceGetAttentionItemsProcedure, connect.NewUnaryHandler(ratchetv1connect.OverviewServiceGetAttentionItemsProcedure, a.GetAttentionItems, opts...))
-	// Watch is a later phase and is deliberately not mounted.
+	mux.Handle(ratchetv1connect.ChangeServiceWatchChangesProcedure, connect.NewServerStreamHandler(ratchetv1connect.ChangeServiceWatchChangesProcedure, a.WatchChanges, opts...))
 	return mux, nil
 }
 func changeError(err error) error {
@@ -252,21 +252,15 @@ func (a *ChangeAPI) ListChanges(ctx context.Context, r *connect.Request[v1.ListC
 			return nil, changeError(domain.ErrInvalid)
 		}
 	}
-	changes, _, position, err := a.service.List(ctx, p, cursor.After, size+1, cursor.Filter, cursor.Position)
+	page, err := a.service.ListWindow(ctx, p, cursor.Filter, cursor.After, cursor.Position, size)
 	if err != nil {
 		return nil, changeError(err)
 	}
-	response := &v1.ListChangesResponse{}
-	if len(changes) > size {
-		changes = changes[:size]
-		last := changes[len(changes)-1]
-		after, err := a.service.Position(ctx, p, last.ID)
-		if err != nil {
-			return nil, changeError(err)
-		}
-		response.NextPageToken = a.cursor(changeCursor{Tenant: p.TenantID, Filter: cursor.Filter, After: after, Position: position})
+	response := &v1.ListChangesResponse{SnapshotEndSequence: page.End, WatchCursor: watchToken(a.key, p, "changes", page.End)}
+	if page.More {
+		response.NextPageToken = a.cursor(changeCursor{Tenant: p.TenantID, Filter: cursor.Filter, After: page.After, Position: page.End})
 	}
-	for _, c := range changes {
+	for _, c := range page.Changes {
 		view, err := a.request(ctx, c)
 		if err != nil {
 			return nil, changeError(err)

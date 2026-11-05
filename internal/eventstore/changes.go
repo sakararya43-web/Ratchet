@@ -69,12 +69,18 @@ func (s *Store) GraphWithin(ctx context.Context, tx pgx.Tx, tenant string, key [
 	return graph.Build(version, publicGraph(merged.Data()))
 }
 func (s *Store) ChangeWithin(ctx context.Context, tx pgx.Tx, tenant, id string) (domain.Change, error) {
+	return s.ChangeAtWithin(ctx, tx, tenant, id, 0)
+}
+func (s *Store) ChangeAtWithin(ctx context.Context, tx pgx.Tx, tenant, id string, end int64) (domain.Change, error) {
 	rows, err := storedb.New(tx).LoadStream(ctx, storedb.LoadStreamParams{TenantID: tenant, StreamID: "change:" + id})
 	if err != nil {
 		return domain.Change{}, err
 	}
 	events := []domain.Event{}
 	for _, row := range rows {
+		if end != 0 && row.Sequence > end {
+			break
+		}
 		entry, err := decodeRow(s.digester, row)
 		if err != nil {
 			return domain.Change{}, err

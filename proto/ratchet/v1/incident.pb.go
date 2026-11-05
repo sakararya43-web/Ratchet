@@ -290,6 +290,7 @@ type ListIncidentsResponse struct {
 	Incidents           []*Incident            `protobuf:"bytes,1,rep,name=incidents,proto3" json:"incidents,omitempty"`
 	NextPageToken       string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	SnapshotEndSequence int64                  `protobuf:"varint,3,opt,name=snapshot_end_sequence,json=snapshotEndSequence,proto3" json:"snapshot_end_sequence,omitempty"`
+	WatchCursor         string                 `protobuf:"bytes,4,opt,name=watch_cursor,json=watchCursor,proto3" json:"watch_cursor,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -343,6 +344,13 @@ func (x *ListIncidentsResponse) GetSnapshotEndSequence() int64 {
 		return x.SnapshotEndSequence
 	}
 	return 0
+}
+
+func (x *ListIncidentsResponse) GetWatchCursor() string {
+	if x != nil {
+		return x.WatchCursor
+	}
+	return ""
 }
 
 type OpenIncidentRequest struct {
@@ -609,6 +617,7 @@ type WatchIncidentsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Incident      *Incident              `protobuf:"bytes,1,opt,name=incident,proto3" json:"incident,omitempty"`
 	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Heartbeat     bool                   `protobuf:"varint,3,opt,name=heartbeat,proto3" json:"heartbeat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -657,6 +666,13 @@ func (x *WatchIncidentsResponse) GetCursor() string {
 	return ""
 }
 
+func (x *WatchIncidentsResponse) GetHeartbeat() bool {
+	if x != nil {
+		return x.Heartbeat
+	}
+	return false
+}
+
 var File_ratchet_v1_incident_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_incident_proto_rawDesc = "" +
@@ -693,11 +709,12 @@ const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"\rstatus_filter\x18\x02 \x01(\tR\fstatusFilter\x12\x1b\n" +
 	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x04 \x01(\tR\tpageToken\"\xa7\x01\n" +
+	"page_token\x18\x04 \x01(\tR\tpageToken\"\xca\x01\n" +
 	"\x15ListIncidentsResponse\x122\n" +
 	"\tincidents\x18\x01 \x03(\v2\x14.ratchet.v1.IncidentR\tincidents\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x122\n" +
-	"\x15snapshot_end_sequence\x18\x03 \x01(\x03R\x13snapshotEndSequence\"\xa5\x01\n" +
+	"\x15snapshot_end_sequence\x18\x03 \x01(\x03R\x13snapshotEndSequence\x12!\n" +
+	"\fwatch_cursor\x18\x04 \x01(\tR\vwatchCursor\"\xa5\x01\n" +
 	"\x13OpenIncidentRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x1f\n" +
@@ -714,10 +731,11 @@ const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"\bincident\x18\x01 \x01(\v2\x14.ratchet.v1.IncidentR\bincident\"e\n" +
 	"\x15WatchIncidentsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
-	"\x06cursor\x18\x02 \x01(\v2\x17.ratchet.v1.WatchCursorR\x06cursor\"b\n" +
+	"\x06cursor\x18\x02 \x01(\v2\x17.ratchet.v1.WatchCursorR\x06cursor\"\x80\x01\n" +
 	"\x16WatchIncidentsResponse\x120\n" +
 	"\bincident\x18\x01 \x01(\v2\x14.ratchet.v1.IncidentR\bincident\x12\x16\n" +
-	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\xe5\x02\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor\x12\x1c\n" +
+	"\theartbeat\x18\x03 \x01(\bR\theartbeat2\xe5\x02\n" +
 	"\x0fIncidentService\x12Q\n" +
 	"\fOpenIncident\x12\x1f.ratchet.v1.OpenIncidentRequest\x1a .ratchet.v1.OpenIncidentResponse\x12T\n" +
 	"\rListIncidents\x12 .ratchet.v1.ListIncidentsRequest\x1a!.ratchet.v1.ListIncidentsResponse\x12N\n" +

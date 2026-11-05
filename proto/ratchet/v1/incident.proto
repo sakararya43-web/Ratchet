@@ -49,6 +49,7 @@ message ListIncidentsResponse {
   repeated Incident incidents = 1;
   string next_page_token = 2;
   int64 snapshot_end_sequence = 3;
+  string watch_cursor = 4;
 }
 
 message OpenIncidentRequest {
@@ -79,4 +80,5 @@ message WatchIncidentsRequest {
 message WatchIncidentsResponse {
   Incident incident = 1;
   string cursor = 2;
+  bool heartbeat = 3;
 }

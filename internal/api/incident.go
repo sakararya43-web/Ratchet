@@ -34,6 +34,7 @@ func NewIncidentHandler(service *workflow.Service, key []byte) (http.Handler, er
 	mux.Handle(ratchetv1connect.IncidentServiceOpenIncidentProcedure, connect.NewUnaryHandler(ratchetv1connect.IncidentServiceOpenIncidentProcedure, a.OpenIncident, opts...))
 	mux.Handle(ratchetv1connect.IncidentServiceGetIncidentProcedure, connect.NewUnaryHandler(ratchetv1connect.IncidentServiceGetIncidentProcedure, a.GetIncident, opts...))
 	mux.Handle(ratchetv1connect.IncidentServiceListIncidentsProcedure, connect.NewUnaryHandler(ratchetv1connect.IncidentServiceListIncidentsProcedure, a.ListIncidents, opts...))
+	mux.Handle(ratchetv1connect.IncidentServiceWatchIncidentsProcedure, connect.NewServerStreamHandler(ratchetv1connect.IncidentServiceWatchIncidentsProcedure, a.WatchIncidents, opts...))
 	return mux, nil
 }
 
@@ -136,6 +137,7 @@ func (a *incidentAPI) ListIncidents(ctx context.Context, r *connect.Request[v1.L
 		return nil, changeError(err)
 	}
 	result := &v1.ListIncidentsResponse{SnapshotEndSequence: page.End}
+	result.WatchCursor = watchToken(a.key, actor, "incidents", page.End)
 	for _, incident := range page.Incidents {
 		view, err := incidentView(incident)
 		if err != nil {

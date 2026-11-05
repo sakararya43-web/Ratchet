@@ -566,11 +566,13 @@ func (x *ListChangesRequest) GetPageToken() string {
 }
 
 type ListChangesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Requests      []*ChangeRequest       `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
-	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Requests            []*ChangeRequest       `protobuf:"bytes,1,rep,name=requests,proto3" json:"requests,omitempty"`
+	NextPageToken       string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	SnapshotEndSequence int64                  `protobuf:"varint,3,opt,name=snapshot_end_sequence,json=snapshotEndSequence,proto3" json:"snapshot_end_sequence,omitempty"`
+	WatchCursor         string                 `protobuf:"bytes,4,opt,name=watch_cursor,json=watchCursor,proto3" json:"watch_cursor,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ListChangesResponse) Reset() {
@@ -613,6 +615,20 @@ func (x *ListChangesResponse) GetRequests() []*ChangeRequest {
 func (x *ListChangesResponse) GetNextPageToken() string {
 	if x != nil {
 		return x.NextPageToken
+	}
+	return ""
+}
+
+func (x *ListChangesResponse) GetSnapshotEndSequence() int64 {
+	if x != nil {
+		return x.SnapshotEndSequence
+	}
+	return 0
+}
+
+func (x *ListChangesResponse) GetWatchCursor() string {
+	if x != nil {
+		return x.WatchCursor
 	}
 	return ""
 }
@@ -1289,6 +1305,7 @@ type WatchChangesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Request       *ChangeRequest         `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
 	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Heartbeat     bool                   `protobuf:"varint,3,opt,name=heartbeat,proto3" json:"heartbeat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1335,6 +1352,13 @@ func (x *WatchChangesResponse) GetCursor() string {
 		return x.Cursor
 	}
 	return ""
+}
+
+func (x *WatchChangesResponse) GetHeartbeat() bool {
+	if x != nil {
+		return x.Heartbeat
+	}
+	return false
 }
 
 type GetDecisionEvidenceRequest struct {
@@ -1713,10 +1737,12 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\rstatus_filter\x18\x02 \x01(\tR\fstatusFilter\x12\x1b\n" +
 	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x04 \x01(\tR\tpageToken\"t\n" +
+	"page_token\x18\x04 \x01(\tR\tpageToken\"\xcb\x01\n" +
 	"\x13ListChangesResponse\x125\n" +
 	"\brequests\x18\x01 \x03(\v2\x19.ratchet.v1.ChangeRequestR\brequests\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x9e\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x122\n" +
+	"\x15snapshot_end_sequence\x18\x03 \x01(\x03R\x13snapshotEndSequence\x12!\n" +
+	"\fwatch_cursor\x18\x04 \x01(\tR\vwatchCursor\"\x9e\x02\n" +
 	"\x14ApproveChangeRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
@@ -1768,10 +1794,11 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\acontext\x18\x03 \x01(\tR\acontext\x127\n" +
 	"\bmutation\x18\x04 \x01(\v2\x1b.ratchet.v1.MutationContextR\bmutation\"M\n" +
 	"\x16ProvideContextResponse\x123\n" +
-	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\"c\n" +
+	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\"\x81\x01\n" +
 	"\x14WatchChangesResponse\x123\n" +
 	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\x12\x16\n" +
-	"\x06cursor\x18\x02 \x01(\tR\x06cursor\"\x89\x01\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor\x12\x1c\n" +
+	"\theartbeat\x18\x03 \x01(\bR\theartbeat\"\x89\x01\n" +
 	"\x1aGetDecisionEvidenceRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +

@@ -15,6 +15,13 @@ The user explicitly authorized advancing while leaving Sakar's dependencies alon
 Phase 4's unfinished work remains in its handoff; it is not marked complete.
 Only Phase 5 is active.
 
+- Added Change/Incident Watch over verified durable events with tenant/actor/kind-
+  bound authenticated cursors. Heartbeats advance past hidden events safely;
+  streams end after five seconds and reconnect from the last received cursor.
+  Change lists now reconstruct revisions at a fixed ledger boundary, including
+  status filtering, and return the matching watch cursor. Incident lists expose
+  the same boundary. PostgreSQL and real TLS tests cover updates during paging,
+  replacement-service reconnects, redaction and cursor forgery/refusal.
 - Added current-policy response visibility for requesters, independent reviewers
   and investigators. Requester responses omit approval envelopes/digests, registry/
   policy context, approver groups and detailed policy/reviewer reasons; explicitly

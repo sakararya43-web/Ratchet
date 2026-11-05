@@ -9,6 +9,17 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Phase 6 - in progress (2026-11-05)
+
+- The user confirmed `d823a10` is Sakar's final source. Both branches remain
+  separate; no peer source or implementation-plan changes are made.
+- Added pure normalized Kubernetes authority and exact mutation models,
+  aggregation/group semantics and bounded implicit rule-coverage proof. Unit
+  tests cover namespace isolation, resource wildcards, name constraints,
+  selectors, dangling bindings, opaque revisions and isolated proposals.
+- Track remaining implementation and actual peer acceptance in
+  [phase-6-progress.md](phase-6-progress.md). Phase 7 has not started.
+
 ## Phase 5 — core implemented; integrated acceptance open (2026-11-05)
 
 The user explicitly authorized advancing while leaving Sakar's dependencies alone.

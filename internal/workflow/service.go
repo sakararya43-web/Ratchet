@@ -37,6 +37,7 @@ type Service struct {
 	approvals  ports.ApprovalVerifier
 	executions map[string]*Execution
 	tenants    map[string]bool
+	config     Config
 }
 type JobArgs struct {
 	Tenant    string `json:"tenant_id"`
@@ -68,10 +69,25 @@ func (w *worker) Work(ctx context.Context, j *river.Job[JobArgs]) error {
 	return river.JobCancel(domain.ErrInvalid)
 }
 func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, tenants []string, execution ...*Execution) (*Service, error) {
+	return NewConfigured(pool, store, policies, key, approvals, tenants, Config{}, execution...)
+}
+
+// Config is frozen at construction. Zero selects the documented default.
+type Config struct {
+	ApprovalLifetime time.Duration
+}
+
+func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, tenants []string, config Config, execution ...*Execution) (*Service, error) {
+	if config.ApprovalLifetime == 0 {
+		config.ApprovalLifetime = 15 * time.Minute
+	}
+	if config.ApprovalLifetime < time.Second || config.ApprovalLifetime > 24*time.Hour {
+		return nil, domain.ErrInvalid
+	}
 	if pool == nil || store == nil || policies == nil || len(key) != 32 || len(tenants) == 0 {
 		return nil, domain.ErrInvalid
 	}
-	s := &Service{Store: store, Policies: policies, key: append([]byte(nil), key...), approvals: approvals, executions: map[string]*Execution{}, tenants: map[string]bool{}}
+	s := &Service{Store: store, Policies: policies, key: append([]byte(nil), key...), approvals: approvals, executions: map[string]*Execution{}, tenants: map[string]bool{}, config: config}
 	queues := map[string]river.QueueConfig{}
 	for _, tenant := range tenants {
 		if tenant == "" || s.tenants[tenant] {
@@ -88,6 +104,7 @@ func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, k
 	}
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &worker{service: s})
+	river.AddWorker(workers, &approvalExpiryWorker{service: s})
 	jobs, err := river.NewClient(riverpgxv5.New(pool), &river.Config{Schema: "ratchet_jobs", Workers: workers, Queues: queues})
 	if err != nil {
 		return nil, err
@@ -376,7 +393,7 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return hold(c, now, "policy evaluation unavailable")
 		}
-		envelope := &domain.Envelope{FormatVersion: 2, TenantID: c.TenantID, RequestID: c.ID, Revision: c.Revision + 2, Requester: c.Requester, Intent: c.Intent, GraphVersion: snapshot.Version(), PolicyDigest: a.Hash, RegistryEpoch: a.RegistryEpoch, RegistryDigest: a.RegistryDigest, ExpiresAt: now.Add(15 * time.Minute), PrivateReference: c.PrivateReference, PrivateDigest: c.PrivateDigest}
+		envelope := &domain.Envelope{FormatVersion: 2, TenantID: c.TenantID, RequestID: c.ID, Revision: c.Revision + 2, Requester: c.Requester, Intent: c.Intent, GraphVersion: snapshot.Version(), PolicyDigest: a.Hash, RegistryEpoch: a.RegistryEpoch, RegistryDigest: a.RegistryDigest, ExpiresAt: now.Add(s.config.ApprovalLifetime), PrivateReference: c.PrivateReference, PrivateDigest: c.PrivateDigest}
 		envelope.ImpactDigest, err = canon.New().Digest(result)
 		if err != nil {
 			return nil, err
@@ -396,6 +413,11 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) error {
 		events, err := domain.Decide(c, domain.Command{Kind: "ASSESS", At: now, Decision: decision, Envelope: envelope, Digest: bound, Facts: replayFacts})
 		if err != nil {
 			return nil, err
+		}
+		if decision.Outcome == "ALLOW" || decision.Outcome == "REQUIRE_APPROVAL" {
+			if err := s.scheduleApprovalExpiry(ctx, tx, c, bound, envelope.ExpiresAt); err != nil {
+				return nil, err
+			}
 		}
 		if decision.Outcome == "ALLOW" {
 			last := events[len(events)-1].Change

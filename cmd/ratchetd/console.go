@@ -32,16 +32,17 @@ import (
 )
 
 type consoleConfig struct {
-	Origin           string           `json:"origin"`
-	SessionKey       string           `json:"session_key_hex"`
-	GraphKey         string           `json:"graph_key_hex"`
-	CursorKey        string           `json:"cursor_key_hex"`
-	ServerCert       string           `json:"server_cert"`
-	ServerKey        string           `json:"server_key"`
-	NATSURL          string           `json:"nats_url"`
-	NATSCredentials  string           `json:"nats_credentials"`
-	ContainmentCosts map[string]int64 `json:"containment_costs"`
-	Tenants          []struct {
+	Origin                  string           `json:"origin"`
+	SessionKey              string           `json:"session_key_hex"`
+	GraphKey                string           `json:"graph_key_hex"`
+	CursorKey               string           `json:"cursor_key_hex"`
+	ServerCert              string           `json:"server_cert"`
+	ServerKey               string           `json:"server_key"`
+	NATSURL                 string           `json:"nats_url"`
+	NATSCredentials         string           `json:"nats_credentials"`
+	ContainmentCosts        map[string]int64 `json:"containment_costs"`
+	ApprovalLifetimeSeconds int64            `json:"approval_lifetime_seconds"`
+	Tenants                 []struct {
 		ID                     string `json:"tenant_id"`
 		AuthorityFile          string `json:"authority_file"`
 		GenesisDigest          string `json:"genesis_digest"`
@@ -180,7 +181,10 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	for tenant := range tenants {
 		tenantIDs = append(tenantIDs, tenant)
 	}
-	service, err := workflow.New(pool, store, engine, graphKey, nil, tenantIDs)
+	if config.ApprovalLifetimeSeconds < 0 || config.ApprovalLifetimeSeconds > 86400 {
+		return errors.New("approval_lifetime_seconds must be between 1 and 86400, or zero for 900")
+	}
+	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second})
 	if err != nil {
 		return err
 	}

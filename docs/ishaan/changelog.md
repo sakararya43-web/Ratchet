@@ -15,6 +15,12 @@ The user explicitly authorized advancing while leaving Sakar's dependencies alon
 Phase 4's unfinished work remains in its handoff; it is not marked complete.
 Only Phase 5 is active.
 
+- Approval lifetime is configurable (1 second to 24 hours, default 900 seconds)
+  through `approval_lifetime_seconds`. Assessment atomically persists its expiry
+  job with the exact envelope digest/deadline. Workers compare database time,
+  reschedule early delivery, ignore superseded timers and retry revision races.
+  A real PostgreSQL/River replacement-worker test drains overdue timers without
+  expiring a replacement envelope or asserting that an executed grant was revoked.
 - Added Change/Incident Watch over verified durable events with tenant/actor/kind-
   bound authenticated cursors. Heartbeats advance past hidden events safely;
   streams end after five seconds and reconnect from the last received cursor.

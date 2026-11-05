@@ -14,10 +14,16 @@ and implementation plans are unchanged.
 - Proposal isolation, missing-role binding behavior and aggregation-cycle tests.
 - Live kind RBAC oracle: 17 SubjectAccessReview queries across 9 actual
   configurations pass. See [reproduction and scope](phase-6-kind.md).
+- Immutable graph projection with bounded combined privilege closure: token
+  takeover, separate user/group impersonation, system:masters, bind plus binding
+  write, and edit/create plus escalate. Fresh-name witnesses cover unobserved
+  roles; common permission witnesses distinguish wildcard expansion/reduction.
+  Tests include name collisions, immutable binding roleRefs, aggregation labels
+  and nonrequester beneficiaries. Analysis limits return errors, never safe results.
 
 ## Remaining work and gates
 
-- Complete and verify escalation graph projection and policy/workflow adoption.
+- Adopt normalized graph projection in authenticated ingestion and policy/workflow.
 - Authenticate native admission identity and exact context; correlate approved
   commands, independently observed target state and durable execution records.
 - Native drift/read-model evidence and explicit supported/unsupported D1–D8 scope.

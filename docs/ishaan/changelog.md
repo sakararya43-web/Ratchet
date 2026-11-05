@@ -11,6 +11,11 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Added deterministic Kubernetes graph projection and impact comparison using
+  common symbolic permission witnesses. Combined token, bind, escalate and
+  impersonation paths are tested, including future role creation, unrelated
+  beneficiaries and wildcard-name collisions. Human API impersonation never
+  implies compromise of that person's core passkey. Analysis bounds fail closed.
 - Added an explicitly isolated kind oracle using real SubjectAccessReview calls;
   all 17 queries across 9 live RBAC configurations pass. Reproduction is in
   [phase-6-kind.md](phase-6-kind.md); this is not peer admission acceptance.

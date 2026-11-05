@@ -3,19 +3,85 @@
 package workflow_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
+	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
+
+func TestSlowCheckpointAuthorityDoesNotHoldTenantWriteLock(t *testing.T) {
+	sys := setup(t)
+	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, nil, []string{sys.tenant})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := workflow.Actor{TenantID: sys.tenant, ID: "user:sec1"}
+	p, err := service.PrepareCheckpoint(sys.ctx, actor, workflow.PrepareCheckpointInput{CommandID: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsigned := p.Candidate.Checkpoint
+	if err := sys.authority.SaveCheckpoint(&unsigned); err != nil {
+		t.Fatal(err)
+	}
+	entered, released := make(chan struct{}), make(chan struct{})
+	var first, unblock sync.Once
+	release := func() { unblock.Do(func() { close(released) }) }
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		first.Do(func() { close(entered) })
+		select {
+		case <-released:
+		case <-r.Context().Done():
+			return
+		}
+		if err := json.NewEncoder(w).Encode(sys.authority.ListCheckpoints()); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer server.Close()
+	defer release()
+	authority, err := workflow.NewCheckpointAuthority(server.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := make(chan error, 1)
+	go func() {
+		_, err := service.SubmitCheckpoint(sys.ctx, actor, p.Candidate.Checkpoint.CheckpointDigest, authority)
+		finished <- err
+	}()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("submission did not reach actual HTTP request")
+	}
+	writeContext, cancel := context.WithTimeout(sys.ctx, 2*time.Second)
+	defer cancel()
+	if _, err := sys.store.Append(writeContext, eventstore.Command{TenantID: sys.tenant, ID: uuid.New(), StreamID: "evidence:while-authority-waits", ActorReference: uuid.New(), Events: []eventstore.Event{{Type: "CoreEvidenceRecorded", Facts: json.RawMessage(`{"checkpoint_waiting":true}`)}}}); err != nil {
+		t.Fatal("Authority call blocked tenant append", err)
+	}
+	if _, err := service.SubmitCheckpoint(writeContext, actor, p.Candidate.Checkpoint.CheckpointDigest, authority); !errors.Is(err, workflow.ErrDependency) {
+		t.Fatal("concurrent Authority submission bypassed delivery serialization", err)
+	}
+	release()
+	if err := <-finished; err != nil {
+		t.Fatal("original delivery failed", err)
+	}
+	if _, err := service.SubmitCheckpoint(sys.ctx, actor, p.Candidate.Checkpoint.CheckpointDigest, authority); err != nil {
+		t.Fatal("delivery lock survived completed submission", err)
+	}
+}
 
 func TestCheckpointSubmissionRecoversLostAcknowledgementWithoutErasingSignatures(t *testing.T) {
 	sys := setup(t)

@@ -116,9 +116,11 @@ An optional per-tenant `checkpoint_authority_url` enables `SubmitCheckpoint`.
 It consumes the actual peer `/api/v1/authority/checkpoint/list` and `/create`
 HTTP contracts; only HTTPS or loopback HTTP URLs are accepted, with redirects
 disabled and a five-second round-trip deadline. A candidate lookup precedes
-creation because peer create overwrites its stored signatures. Submission holds
-the tenant lock during that bounded exchange, so an Authority outage can delay
-other writes for up to that bound. There is no automatic signing or scheduling.
+creation because peer create overwrites its stored signatures. Source framing is
+verified under the tenant lock, which is released before HTTP. A separate
+PostgreSQL advisory transaction serializes delivery across instances; a concurrent
+delivery returns unavailable for retry. A delayed Authority response does not hold
+the tenant head or ledger rows. There is no automatic signing or scheduling.
 Authority members sign through the peer service; submit again to retrieve their
 returned object, then call `AcceptCheckpoint` with the complete signed JSON.
 
@@ -223,7 +225,7 @@ remaining Phase 4 tasks complete.
 
 Required Phase 4 work still includes passkey-confirmed responder execution on the
 priority transport, target read-back/recovery and incident projections, restoration
-for the remaining supported increase kinds, and
+for the remaining access kinds, and
 the complete offline evidence package (including historical approval keys).
 Five-second D6 and actual business-continuity D7 measurements remain unpassed.
 The core planner's simulated report preservation is not that target measurement.

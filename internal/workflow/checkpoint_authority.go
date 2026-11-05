@@ -124,9 +124,9 @@ func (a *CheckpointAuthority) ensure(ctx context.Context, p CheckpointProposal, 
 	return returned, nil
 }
 
-// SubmitCheckpoint serializes this tenant's submissions while making a bounded
-// Authority round trip. No approval signature is fabricated or accepted here.
-// The durable candidate survives either process losing the HTTP acknowledgement.
+// SubmitCheckpoint verifies and freezes source data under the tenant lock, then
+// uses a separate delivery lock for the bounded Authority round trip. Acceptance
+// independently rechecks current authority and coverage after signatures return.
 func (s *Service) SubmitCheckpoint(ctx context.Context, actor Actor, digest ports.Digest, authority *CheckpointAuthority) (trust.AuditCheckpoint, error) {
 	var returned trust.AuditCheckpoint
 	if digest.IsZero() {
@@ -135,12 +135,15 @@ func (s *Service) SubmitCheckpoint(ctx context.Context, actor Actor, digest port
 	if authority == nil {
 		return returned, ErrDependency
 	}
+	var p CheckpointProposal
+	var entries []ledger.Entry
+	accepted := false
 	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, _ time.Time) error {
 		_, active, err := s.context(ctx, tx, actor, "checkpoint_manage", nil)
 		if err != nil {
 			return err
 		}
-		p, err := s.checkpointProposal(ctx, tx, actor.TenantID, digest, active.Root)
+		p, err = s.checkpointProposal(ctx, tx, actor.TenantID, digest, active.Root)
 		if err != nil {
 			return err
 		}
@@ -150,6 +153,7 @@ func (s *Service) SubmitCheckpoint(ctx context.Context, actor Actor, digest port
 		if err == nil {
 			record, err := s.checkpointRecord(ctx, tx, actor.TenantID, old, position, active.Root)
 			returned = record.Evidence.Signed
+			accepted = true
 			return err
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -171,7 +175,7 @@ func (s *Service) SubmitCheckpoint(ctx context.Context, actor Actor, digest port
 		if priorDigest != p.Candidate.Checkpoint.PriorCheckpointDigest || from != p.Candidate.Checkpoint.FromSequence {
 			return domain.ErrContextChanged
 		}
-		entries, err := s.checkpointEntries(ctx, tx, actor.TenantID, from, p.Candidate.Checkpoint.ToSequence, p.Candidate.PreviousEventHash)
+		entries, err = s.checkpointEntries(ctx, tx, actor.TenantID, from, p.Candidate.Checkpoint.ToSequence, p.Candidate.PreviousEventHash)
 		if err != nil {
 			return err
 		}
@@ -181,8 +185,18 @@ func (s *Service) SubmitCheckpoint(ctx context.Context, actor Actor, digest port
 		if err != nil || rebuilt.Checkpoint.CheckpointDigest != digest {
 			return domain.ErrContextChanged
 		}
+		return nil
+	})
+	if err != nil || accepted {
+		return returned, err
+	}
+	locked, err := s.Store.TryCheckpointSubmission(ctx, actor.TenantID, func() error {
+		var err error
 		returned, err = authority.ensure(ctx, p, entries)
 		return err
 	})
+	if err == nil && !locked {
+		return returned, ErrDependency
+	}
 	return returned, err
 }

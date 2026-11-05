@@ -64,6 +64,11 @@
   policy excludes incident-linked requests from reduction fast paths. The incident
   retains OPEN status and versioned restoration IDs. Unsupported account/service/
   session increases remain refused and full restoration acceptance stays open.
+- Moved Authority HTTP delivery outside the tenant-head transaction. A separate
+  PostgreSQL advisory transaction preserves cross-instance serialization and
+  releases on completion/process loss. A blocked real HTTP request regression
+  proves another ledger append can commit, competing submissions refuse quickly
+  and a completed submission releases its lock for retry.
 
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux

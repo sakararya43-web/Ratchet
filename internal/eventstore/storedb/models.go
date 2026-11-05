@@ -142,6 +142,14 @@ type RatchetIngestReceipt struct {
 	Outcome      string
 }
 
+type RatchetNativeChangePlan struct {
+	TenantID      string
+	RequestID     pgtype.UUID
+	PlanDigest    []byte
+	Document      []byte
+	EventPosition int64
+}
+
 type RatchetOutbox struct {
 	TenantID      string
 	EventID       pgtype.UUID

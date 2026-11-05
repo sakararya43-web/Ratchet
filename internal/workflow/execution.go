@@ -30,6 +30,7 @@ type Capability struct {
 	IndependentReadBack bool      `json:"independent_read_back"`
 	ScheduledRevocation bool      `json:"scheduled_revocation,omitempty"`
 	ProvenReductions    bool      `json:"proven_reductions,omitempty"`
+	NativeRBAC          bool      `json:"native_rbac,omitempty"`
 	Signature           []byte    `json:"signature"`
 }
 
@@ -61,30 +62,31 @@ func NewExecution(tenant, connector string, public ed25519.PublicKey, private ed
 }
 
 type PreparedCommand struct {
-	MessageID         string            `json:"message_id"`
-	VerifyOnly        bool              `json:"verify_only"`
-	SchemaVersion     int               `json:"schema_version"`
-	Tenant            string            `json:"tenant_id"`
-	Connector         string            `json:"connector_id"`
-	CommandID         string            `json:"command_id"`
-	RequestID         string            `json:"request_id"`
-	CorrelationID     string            `json:"correlation_id"`
-	ExpectedRevision  int64             `json:"expected_target_revision"`
-	ExpectedRoles     []string          `json:"expected_roles"`
-	BeforeRoles       []string          `json:"before_roles"`
-	Envelope          *domain.Envelope  `json:"approved_envelope"`
-	EnvelopeDigest    ports.Digest      `json:"approved_envelope_digest"`
-	Approvals         []domain.Approval `json:"approvals"`
-	Deadline          time.Time         `json:"deadline"`
-	DispatchedAt      time.Time         `json:"dispatched_at"`
-	Signature         []byte            `json:"signature"`
-	Purpose           string            `json:"purpose,omitempty"`
-	GrantExpiresAt    time.Time         `json:"grant_expires_at,omitempty"`
-	OriginalCommandID string            `json:"original_command_id,omitempty"`
-	TraceParent       string            `json:"traceparent,omitempty"`
-	SourceDrift       string            `json:"source_drift_id,omitempty"`
-	IncidentReference string            `json:"incident_reference,omitempty"`
-	ReductionDigest   ports.Digest      `json:"reduction_digest,omitempty"`
+	MessageID         string                `json:"message_id"`
+	VerifyOnly        bool                  `json:"verify_only"`
+	SchemaVersion     int                   `json:"schema_version"`
+	Tenant            string                `json:"tenant_id"`
+	Connector         string                `json:"connector_id"`
+	CommandID         string                `json:"command_id"`
+	RequestID         string                `json:"request_id"`
+	CorrelationID     string                `json:"correlation_id"`
+	ExpectedRevision  int64                 `json:"expected_target_revision"`
+	ExpectedRoles     []string              `json:"expected_roles"`
+	BeforeRoles       []string              `json:"before_roles"`
+	Envelope          *domain.Envelope      `json:"approved_envelope"`
+	EnvelopeDigest    ports.Digest          `json:"approved_envelope_digest"`
+	Approvals         []domain.Approval     `json:"approvals"`
+	Deadline          time.Time             `json:"deadline"`
+	DispatchedAt      time.Time             `json:"dispatched_at"`
+	Signature         []byte                `json:"signature"`
+	Purpose           string                `json:"purpose,omitempty"`
+	GrantExpiresAt    time.Time             `json:"grant_expires_at,omitempty"`
+	OriginalCommandID string                `json:"original_command_id,omitempty"`
+	TraceParent       string                `json:"traceparent,omitempty"`
+	SourceDrift       string                `json:"source_drift_id,omitempty"`
+	IncidentReference string                `json:"incident_reference,omitempty"`
+	ReductionDigest   ports.Digest          `json:"reduction_digest,omitempty"`
+	Kubernetes        *NativeCommandBinding `json:"kubernetes,omitempty"`
 }
 
 func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id string, now time.Time) (PreparedCommand, error) {
@@ -191,24 +193,25 @@ func (e *Execution) stage(ctx context.Context, tx pgx.Tx, cmd PreparedCommand, r
 }
 
 type ExecutionResult struct {
-	SchemaVersion     int          `json:"schema_version"`
-	Tenant            string       `json:"tenant_id"`
-	Connector         string       `json:"connector_id"`
-	MessageID         string       `json:"message_id"`
-	CommandID         string       `json:"command_id"`
-	RequestID         string       `json:"request_id"`
-	CorrelationID     string       `json:"correlation_id"`
-	EnvelopeDigest    ports.Digest `json:"approved_envelope_digest"`
-	Success           bool         `json:"success"`
-	ReadBackVerified  bool         `json:"read_back_verified"`
-	ObservedTenant    string       `json:"observed_tenant_id"`
-	ObservedTarget    string       `json:"observed_target"`
-	ObservedRoles     []string     `json:"observed_roles"`
-	ObservedRevision  int64        `json:"observed_revision"`
-	ObservedAt        time.Time    `json:"observed_at"`
-	AppliedAt         time.Time    `json:"applied_at"`
-	ObservationDigest ports.Digest `json:"observation_digest"`
-	Signature         []byte       `json:"signature"`
+	SchemaVersion     int                `json:"schema_version"`
+	Tenant            string             `json:"tenant_id"`
+	Connector         string             `json:"connector_id"`
+	MessageID         string             `json:"message_id"`
+	CommandID         string             `json:"command_id"`
+	RequestID         string             `json:"request_id"`
+	CorrelationID     string             `json:"correlation_id"`
+	EnvelopeDigest    ports.Digest       `json:"approved_envelope_digest"`
+	Success           bool               `json:"success"`
+	ReadBackVerified  bool               `json:"read_back_verified"`
+	ObservedTenant    string             `json:"observed_tenant_id"`
+	ObservedTarget    string             `json:"observed_target"`
+	ObservedRoles     []string           `json:"observed_roles"`
+	ObservedRevision  int64              `json:"observed_revision"`
+	ObservedAt        time.Time          `json:"observed_at"`
+	AppliedAt         time.Time          `json:"applied_at"`
+	ObservationDigest ports.Digest       `json:"observation_digest"`
+	Signature         []byte             `json:"signature"`
+	Kubernetes        *NativeObservation `json:"kubernetes,omitempty"`
 }
 
 func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw []byte) (err error) {
@@ -243,6 +246,13 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 	}
 	r.Signature = signature
 	mutation := eventstore.ChangeMutation{TenantID: tenant, ActorID: "connector:" + e.Connector, RequestID: r.RequestID, ID: messageID, ExpectedRevision: request.Revision, InputDigest: digest}
+	if r.Kubernetes != nil {
+		private, err := eventstore.SealPrivate(s.key, tenant, uuid.NewSHA1(messageID, []byte("native-read-back")), "native-read-back-v1", raw)
+		if err != nil {
+			return err
+		}
+		mutation.Private = &private
+	}
 	if request.SourceDrift != "" {
 		mutation.Additional = func(tx pgx.Tx, _ eventstore.Receipt) error {
 			return s.recordDriftResultWithin(ctx, tx, tenant, r.RequestID)
@@ -265,6 +275,12 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		}
 		// Uncertain application stays EXECUTING for reconciliation. It is never
 		// converted into a grant, blind redispatch or an invented failed write.
+		if command.Kubernetes != nil {
+			return s.nativeExecutionResult(ctx, tx, now, c, command, r, digest)
+		}
+		if r.Kubernetes != nil {
+			return nil, ErrPermission
+		}
 		if !r.ReadBackVerified {
 			events, err := domain.Decide(c, domain.Command{Kind: "RECONCILE", At: now, ExecutionID: c.ExecutionID})
 			if err != nil {

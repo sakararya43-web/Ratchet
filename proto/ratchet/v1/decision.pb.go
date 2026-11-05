@@ -21,6 +21,50 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type KubernetesDecisionRequest struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	SignedAdmissionJson []byte                 `protobuf:"bytes,1,opt,name=signed_admission_json,json=signedAdmissionJson,proto3" json:"signed_admission_json,omitempty"` // RATCHET_KUBERNETES_ADMISSION_V1, connector-pinned; never a session identity claim.
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *KubernetesDecisionRequest) Reset() {
+	*x = KubernetesDecisionRequest{}
+	mi := &file_ratchet_v1_decision_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KubernetesDecisionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KubernetesDecisionRequest) ProtoMessage() {}
+
+func (x *KubernetesDecisionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_decision_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KubernetesDecisionRequest.ProtoReflect.Descriptor instead.
+func (*KubernetesDecisionRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_decision_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *KubernetesDecisionRequest) GetSignedAdmissionJson() []byte {
+	if x != nil {
+		return x.SignedAdmissionJson
+	}
+	return nil
+}
+
 type ChangeIntent struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TenantId        string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -36,7 +80,7 @@ type ChangeIntent struct {
 
 func (x *ChangeIntent) Reset() {
 	*x = ChangeIntent{}
-	mi := &file_ratchet_v1_decision_proto_msgTypes[0]
+	mi := &file_ratchet_v1_decision_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +92,7 @@ func (x *ChangeIntent) String() string {
 func (*ChangeIntent) ProtoMessage() {}
 
 func (x *ChangeIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_decision_proto_msgTypes[0]
+	mi := &file_ratchet_v1_decision_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +105,7 @@ func (x *ChangeIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeIntent.ProtoReflect.Descriptor instead.
 func (*ChangeIntent) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_decision_proto_rawDescGZIP(), []int{0}
+	return file_ratchet_v1_decision_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ChangeIntent) GetTenantId() string {
@@ -127,7 +171,7 @@ type DecisionRequest struct {
 
 func (x *DecisionRequest) Reset() {
 	*x = DecisionRequest{}
-	mi := &file_ratchet_v1_decision_proto_msgTypes[1]
+	mi := &file_ratchet_v1_decision_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -139,7 +183,7 @@ func (x *DecisionRequest) String() string {
 func (*DecisionRequest) ProtoMessage() {}
 
 func (x *DecisionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_decision_proto_msgTypes[1]
+	mi := &file_ratchet_v1_decision_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -152,7 +196,7 @@ func (x *DecisionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecisionRequest.ProtoReflect.Descriptor instead.
 func (*DecisionRequest) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_decision_proto_rawDescGZIP(), []int{1}
+	return file_ratchet_v1_decision_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DecisionRequest) GetIntent() *ChangeIntent {
@@ -198,28 +242,30 @@ func (x *DecisionRequest) GetApprovedRequestId() string {
 }
 
 type DecisionResponse struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	Outcome                string                 `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"` // ALLOW, REQUIRE_APPROVAL, HOLD, REJECT
-	Reasons                []string               `protobuf:"bytes,2,rep,name=reasons,proto3" json:"reasons,omitempty"`
-	RequiredApproverGroups []string               `protobuf:"bytes,3,rep,name=required_approver_groups,json=requiredApproverGroups,proto3" json:"required_approver_groups,omitempty"`
-	RequiredQuorum         int32                  `protobuf:"varint,4,opt,name=required_quorum,json=requiredQuorum,proto3" json:"required_quorum,omitempty"`
-	PolicyBundleHash       string                 `protobuf:"bytes,5,opt,name=policy_bundle_hash,json=policyBundleHash,proto3" json:"policy_bundle_hash,omitempty"`
-	GraphVersion           int64                  `protobuf:"varint,6,opt,name=graph_version,json=graphVersion,proto3" json:"graph_version,omitempty"`
-	TypedOutcome           DecisionOutcome        `protobuf:"varint,7,opt,name=typed_outcome,json=typedOutcome,proto3,enum=ratchet.v1.DecisionOutcome" json:"typed_outcome,omitempty"`
-	DecisionId             string                 `protobuf:"bytes,8,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
-	ExactObjectDigest      string                 `protobuf:"bytes,9,opt,name=exact_object_digest,json=exactObjectDigest,proto3" json:"exact_object_digest,omitempty"`
-	ExecutionAuthorized    bool                   `protobuf:"varint,10,opt,name=execution_authorized,json=executionAuthorized,proto3" json:"execution_authorized,omitempty"` // One consumed staged command only; outcome alone never authorizes a write.
-	AdmissionRequestId     string                 `protobuf:"bytes,11,opt,name=admission_request_id,json=admissionRequestId,proto3" json:"admission_request_id,omitempty"`
-	TargetRevision         string                 `protobuf:"bytes,12,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
-	ExpiresAt              string                 `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	PolicyOutcome          string                 `protobuf:"bytes,14,opt,name=policy_outcome,json=policyOutcome,proto3" json:"policy_outcome,omitempty"` // Policy result before the one-use execution binding is checked.
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Outcome                  string                 `protobuf:"bytes,1,opt,name=outcome,proto3" json:"outcome,omitempty"` // ALLOW, REQUIRE_APPROVAL, HOLD, REJECT
+	Reasons                  []string               `protobuf:"bytes,2,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	RequiredApproverGroups   []string               `protobuf:"bytes,3,rep,name=required_approver_groups,json=requiredApproverGroups,proto3" json:"required_approver_groups,omitempty"`
+	RequiredQuorum           int32                  `protobuf:"varint,4,opt,name=required_quorum,json=requiredQuorum,proto3" json:"required_quorum,omitempty"`
+	PolicyBundleHash         string                 `protobuf:"bytes,5,opt,name=policy_bundle_hash,json=policyBundleHash,proto3" json:"policy_bundle_hash,omitempty"`
+	GraphVersion             int64                  `protobuf:"varint,6,opt,name=graph_version,json=graphVersion,proto3" json:"graph_version,omitempty"`
+	TypedOutcome             DecisionOutcome        `protobuf:"varint,7,opt,name=typed_outcome,json=typedOutcome,proto3,enum=ratchet.v1.DecisionOutcome" json:"typed_outcome,omitempty"`
+	DecisionId               string                 `protobuf:"bytes,8,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
+	ExactObjectDigest        string                 `protobuf:"bytes,9,opt,name=exact_object_digest,json=exactObjectDigest,proto3" json:"exact_object_digest,omitempty"`
+	ExecutionAuthorized      bool                   `protobuf:"varint,10,opt,name=execution_authorized,json=executionAuthorized,proto3" json:"execution_authorized,omitempty"` // One consumed staged command only; outcome alone never authorizes a write.
+	AdmissionRequestId       string                 `protobuf:"bytes,11,opt,name=admission_request_id,json=admissionRequestId,proto3" json:"admission_request_id,omitempty"`
+	TargetRevision           string                 `protobuf:"bytes,12,opt,name=target_revision,json=targetRevision,proto3" json:"target_revision,omitempty"`
+	ExpiresAt                string                 `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	PolicyOutcome            string                 `protobuf:"bytes,14,opt,name=policy_outcome,json=policyOutcome,proto3" json:"policy_outcome,omitempty"` // Policy result before the one-use execution binding is checked.
+	AdmissionContextDigest   string                 `protobuf:"bytes,15,opt,name=admission_context_digest,json=admissionContextDigest,proto3" json:"admission_context_digest,omitempty"`
+	SignedNativeDecisionJson []byte                 `protobuf:"bytes,16,opt,name=signed_native_decision_json,json=signedNativeDecisionJson,proto3" json:"signed_native_decision_json,omitempty"` // Exact RATCHET_KUBERNETES_DECISION_V1 permit; absent for refusals and retries.
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *DecisionResponse) Reset() {
 	*x = DecisionResponse{}
-	mi := &file_ratchet_v1_decision_proto_msgTypes[2]
+	mi := &file_ratchet_v1_decision_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -231,7 +277,7 @@ func (x *DecisionResponse) String() string {
 func (*DecisionResponse) ProtoMessage() {}
 
 func (x *DecisionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_decision_proto_msgTypes[2]
+	mi := &file_ratchet_v1_decision_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -244,7 +290,7 @@ func (x *DecisionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecisionResponse.ProtoReflect.Descriptor instead.
 func (*DecisionResponse) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_decision_proto_rawDescGZIP(), []int{2}
+	return file_ratchet_v1_decision_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DecisionResponse) GetOutcome() string {
@@ -345,12 +391,28 @@ func (x *DecisionResponse) GetPolicyOutcome() string {
 	return ""
 }
 
+func (x *DecisionResponse) GetAdmissionContextDigest() string {
+	if x != nil {
+		return x.AdmissionContextDigest
+	}
+	return ""
+}
+
+func (x *DecisionResponse) GetSignedNativeDecisionJson() []byte {
+	if x != nil {
+		return x.SignedNativeDecisionJson
+	}
+	return nil
+}
+
 var File_ratchet_v1_decision_proto protoreflect.FileDescriptor
 
 const file_ratchet_v1_decision_proto_rawDesc = "" +
 	"\n" +
 	"\x19ratchet/v1/decision.proto\x12\n" +
-	"ratchet.v1\x1a\x17ratchet/v1/common.proto\"\xf5\x02\n" +
+	"ratchet.v1\x1a\x17ratchet/v1/common.proto\"O\n" +
+	"\x19KubernetesDecisionRequest\x122\n" +
+	"\x15signed_admission_json\x18\x01 \x01(\fR\x13signedAdmissionJson\"\xf5\x02\n" +
 	"\fChangeIntent\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12'\n" +
@@ -368,7 +430,7 @@ const file_ratchet_v1_decision_proto_rawDesc = "" +
 	"\x14admission_request_id\x18\x03 \x01(\tR\x12admissionRequestId\x12.\n" +
 	"\x13exact_object_digest\x18\x04 \x01(\tR\x11exactObjectDigest\x12'\n" +
 	"\x0ftarget_revision\x18\x05 \x01(\tR\x0etargetRevision\x12.\n" +
-	"\x13approved_request_id\x18\x06 \x01(\tR\x11approvedRequestId\"\xe3\x04\n" +
+	"\x13approved_request_id\x18\x06 \x01(\tR\x11approvedRequestId\"\xdc\x05\n" +
 	"\x10DecisionResponse\x12\x18\n" +
 	"\aoutcome\x18\x01 \x01(\tR\aoutcome\x12\x18\n" +
 	"\areasons\x18\x02 \x03(\tR\areasons\x128\n" +
@@ -386,9 +448,12 @@ const file_ratchet_v1_decision_proto_rawDesc = "" +
 	"\x0ftarget_revision\x18\f \x01(\tR\x0etargetRevision\x12\x1d\n" +
 	"\n" +
 	"expires_at\x18\r \x01(\tR\texpiresAt\x12%\n" +
-	"\x0epolicy_outcome\x18\x0e \x01(\tR\rpolicyOutcome2V\n" +
+	"\x0epolicy_outcome\x18\x0e \x01(\tR\rpolicyOutcome\x128\n" +
+	"\x18admission_context_digest\x18\x0f \x01(\tR\x16admissionContextDigest\x12=\n" +
+	"\x1bsigned_native_decision_json\x18\x10 \x01(\fR\x18signedNativeDecisionJson2\xaf\x01\n" +
 	"\x0fDecisionService\x12C\n" +
-	"\x06Decide\x12\x1b.ratchet.v1.DecisionRequest\x1a\x1c.ratchet.v1.DecisionResponseB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
+	"\x06Decide\x12\x1b.ratchet.v1.DecisionRequest\x1a\x1c.ratchet.v1.DecisionResponse\x12W\n" +
+	"\x10DecideKubernetes\x12%.ratchet.v1.KubernetesDecisionRequest\x1a\x1c.ratchet.v1.DecisionResponseB?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
 
 var (
 	file_ratchet_v1_decision_proto_rawDescOnce sync.Once
@@ -402,24 +467,27 @@ func file_ratchet_v1_decision_proto_rawDescGZIP() []byte {
 	return file_ratchet_v1_decision_proto_rawDescData
 }
 
-var file_ratchet_v1_decision_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_ratchet_v1_decision_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_ratchet_v1_decision_proto_goTypes = []any{
-	(*ChangeIntent)(nil),      // 0: ratchet.v1.ChangeIntent
-	(*DecisionRequest)(nil),   // 1: ratchet.v1.DecisionRequest
-	(*DecisionResponse)(nil),  // 2: ratchet.v1.DecisionResponse
-	nil,                       // 3: ratchet.v1.ChangeIntent.ContextEntry
-	(*ExactChangeIntent)(nil), // 4: ratchet.v1.ExactChangeIntent
-	(DecisionOutcome)(0),      // 5: ratchet.v1.DecisionOutcome
+	(*KubernetesDecisionRequest)(nil), // 0: ratchet.v1.KubernetesDecisionRequest
+	(*ChangeIntent)(nil),              // 1: ratchet.v1.ChangeIntent
+	(*DecisionRequest)(nil),           // 2: ratchet.v1.DecisionRequest
+	(*DecisionResponse)(nil),          // 3: ratchet.v1.DecisionResponse
+	nil,                               // 4: ratchet.v1.ChangeIntent.ContextEntry
+	(*ExactChangeIntent)(nil),         // 5: ratchet.v1.ExactChangeIntent
+	(DecisionOutcome)(0),              // 6: ratchet.v1.DecisionOutcome
 }
 var file_ratchet_v1_decision_proto_depIdxs = []int32{
-	3, // 0: ratchet.v1.ChangeIntent.context:type_name -> ratchet.v1.ChangeIntent.ContextEntry
-	4, // 1: ratchet.v1.ChangeIntent.exact_intent:type_name -> ratchet.v1.ExactChangeIntent
-	0, // 2: ratchet.v1.DecisionRequest.intent:type_name -> ratchet.v1.ChangeIntent
-	5, // 3: ratchet.v1.DecisionResponse.typed_outcome:type_name -> ratchet.v1.DecisionOutcome
-	1, // 4: ratchet.v1.DecisionService.Decide:input_type -> ratchet.v1.DecisionRequest
-	2, // 5: ratchet.v1.DecisionService.Decide:output_type -> ratchet.v1.DecisionResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
+	4, // 0: ratchet.v1.ChangeIntent.context:type_name -> ratchet.v1.ChangeIntent.ContextEntry
+	5, // 1: ratchet.v1.ChangeIntent.exact_intent:type_name -> ratchet.v1.ExactChangeIntent
+	1, // 2: ratchet.v1.DecisionRequest.intent:type_name -> ratchet.v1.ChangeIntent
+	6, // 3: ratchet.v1.DecisionResponse.typed_outcome:type_name -> ratchet.v1.DecisionOutcome
+	2, // 4: ratchet.v1.DecisionService.Decide:input_type -> ratchet.v1.DecisionRequest
+	0, // 5: ratchet.v1.DecisionService.DecideKubernetes:input_type -> ratchet.v1.KubernetesDecisionRequest
+	3, // 6: ratchet.v1.DecisionService.Decide:output_type -> ratchet.v1.DecisionResponse
+	3, // 7: ratchet.v1.DecisionService.DecideKubernetes:output_type -> ratchet.v1.DecisionResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -437,7 +505,7 @@ func file_ratchet_v1_decision_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_decision_proto_rawDesc), len(file_ratchet_v1_decision_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,61 +1,22 @@
 package bus
 
 import (
-	"crypto/ed25519"
-	"encoding/json"
-	"time"
-
+	"errors"
 	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
+	"time"
 )
 
-type KubernetesConnectorKey struct {
-	Tenant, Connector, Cluster string
-	PublicKey                  ed25519.PublicKey
-}
-
-type SignedKubernetesAdmission struct {
-	SchemaVersion int            `json:"schema_version"`
-	Admission     kube.Admission `json:"admission"`
-	IssuedAt      time.Time      `json:"issued_at"`
-	ExpiresAt     time.Time      `json:"expires_at"`
-	Signature     []byte         `json:"signature"`
-}
+type KubernetesConnectorKey = kube.KubernetesConnectorKey
+type SignedKubernetesAdmission = kube.SignedKubernetesAdmission
 
 func KubernetesAdmissionSigningDigest(d ports.Digester, message SignedKubernetesAdmission) (ports.Digest, error) {
-	if d == nil {
-		return ports.Digest{}, kube.ErrInvalid
-	}
-	message.Signature = nil
-	return d.Digest(struct {
-		Domain string                    `json:"domain"`
-		Body   SignedKubernetesAdmission `json:"body"`
-	}{"RATCHET_KUBERNETES_ADMISSION_V1", message})
+	return kube.KubernetesAdmissionSigningDigest(d, message)
 }
-
-// VerifyKubernetesAdmission authenticates connector evidence using a key pinned
-// outside the request. Its result conveys no execution permit: policy, current
-// approvals, target preconditions and atomic one-use consumption remain required
-// through DecisionService. A signature is never a second grant path.
 func VerifyKubernetesAdmission(d ports.Digester, pin KubernetesConnectorKey, message SignedKubernetesAdmission, now time.Time) (kube.Admission, error) {
-	if !tenantToken.MatchString(pin.Tenant) || !tenantToken.MatchString(pin.Connector) || pin.Cluster == "" || len(pin.PublicKey) != ed25519.PublicKeySize || message.SchemaVersion != 1 || message.Admission.Tenant != pin.Tenant || message.Admission.Mutation.Connector != pin.Connector || message.Admission.Mutation.Cluster != pin.Cluster || len(message.Signature) != ed25519.SignatureSize || message.IssuedAt.IsZero() || now.Before(message.IssuedAt) || !now.Before(message.ExpiresAt) || message.ExpiresAt.Sub(message.IssuedAt) > 30*time.Second || !message.ExpiresAt.After(message.IssuedAt) {
+	admission, err := kube.VerifyKubernetesAdmission(d, pin, message, now)
+	if errors.Is(err, kube.ErrAuthentication) {
 		return kube.Admission{}, ErrAuthentication
 	}
-	digest, err := KubernetesAdmissionSigningDigest(d, message)
-	if err != nil || !ed25519.Verify(pin.PublicKey, digest[:], message.Signature) {
-		return kube.Admission{}, ErrAuthentication
-	}
-	if err := message.Admission.Validate(); err != nil {
-		return kube.Admission{}, err
-	}
-	// Detach all nested maps/slices/pointers before passing verified evidence on.
-	raw, err := json.Marshal(message.Admission)
-	if err != nil {
-		return kube.Admission{}, err
-	}
-	var out kube.Admission
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return kube.Admission{}, err
-	}
-	return out, nil
+	return admission, err
 }

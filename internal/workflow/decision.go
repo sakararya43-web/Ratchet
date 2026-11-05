@@ -49,6 +49,9 @@ type InlineDecision struct {
 // one staged, independently approved simulator command. It never submits a new
 // change, skips the execution guard or marks a target write as verified.
 func (s *Service) DecideInline(ctx context.Context, actor Actor, input InlineInput) (out InlineDecision, err error) {
+	if input.Intent.Kubernetes != nil {
+		return out, domain.ErrInvalid
+	}
 	admission, err := uuid.Parse(input.AdmissionID)
 	if err != nil || admission == uuid.Nil || admission.String() != input.AdmissionID || input.ObjectDigest.IsZero() || input.MinGraphVersion < 0 || input.MinGraphVersion > ledger.MaxSafeInteger || len(input.TargetRevision) > 128 {
 		return out, domain.ErrInvalid

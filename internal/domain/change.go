@@ -44,9 +44,13 @@ type Intent struct {
 	DurationSeconds int64             `json:"time_limit_seconds"`
 	IncidentID      string            `json:"incident_id"`
 	Parameters      map[string]string `json:"safeguard_parameters"`
+	Kubernetes      *KubernetesChange `json:"kubernetes,omitempty"`
 }
 
 func (i Intent) Validate() error {
+	if i.Kind != "K8S_RBAC_CHANGE" && i.Kubernetes != nil {
+		return ErrInvalid
+	}
 	if strings.TrimSpace(i.Target) == "" || len(i.Target) > 256 || len(i.Access) > 256 || i.DurationSeconds < 0 || i.DurationSeconds > 86400 || len(i.Resources) > 100 || len(i.Permissions) > 100 {
 		return ErrInvalid
 	}
@@ -63,6 +67,10 @@ func (i Intent) Validate() error {
 		return ErrInvalid
 	}
 	switch i.Kind {
+	case "K8S_RBAC_CHANGE":
+		if i.Kubernetes == nil || i.Kubernetes.Validate() != nil || !opaqueKubernetesKey(i.Target, "object") || i.Access != i.Kubernetes.Operation || len(i.Parameters) != 0 || len(i.Resources) != 0 || len(i.Permissions) != 0 || i.IncidentID != "" {
+			return ErrInvalid
+		}
 	case "ROLE_ASSIGN", "ROLE_REVOKE":
 		if i.Access == "" || len(i.Parameters) != 0 {
 			return ErrInvalid
@@ -218,6 +226,9 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 		}
 		if err := next.Intent.Validate(); err != nil {
 			return nil, err
+		}
+		if next.Intent.Kubernetes != nil && next.Intent.Kubernetes.PlanID != next.ID {
+			return nil, ErrInvalid
 		}
 		next.Revision = 0
 		next.CreatedAt = cmd.At

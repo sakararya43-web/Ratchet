@@ -34,6 +34,7 @@ type DecisionEvidence struct {
 	Bundle         json.RawMessage `json:"signed_bundle"`
 	RegistryProof  json.RawMessage `json:"registry_proof"`
 	Root           ports.Digest    `json:"genesis_digest"`
+	Kubernetes     *KubernetesPlan `json:"kubernetes_plan,omitempty"`
 }
 type ReplayResult struct {
 	Decision      domain.Decision `json:"decision"`
@@ -82,6 +83,13 @@ func (s *Service) DecisionEvidence(ctx context.Context, actor Actor, request str
 		c := payload.Facts.Change
 		if c.Envelope == nil {
 			return ErrDependency
+		}
+		if c.Intent.Kubernetes != nil {
+			plan, err := s.nativePlanWithin(ctx, tx, c)
+			if err != nil {
+				return err
+			}
+			evidence.Kubernetes = &plan
 		}
 		if err := tx.QueryRow(ctx, `SELECT raw_bundle,trust_proof FROM ratchet.policy_artifacts WHERE tenant_id=$1 AND digest=$2`, actor.TenantID, c.Envelope.PolicyDigest.Bytes()).Scan(&evidence.Bundle, &evidence.RegistryProof); err != nil {
 			return err
@@ -168,19 +176,37 @@ func ReplayDecision(ctx context.Context, e DecisionEvidence, root, expectedHash 
 	default:
 		return result, ErrDependency
 	}
+	var nativeImpact graph.Impact
+	if c.Intent.Kubernetes != nil {
+		if e.Kubernetes == nil {
+			return result, ErrDependency
+		}
+		hash, err := canon.New().Digest(e.Kubernetes)
+		if err != nil || hash != c.Intent.Kubernetes.PlanDigest {
+			return result, eventstore.ErrIntegrity
+		}
+		var projectionError error
+		snapshot, nativeImpact, _, projectionError = nativeProjection(snapshot, a, *e.Kubernetes)
+		if projectionError != nil {
+			return ReplayResult{}, projectionError
+		}
+	}
 	graphDigest, err := canon.New().Digest(snapshot.Data())
 	if err != nil || graphDigest != recorded.GraphDigest {
 		return result, eventstore.ErrIntegrity
 	}
-	impact, _, err := impact(snapshot, c.Intent)
-	if err != nil {
-		return result, err
+	if c.Intent.Kubernetes == nil {
+		var projectionError error
+		nativeImpact, _, projectionError = impact(snapshot, c.Intent)
+		if projectionError != nil {
+			return ReplayResult{}, projectionError
+		}
 	}
-	impactDigest, err := canon.New().Digest(impact)
+	impactDigest, err := canon.New().Digest(nativeImpact)
 	if err != nil || impactDigest != c.Envelope.ImpactDigest {
 		return result, eventstore.ErrIntegrity
 	}
-	facts := factsFor(ctx, snapshot, a, c, impact)
+	facts := factsFor(ctx, snapshot, a, c, nativeImpact)
 	if recorded.Input.SchemaVersion == 2 {
 		facts.SchemaVersion, facts.Scope = 2, nil
 	}

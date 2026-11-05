@@ -11,6 +11,15 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Implemented native request submission and encrypted raw review context, signed
+  policy identity associations, independent approval, committed anonymous replay,
+  native capability-gated command staging and TLS DecisionService enforcement.
+  Durable one-use admission consumption survives concurrency and restart. Exact
+  signed independent read-back completes the same lifecycle; acknowledgements
+  generate verify-only probes. Targeted PostgreSQL/cryptographic/HTTPS tests pass.
+  Full candidate validation and native drift work remain; actual peer gates are
+  still failing and Phase 7 has not begun.
+
 - Added additive signed normalized snapshot ingestion. Real PostgreSQL/JetStream
   tests prove persistence/reload, private context separation, same-revision
   preimage conflicts, cluster ownership, quarantine/recovery and retained replay

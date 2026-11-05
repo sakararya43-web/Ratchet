@@ -1,12 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
@@ -55,9 +58,11 @@ func changeError(err error) error {
 	}
 	var code connect.Code
 	switch {
-	case errors.Is(err, domain.ErrInvalid), errors.Is(err, eventstore.ErrInvalid):
+	case errors.Is(err, domain.ErrInvalid), errors.Is(err, eventstore.ErrInvalid), errors.Is(err, kube.ErrInvalid):
 		code = connect.CodeInvalidArgument
 	case errors.Is(err, domain.ErrTransition), errors.Is(err, domain.ErrContextChanged):
+		code = connect.CodeFailedPrecondition
+	case errors.Is(err, kube.ErrUnsupported):
 		code = connect.CodeFailedPrecondition
 	case errors.Is(err, graph.ErrNoContainment):
 		code = connect.CodeFailedPrecondition
@@ -102,6 +107,9 @@ func mutation(m *v1.MutationContext) (uuid.UUID, int64, error) {
 func typedIntent(r *v1.SubmitChangeRequest) (domain.Intent, error) {
 	i := domain.Intent{Kind: r.Kind, Target: r.TargetIdentity, Access: r.RequestedAccess, Emergency: r.Emergency, DurationSeconds: r.TimeLimitSeconds}
 	if exact := r.Intent; exact != nil {
+		if exact.Kubernetes != nil {
+			return i, domain.ErrInvalid
+		}
 		kind := strings.TrimPrefix(exact.Kind.String(), "CHANGE_KIND_")
 		if (r.Kind != "" && r.Kind != kind) || (r.TargetIdentity != "" && r.TargetIdentity != exact.TargetIdentity) || (r.RequestedAccess != "" && r.RequestedAccess != exact.RequestedAccess) {
 			return i, domain.ErrInvalid
@@ -128,6 +136,19 @@ func (a *ChangeAPI) request(ctx context.Context, c domain.Change) (*v1.ChangeReq
 	}
 	r := &v1.ChangeRequest{RequestId: c.ID, TenantId: c.TenantID, Kind: c.Intent.Kind, TargetIdentity: c.Intent.Target, RequestedAccess: c.Intent.Access, Justification: text, RequestedBy: c.Requester, Emergency: c.Intent.Emergency, TimeLimitSeconds: c.Intent.DurationSeconds, Status: string(c.State), ChangeDigest: c.Digest.String(), Revision: c.Revision, RequiredApproverGroups: c.Decision.Groups, RequiredQuorum: int32(c.Decision.Quorum), DecisionReasons: c.Decision.Reasons, CreatedAt: c.CreatedAt.Format("2006-01-02T15:04:05.999999999Z07:00"), UpdatedAt: c.UpdatedAt.Format("2006-01-02T15:04:05.999999999Z07:00")}
 	r.TypedKind = v1.ChangeKind(v1.ChangeKind_value["CHANGE_KIND_"+c.Intent.Kind])
+	if detail && c.Intent.Kubernetes != nil {
+		value, err := a.service.KubernetesContext(ctx, p, c)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, err
+		}
+		if err == nil {
+			raw, err := json.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+			r.KubernetesContext = &v1.NormalizedKubernetesMutation{NormalizedMutationJson: raw}
+		}
+	}
 	r.RequestedResources, r.RequestedPermissions = c.Intent.Resources, c.Intent.Permissions
 	r.ExpiryStatus = c.ExpiryStatus
 	if !c.GrantExpiresAt.IsZero() {
@@ -186,11 +207,28 @@ func (a *ChangeAPI) SubmitChange(ctx context.Context, r *connect.Request[v1.Subm
 	if rev != 0 {
 		return nil, changeError(domain.ErrInvalid)
 	}
-	intent, err := typedIntent(r.Msg)
-	if err != nil {
-		return nil, changeError(err)
+	var c domain.Change
+	if native := r.Msg.Kubernetes; native != nil {
+		if r.Msg.Intent != nil || r.Msg.Emergency || r.Msg.TimeLimitSeconds != 0 || (r.Msg.Kind != "" && r.Msg.Kind != "K8S_RBAC_CHANGE") {
+			return nil, changeError(domain.ErrInvalid)
+		}
+		var value kube.Mutation
+		decoder := json.NewDecoder(bytes.NewReader(native.NormalizedMutationJson))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&value) != nil || !errors.Is(decoder.Decode(new(any)), io.EOF) || value.Validate() != nil {
+			return nil, changeError(domain.ErrInvalid)
+		}
+		if (r.Msg.TargetIdentity != "" && r.Msg.TargetIdentity != workflow.NativeObjectKey(value)) || (r.Msg.RequestedAccess != "" && r.Msg.RequestedAccess != value.Operation) {
+			return nil, changeError(domain.ErrInvalid)
+		}
+		c, err = a.service.SubmitKubernetes(ctx, p, workflow.KubernetesSubmit{Mutation: value, Justification: r.Msg.Justification, CommandID: id, MinGraphVersion: r.Msg.Mutation.MinGraphVersion, CorrelationID: r.Msg.Mutation.CorrelationId})
+	} else {
+		intent, e := typedIntent(r.Msg)
+		if e != nil {
+			return nil, changeError(e)
+		}
+		c, err = a.service.Submit(ctx, p, workflow.Submit{Intent: intent, Justification: r.Msg.Justification, CommandID: id, MinGraphVersion: r.Msg.Mutation.MinGraphVersion, CorrelationID: r.Msg.Mutation.CorrelationId})
 	}
-	c, err := a.service.Submit(ctx, p, workflow.Submit{Intent: intent, Justification: r.Msg.Justification, CommandID: id, MinGraphVersion: r.Msg.Mutation.MinGraphVersion, CorrelationID: r.Msg.Mutation.CorrelationId})
 	if err != nil {
 		return nil, changeError(err)
 	}

@@ -91,3 +91,31 @@ func (s *Snapshot) replaceKubernetes(current, replacement *Snapshot) (*Snapshot,
 	// not retain. No incoming control edge is silently discarded.
 	return Build(s.version, data)
 }
+
+// KubernetesProjection compares committed anonymous projections against the
+// whole organization graph. Callers authenticate the plan and source digests.
+func (s *Snapshot) KubernetesProjection(current, before, after Data) (*Snapshot, *Snapshot, Impact, Delta, error) {
+	c, err := Build(s.version, current)
+	if err != nil {
+		return nil, nil, Impact{}, Delta{}, err
+	}
+	a, err := Build(s.version, before)
+	if err != nil {
+		return nil, nil, Impact{}, Delta{}, err
+	}
+	b, err := Build(s.version, after)
+	if err != nil {
+		return nil, nil, Impact{}, Delta{}, err
+	}
+	x, err := s.replaceKubernetes(c, a)
+	if err != nil {
+		return nil, nil, Impact{}, Delta{}, err
+	}
+	y, err := s.replaceKubernetes(c, b)
+	if err != nil {
+		return nil, nil, Impact{}, Delta{}, err
+	}
+	delta := snapshotDifference(x, y)
+	impact, err := x.ImpactDiff(delta)
+	return x, y, impact, delta, err
+}

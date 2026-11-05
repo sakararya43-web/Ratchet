@@ -31,12 +31,13 @@ and implementation plans are unchanged.
 
 ## Remaining work and gates
 
-- Adopt normalized graph projection and retained source context in policy/workflow
-  and DecisionService. Authenticated native ingestion is implemented.
-- Authenticate native admission identity and exact context; correlate approved
-  commands through DecisionService, independently observed target state and
-  durable execution records. Pure context/authentication checks are implemented;
-  they do not constitute an execution permit or complete this task.
+- Native submission, policy/independent approval, anonymous assessment replay,
+  guarded command staging, authenticated DecisionService one-use permits and
+  exact signed independent read-back are implemented. Concurrent consumption,
+  restart, mismatch, HTTPS and private-deletion checks pass against PostgreSQL.
+  See [the workflow contract](phase-6-native-workflow.md). Full candidate checks
+  will be rerun after the remaining native drift work; these core tests do not
+  substitute for actual peer execution acceptance.
 - Native drift/read-model evidence and explicit supported/unsupported D1–D8 scope.
 - Real peer adapter admission, outage, approved execution/read-back and latency
   acceptance on kind. Matcher tests alone do not satisfy this gate.
@@ -60,6 +61,5 @@ regression also pass the domain/graph/bus/eventstore integration/race suites.
 
 The real kind authorizer comparison passes independently of the peer adapter.
 The actual peer assertions in the gate report remain failing. Phase 6 is not
-signed off and no claim of 100% integrated success is made. Native policy,
-approval/DecisionService, command/observation and drift/incident adoption are
-still required core work; those are not attributed to the peer or silently cut.
+signed off and no claim of 100% integrated success is made. Native drift/incident
+adoption is still required core work; it is not attributed to the peer or cut.

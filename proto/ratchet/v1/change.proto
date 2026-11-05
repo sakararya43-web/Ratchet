@@ -51,6 +51,7 @@ message ChangeRequest {
   bool scope_over_broad = 28;
   repeated string scope_extra_resources = 29;
   repeated string scope_extra_permissions = 30;
+  NormalizedKubernetesMutation kubernetes_context = 31;
 }
 
 message SubmitChangeRequest {
@@ -64,6 +65,7 @@ message SubmitChangeRequest {
   int64 time_limit_seconds = 8;
   MutationContext mutation = 9;
   ExactChangeIntent intent = 10;
+  NormalizedKubernetesMutation kubernetes = 11;
 }
 
 message SubmitChangeResponse {

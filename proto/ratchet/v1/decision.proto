@@ -8,6 +8,11 @@ option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchet
 
 service DecisionService {
   rpc Decide(DecisionRequest) returns (DecisionResponse);
+  rpc DecideKubernetes(KubernetesDecisionRequest) returns (DecisionResponse);
+}
+
+message KubernetesDecisionRequest {
+  bytes signed_admission_json = 1; // RATCHET_KUBERNETES_ADMISSION_V1, connector-pinned; never a session identity claim.
 }
 
 message ChangeIntent {
@@ -44,4 +49,6 @@ message DecisionResponse {
   string target_revision = 12;
   string expires_at = 13;
   string policy_outcome = 14; // Policy result before the one-use execution binding is checked.
+  string admission_context_digest = 15;
+  bytes signed_native_decision_json = 16; // Exact RATCHET_KUBERNETES_DECISION_V1 permit; absent for refusals and retries.
 }

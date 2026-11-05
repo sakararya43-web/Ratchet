@@ -20,6 +20,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/policy"
@@ -85,6 +86,7 @@ type Config struct {
 	PublishedGraphVersion func(context.Context, string) (int64, error)
 	DriftResponders       map[string]string
 	CheckpointSchedules   map[string]CheckpointSchedule
+	KubernetesConnectors  []kube.KubernetesConnectorKey
 }
 
 func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, tenants []string, config Config, execution ...*Execution) (*Service, error) {
@@ -117,6 +119,9 @@ func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy
 			return nil, domain.ErrInvalid
 		}
 		s.executions[e.Tenant] = e
+	}
+	if err := s.configureKubernetes(config.KubernetesConnectors); err != nil {
+		return nil, err
 	}
 	for tenant, responder := range config.DriftResponders {
 		if !s.tenants[tenant] || responder == "" {
@@ -250,6 +255,9 @@ type Submit struct {
 }
 
 func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (change domain.Change, err error) {
+	if input.Intent.Kubernetes != nil {
+		return domain.Change{}, domain.ErrInvalid
+	}
 	if err := input.Intent.Validate(); err != nil {
 		return domain.Change{}, err
 	}
@@ -429,7 +437,7 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) (err error) {
 		if err != nil {
 			return hold(c, now, "verified policy unavailable")
 		}
-		result, _, err := impact(snapshot, c.Intent)
+		snapshot, result, _, err := s.changeImpactWithin(ctx, tx, snapshot, a, c)
 		if err != nil {
 			return hold(c, now, "impact context cannot be proved")
 		}
@@ -552,7 +560,7 @@ func (s *Service) Approve(ctx context.Context, actor Actor, request string, id u
 		if err != nil {
 			return nil, err
 		}
-		result, delta, err := impact(snapshot, c.Intent)
+		snapshot, result, delta, err := s.changeImpactWithin(ctx, tx, snapshot, a, c)
 		if err != nil {
 			return nil, err
 		}
@@ -619,7 +627,7 @@ func (s *Service) Review(ctx context.Context, actor Actor, request string, id uu
 		if err != nil {
 			return nil, err
 		}
-		result, _, err := impact(snapshot, c.Intent)
+		snapshot, result, _, err := s.changeImpactWithin(ctx, tx, snapshot, a, c)
 		if err != nil {
 			return nil, err
 		}
@@ -667,7 +675,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) (err error) {
 		if c.Envelope == nil || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != a.Hash || c.Envelope.RegistryEpoch != a.RegistryEpoch || c.Envelope.RegistryDigest != a.RegistryDigest || !now.Before(c.Envelope.ExpiresAt) {
 			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
 		}
-		result, delta, err := impact(snapshot, c.Intent)
+		snapshot, result, delta, err := s.changeImpactWithin(ctx, tx, snapshot, a, c)
 		if err != nil {
 			return hold(c, now, "impact cannot be proved before dispatch")
 		}
@@ -720,6 +728,9 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) (err error) {
 		}
 		id := uuid.NewSHA1(jobID(args), []byte("execute")).String()
 		command, err := execution.prepare(ctx, tx, c, id, now)
+		if c.Intent.Kubernetes != nil {
+			command, err = s.prepareKubernetes(ctx, tx, c, id, now)
+		}
 		if err != nil {
 			return hold(c, now, "connector preconditions or capability unavailable")
 		}
@@ -750,6 +761,17 @@ func (s *Service) View(ctx context.Context, actor Actor, request string) (domain
 }
 func (s *Service) PrivateContext(ctx context.Context, c domain.Change) (string, error) {
 	raw, err := s.Store.ReadPrivate(ctx, c.TenantID, c.PrivateReference, s.key)
+	if err == nil && c.Intent.Kubernetes != nil && c.PrivateReference == c.Intent.Kubernetes.PrivateReference {
+		var value nativePrivateContext
+		if json.Unmarshal(raw, &value) != nil {
+			return "", eventstore.ErrIntegrity
+		}
+		digest, e := canon.New().Digest(value)
+		if e != nil || digest != c.Intent.Kubernetes.PrivateDigest {
+			return "", eventstore.ErrIntegrity
+		}
+		return value.Justification, nil
+	}
 	return string(raw), err
 }
 
@@ -839,7 +861,7 @@ func (s *Service) List(ctx context.Context, actor Actor, after int64, limit int,
 				return err
 			}
 			last = r.position
-			if _, err := visibility(ctx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
+			if _, err := s.visibility(ctx, tx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
 				continue
 			} else if err != nil {
 				return err

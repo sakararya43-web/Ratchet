@@ -35,11 +35,15 @@ const (
 const (
 	// DecisionServiceDecideProcedure is the fully-qualified name of the DecisionService's Decide RPC.
 	DecisionServiceDecideProcedure = "/ratchet.v1.DecisionService/Decide"
+	// DecisionServiceDecideKubernetesProcedure is the fully-qualified name of the DecisionService's
+	// DecideKubernetes RPC.
+	DecisionServiceDecideKubernetesProcedure = "/ratchet.v1.DecisionService/DecideKubernetes"
 )
 
 // DecisionServiceClient is a client for the ratchet.v1.DecisionService service.
 type DecisionServiceClient interface {
 	Decide(context.Context, *connect.Request[v1.DecisionRequest]) (*connect.Response[v1.DecisionResponse], error)
+	DecideKubernetes(context.Context, *connect.Request[v1.KubernetesDecisionRequest]) (*connect.Response[v1.DecisionResponse], error)
 }
 
 // NewDecisionServiceClient constructs a client for the ratchet.v1.DecisionService service. By
@@ -59,12 +63,19 @@ func NewDecisionServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(decisionServiceMethods.ByName("Decide")),
 			connect.WithClientOptions(opts...),
 		),
+		decideKubernetes: connect.NewClient[v1.KubernetesDecisionRequest, v1.DecisionResponse](
+			httpClient,
+			baseURL+DecisionServiceDecideKubernetesProcedure,
+			connect.WithSchema(decisionServiceMethods.ByName("DecideKubernetes")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // decisionServiceClient implements DecisionServiceClient.
 type decisionServiceClient struct {
-	decide *connect.Client[v1.DecisionRequest, v1.DecisionResponse]
+	decide           *connect.Client[v1.DecisionRequest, v1.DecisionResponse]
+	decideKubernetes *connect.Client[v1.KubernetesDecisionRequest, v1.DecisionResponse]
 }
 
 // Decide calls ratchet.v1.DecisionService.Decide.
@@ -72,9 +83,15 @@ func (c *decisionServiceClient) Decide(ctx context.Context, req *connect.Request
 	return c.decide.CallUnary(ctx, req)
 }
 
+// DecideKubernetes calls ratchet.v1.DecisionService.DecideKubernetes.
+func (c *decisionServiceClient) DecideKubernetes(ctx context.Context, req *connect.Request[v1.KubernetesDecisionRequest]) (*connect.Response[v1.DecisionResponse], error) {
+	return c.decideKubernetes.CallUnary(ctx, req)
+}
+
 // DecisionServiceHandler is an implementation of the ratchet.v1.DecisionService service.
 type DecisionServiceHandler interface {
 	Decide(context.Context, *connect.Request[v1.DecisionRequest]) (*connect.Response[v1.DecisionResponse], error)
+	DecideKubernetes(context.Context, *connect.Request[v1.KubernetesDecisionRequest]) (*connect.Response[v1.DecisionResponse], error)
 }
 
 // NewDecisionServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -90,10 +107,18 @@ func NewDecisionServiceHandler(svc DecisionServiceHandler, opts ...connect.Handl
 		connect.WithSchema(decisionServiceMethods.ByName("Decide")),
 		connect.WithHandlerOptions(opts...),
 	)
+	decisionServiceDecideKubernetesHandler := connect.NewUnaryHandler(
+		DecisionServiceDecideKubernetesProcedure,
+		svc.DecideKubernetes,
+		connect.WithSchema(decisionServiceMethods.ByName("DecideKubernetes")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/ratchet.v1.DecisionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DecisionServiceDecideProcedure:
 			decisionServiceDecideHandler.ServeHTTP(w, r)
+		case DecisionServiceDecideKubernetesProcedure:
+			decisionServiceDecideKubernetesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -105,4 +130,8 @@ type UnimplementedDecisionServiceHandler struct{}
 
 func (UnimplementedDecisionServiceHandler) Decide(context.Context, *connect.Request[v1.DecisionRequest]) (*connect.Response[v1.DecisionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.DecisionService.Decide is not implemented"))
+}
+
+func (UnimplementedDecisionServiceHandler) DecideKubernetes(context.Context, *connect.Request[v1.KubernetesDecisionRequest]) (*connect.Response[v1.DecisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.DecisionService.DecideKubernetes is not implemented"))
 }

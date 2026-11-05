@@ -1,13 +1,18 @@
 package api
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
@@ -15,6 +20,52 @@ import (
 )
 
 type decisionAPI struct{ service *workflow.Service }
+
+// Connector evidence uses its own pinned signature, independent of browser
+// cookies. Only this exact procedure is mounted outside session/CSRF middleware.
+func NewKubernetesDecisionHandler(service *workflow.Service) (http.Handler, error) {
+	if service == nil {
+		return nil, domain.ErrInvalid
+	}
+	a := &decisionAPI{service}
+	handler := connect.NewUnaryHandler(ratchetv1connect.DecisionServiceDecideKubernetesProcedure, a.DecideKubernetes, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(1<<20))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.TLS == nil {
+			http.Error(w, "TLS required", http.StatusUpgradeRequired)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}), nil
+}
+
+func (a *decisionAPI) DecideKubernetes(ctx context.Context, r *connect.Request[v1.KubernetesDecisionRequest]) (*connect.Response[v1.DecisionResponse], error) {
+	if len(r.Msg.SignedAdmissionJson) == 0 || len(r.Msg.SignedAdmissionJson) > 1<<20 {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	var message kube.SignedKubernetesAdmission
+	decoder := json.NewDecoder(bytes.NewReader(r.Msg.SignedAdmissionJson))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&message) != nil || decoder.Decode(new(any)) != io.EOF {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	decision, err := a.service.DecideKubernetes(ctx, message)
+	if errors.Is(err, kube.ErrAuthentication) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("connector authentication failed"))
+	}
+	if err != nil {
+		return nil, changeError(err)
+	}
+	out := &v1.DecisionResponse{Outcome: decision.Decision.Outcome, Reasons: decision.Decision.Reasons, RequiredApproverGroups: decision.Decision.Groups, RequiredQuorum: int32(decision.Decision.Quorum), PolicyBundleHash: decision.PolicyDigest.String(), GraphVersion: decision.GraphVersion, DecisionId: decision.ID, ExactObjectDigest: decision.ObjectDigest.String(), ExecutionAuthorized: decision.ExecutionAuthorized, AdmissionRequestId: decision.AdmissionUID, TargetRevision: message.Admission.SourceResourceVersion, PolicyOutcome: decision.PolicyOutcome, AdmissionContextDigest: decision.ContextDigest.String()}
+	out.TypedOutcome = v1.DecisionOutcome(v1.DecisionOutcome_value["DECISION_OUTCOME_"+out.Outcome])
+	if decision.ExecutionAuthorized {
+		out.ExpiresAt = decision.ExpiresAt.Format(time.RFC3339Nano)
+		out.SignedNativeDecisionJson, err = json.Marshal(decision)
+		if err != nil {
+			return nil, changeError(err)
+		}
+	}
+	return connect.NewResponse(out), nil
+}
 
 func NewDecisionHandler(service *workflow.Service) (http.Handler, error) {
 	if service == nil {

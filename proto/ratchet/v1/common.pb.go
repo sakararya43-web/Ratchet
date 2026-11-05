@@ -35,21 +35,23 @@ const (
 	ChangeKind_CHANGE_KIND_MODIFY_SAFEGUARD  ChangeKind = 7
 	ChangeKind_CHANGE_KIND_RESTRICT_ACCOUNT  ChangeKind = 8
 	ChangeKind_CHANGE_KIND_TERMINATE_SESSION ChangeKind = 9
+	ChangeKind_CHANGE_KIND_K8S_RBAC_CHANGE   ChangeKind = 10
 )
 
 // Enum value maps for ChangeKind.
 var (
 	ChangeKind_name = map[int32]string{
-		0: "CHANGE_KIND_UNSPECIFIED",
-		1: "CHANGE_KIND_ROLE_ASSIGN",
-		2: "CHANGE_KIND_ROLE_REVOKE",
-		3: "CHANGE_KIND_CREATE_ACCOUNT",
-		4: "CHANGE_KIND_GRANT_PERMISSION",
-		5: "CHANGE_KIND_REVOKE_PERMISSION",
-		6: "CHANGE_KIND_CHANGE_APPROVER",
-		7: "CHANGE_KIND_MODIFY_SAFEGUARD",
-		8: "CHANGE_KIND_RESTRICT_ACCOUNT",
-		9: "CHANGE_KIND_TERMINATE_SESSION",
+		0:  "CHANGE_KIND_UNSPECIFIED",
+		1:  "CHANGE_KIND_ROLE_ASSIGN",
+		2:  "CHANGE_KIND_ROLE_REVOKE",
+		3:  "CHANGE_KIND_CREATE_ACCOUNT",
+		4:  "CHANGE_KIND_GRANT_PERMISSION",
+		5:  "CHANGE_KIND_REVOKE_PERMISSION",
+		6:  "CHANGE_KIND_CHANGE_APPROVER",
+		7:  "CHANGE_KIND_MODIFY_SAFEGUARD",
+		8:  "CHANGE_KIND_RESTRICT_ACCOUNT",
+		9:  "CHANGE_KIND_TERMINATE_SESSION",
+		10: "CHANGE_KIND_K8S_RBAC_CHANGE",
 	}
 	ChangeKind_value = map[string]int32{
 		"CHANGE_KIND_UNSPECIFIED":       0,
@@ -62,6 +64,7 @@ var (
 		"CHANGE_KIND_MODIFY_SAFEGUARD":  7,
 		"CHANGE_KIND_RESTRICT_ACCOUNT":  8,
 		"CHANGE_KIND_TERMINATE_SESSION": 9,
+		"CHANGE_KIND_K8S_RBAC_CHANGE":   10,
 	}
 )
 
@@ -438,18 +441,19 @@ func (x *ErrorDetail) GetCorrelationId() string {
 
 // Signed intent excludes personal justification text; the private record is bound.
 type ExactChangeIntent struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	Kind                   ChangeKind             `protobuf:"varint,1,opt,name=kind,proto3,enum=ratchet.v1.ChangeKind" json:"kind,omitempty"`
-	TargetIdentity         string                 `protobuf:"bytes,2,opt,name=target_identity,json=targetIdentity,proto3" json:"target_identity,omitempty"`
-	RequestedAccess        string                 `protobuf:"bytes,3,opt,name=requested_access,json=requestedAccess,proto3" json:"requested_access,omitempty"`
-	RequestedResources     []string               `protobuf:"bytes,4,rep,name=requested_resources,json=requestedResources,proto3" json:"requested_resources,omitempty"`
-	RequestedPermissions   []string               `protobuf:"bytes,5,rep,name=requested_permissions,json=requestedPermissions,proto3" json:"requested_permissions,omitempty"`
-	Emergency              bool                   `protobuf:"varint,6,opt,name=emergency,proto3" json:"emergency,omitempty"`
-	TimeLimitSeconds       int64                  `protobuf:"varint,7,opt,name=time_limit_seconds,json=timeLimitSeconds,proto3" json:"time_limit_seconds,omitempty"`
-	IncidentId             string                 `protobuf:"bytes,8,opt,name=incident_id,json=incidentId,proto3" json:"incident_id,omitempty"`
-	PrivateRecordReference string                 `protobuf:"bytes,9,opt,name=private_record_reference,json=privateRecordReference,proto3" json:"private_record_reference,omitempty"`
-	PrivateContentDigest   string                 `protobuf:"bytes,10,opt,name=private_content_digest,json=privateContentDigest,proto3" json:"private_content_digest,omitempty"`
-	SafeguardParameters    map[string]string      `protobuf:"bytes,11,rep,name=safeguard_parameters,json=safeguardParameters,proto3" json:"safeguard_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state                  protoimpl.MessageState     `protogen:"open.v1"`
+	Kind                   ChangeKind                 `protobuf:"varint,1,opt,name=kind,proto3,enum=ratchet.v1.ChangeKind" json:"kind,omitempty"`
+	TargetIdentity         string                     `protobuf:"bytes,2,opt,name=target_identity,json=targetIdentity,proto3" json:"target_identity,omitempty"`
+	RequestedAccess        string                     `protobuf:"bytes,3,opt,name=requested_access,json=requestedAccess,proto3" json:"requested_access,omitempty"`
+	RequestedResources     []string                   `protobuf:"bytes,4,rep,name=requested_resources,json=requestedResources,proto3" json:"requested_resources,omitempty"`
+	RequestedPermissions   []string                   `protobuf:"bytes,5,rep,name=requested_permissions,json=requestedPermissions,proto3" json:"requested_permissions,omitempty"`
+	Emergency              bool                       `protobuf:"varint,6,opt,name=emergency,proto3" json:"emergency,omitempty"`
+	TimeLimitSeconds       int64                      `protobuf:"varint,7,opt,name=time_limit_seconds,json=timeLimitSeconds,proto3" json:"time_limit_seconds,omitempty"`
+	IncidentId             string                     `protobuf:"bytes,8,opt,name=incident_id,json=incidentId,proto3" json:"incident_id,omitempty"`
+	PrivateRecordReference string                     `protobuf:"bytes,9,opt,name=private_record_reference,json=privateRecordReference,proto3" json:"private_record_reference,omitempty"`
+	PrivateContentDigest   string                     `protobuf:"bytes,10,opt,name=private_content_digest,json=privateContentDigest,proto3" json:"private_content_digest,omitempty"`
+	SafeguardParameters    map[string]string          `protobuf:"bytes,11,rep,name=safeguard_parameters,json=safeguardParameters,proto3" json:"safeguard_parameters,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Kubernetes             *KubernetesChangeReference `protobuf:"bytes,12,opt,name=kubernetes,proto3" json:"kubernetes,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -561,6 +565,167 @@ func (x *ExactChangeIntent) GetSafeguardParameters() map[string]string {
 	return nil
 }
 
+func (x *ExactChangeIntent) GetKubernetes() *KubernetesChangeReference {
+	if x != nil {
+		return x.Kubernetes
+	}
+	return nil
+}
+
+// Only opaque commitments are retained in approval/lifecycle history. Actual
+// normalized API objects are separately encrypted and access-controlled.
+type KubernetesChangeReference struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	PlanId                 string                 `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	PlanDigest             string                 `protobuf:"bytes,2,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
+	MutationDigest         string                 `protobuf:"bytes,3,opt,name=mutation_digest,json=mutationDigest,proto3" json:"mutation_digest,omitempty"`
+	SourceDigest           string                 `protobuf:"bytes,4,opt,name=source_digest,json=sourceDigest,proto3" json:"source_digest,omitempty"`
+	SourceKey              string                 `protobuf:"bytes,5,opt,name=source_key,json=sourceKey,proto3" json:"source_key,omitempty"`
+	ConnectorId            string                 `protobuf:"bytes,6,opt,name=connector_id,json=connectorId,proto3" json:"connector_id,omitempty"`
+	Operation              string                 `protobuf:"bytes,7,opt,name=operation,proto3" json:"operation,omitempty"`
+	PrivateRecordReference string                 `protobuf:"bytes,8,opt,name=private_record_reference,json=privateRecordReference,proto3" json:"private_record_reference,omitempty"`
+	PrivateContentDigest   string                 `protobuf:"bytes,9,opt,name=private_content_digest,json=privateContentDigest,proto3" json:"private_content_digest,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *KubernetesChangeReference) Reset() {
+	*x = KubernetesChangeReference{}
+	mi := &file_ratchet_v1_common_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KubernetesChangeReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KubernetesChangeReference) ProtoMessage() {}
+
+func (x *KubernetesChangeReference) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_common_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KubernetesChangeReference.ProtoReflect.Descriptor instead.
+func (*KubernetesChangeReference) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *KubernetesChangeReference) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetPlanDigest() string {
+	if x != nil {
+		return x.PlanDigest
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetMutationDigest() string {
+	if x != nil {
+		return x.MutationDigest
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetSourceDigest() string {
+	if x != nil {
+		return x.SourceDigest
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetSourceKey() string {
+	if x != nil {
+		return x.SourceKey
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetConnectorId() string {
+	if x != nil {
+		return x.ConnectorId
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetPrivateRecordReference() string {
+	if x != nil {
+		return x.PrivateRecordReference
+	}
+	return ""
+}
+
+func (x *KubernetesChangeReference) GetPrivateContentDigest() string {
+	if x != nil {
+		return x.PrivateContentDigest
+	}
+	return ""
+}
+
+type NormalizedKubernetesMutation struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	NormalizedMutationJson []byte                 `protobuf:"bytes,1,opt,name=normalized_mutation_json,json=normalizedMutationJson,proto3" json:"normalized_mutation_json,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *NormalizedKubernetesMutation) Reset() {
+	*x = NormalizedKubernetesMutation{}
+	mi := &file_ratchet_v1_common_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NormalizedKubernetesMutation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NormalizedKubernetesMutation) ProtoMessage() {}
+
+func (x *NormalizedKubernetesMutation) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_common_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NormalizedKubernetesMutation.ProtoReflect.Descriptor instead.
+func (*NormalizedKubernetesMutation) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *NormalizedKubernetesMutation) GetNormalizedMutationJson() []byte {
+	if x != nil {
+		return x.NormalizedMutationJson
+	}
+	return nil
+}
+
 type ApprovalEnvelope struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	FormatVersion          uint32                 `protobuf:"varint,1,opt,name=format_version,json=formatVersion,proto3" json:"format_version,omitempty"`
@@ -579,7 +744,7 @@ type ApprovalEnvelope struct {
 
 func (x *ApprovalEnvelope) Reset() {
 	*x = ApprovalEnvelope{}
-	mi := &file_ratchet_v1_common_proto_msgTypes[3]
+	mi := &file_ratchet_v1_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +756,7 @@ func (x *ApprovalEnvelope) String() string {
 func (*ApprovalEnvelope) ProtoMessage() {}
 
 func (x *ApprovalEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_common_proto_msgTypes[3]
+	mi := &file_ratchet_v1_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +769,7 @@ func (x *ApprovalEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovalEnvelope.ProtoReflect.Descriptor instead.
 func (*ApprovalEnvelope) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{3}
+	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ApprovalEnvelope) GetFormatVersion() uint32 {
@@ -693,7 +858,7 @@ type ConnectorEnvelope struct {
 
 func (x *ConnectorEnvelope) Reset() {
 	*x = ConnectorEnvelope{}
-	mi := &file_ratchet_v1_common_proto_msgTypes[4]
+	mi := &file_ratchet_v1_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -705,7 +870,7 @@ func (x *ConnectorEnvelope) String() string {
 func (*ConnectorEnvelope) ProtoMessage() {}
 
 func (x *ConnectorEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_common_proto_msgTypes[4]
+	mi := &file_ratchet_v1_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -718,7 +883,7 @@ func (x *ConnectorEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectorEnvelope.ProtoReflect.Descriptor instead.
 func (*ConnectorEnvelope) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{4}
+	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ConnectorEnvelope) GetSchemaVersion() uint32 {
@@ -779,7 +944,7 @@ type WatchCursor struct {
 
 func (x *WatchCursor) Reset() {
 	*x = WatchCursor{}
-	mi := &file_ratchet_v1_common_proto_msgTypes[5]
+	mi := &file_ratchet_v1_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -791,7 +956,7 @@ func (x *WatchCursor) String() string {
 func (*WatchCursor) ProtoMessage() {}
 
 func (x *WatchCursor) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_common_proto_msgTypes[5]
+	mi := &file_ratchet_v1_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -804,7 +969,7 @@ func (x *WatchCursor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchCursor.ProtoReflect.Descriptor instead.
 func (*WatchCursor) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{5}
+	return file_ratchet_v1_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WatchCursor) GetAfterCursor() string {
@@ -829,7 +994,7 @@ const file_ratchet_v1_common_proto_rawDesc = "" +
 	"\x06reason\x18\x01 \x01(\x0e2\x17.ratchet.v1.ErrorReasonR\x06reason\x12'\n" +
 	"\x0factual_revision\x18\x02 \x01(\x03R\x0eactualRevision\x120\n" +
 	"\x14actual_graph_version\x18\x03 \x01(\x03R\x12actualGraphVersion\x12%\n" +
-	"\x0ecorrelation_id\x18\x04 \x01(\tR\rcorrelationId\"\x89\x05\n" +
+	"\x0ecorrelation_id\x18\x04 \x01(\tR\rcorrelationId\"\xd0\x05\n" +
 	"\x11ExactChangeIntent\x12*\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x16.ratchet.v1.ChangeKindR\x04kind\x12'\n" +
 	"\x0ftarget_identity\x18\x02 \x01(\tR\x0etargetIdentity\x12)\n" +
@@ -843,10 +1008,27 @@ const file_ratchet_v1_common_proto_rawDesc = "" +
 	"\x18private_record_reference\x18\t \x01(\tR\x16privateRecordReference\x124\n" +
 	"\x16private_content_digest\x18\n" +
 	" \x01(\tR\x14privateContentDigest\x12i\n" +
-	"\x14safeguard_parameters\x18\v \x03(\v26.ratchet.v1.ExactChangeIntent.SafeguardParametersEntryR\x13safeguardParameters\x1aF\n" +
+	"\x14safeguard_parameters\x18\v \x03(\v26.ratchet.v1.ExactChangeIntent.SafeguardParametersEntryR\x13safeguardParameters\x12E\n" +
+	"\n" +
+	"kubernetes\x18\f \x01(\v2%.ratchet.v1.KubernetesChangeReferenceR\n" +
+	"kubernetes\x1aF\n" +
 	"\x18SafeguardParametersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa7\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf3\x02\n" +
+	"\x19KubernetesChangeReference\x12\x17\n" +
+	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12\x1f\n" +
+	"\vplan_digest\x18\x02 \x01(\tR\n" +
+	"planDigest\x12'\n" +
+	"\x0fmutation_digest\x18\x03 \x01(\tR\x0emutationDigest\x12#\n" +
+	"\rsource_digest\x18\x04 \x01(\tR\fsourceDigest\x12\x1d\n" +
+	"\n" +
+	"source_key\x18\x05 \x01(\tR\tsourceKey\x12!\n" +
+	"\fconnector_id\x18\x06 \x01(\tR\vconnectorId\x12\x1c\n" +
+	"\toperation\x18\a \x01(\tR\toperation\x128\n" +
+	"\x18private_record_reference\x18\b \x01(\tR\x16privateRecordReference\x124\n" +
+	"\x16private_content_digest\x18\t \x01(\tR\x14privateContentDigest\"X\n" +
+	"\x1cNormalizedKubernetesMutation\x128\n" +
+	"\x18normalized_mutation_json\x18\x01 \x01(\fR\x16normalizedMutationJson\"\xa7\x03\n" +
 	"\x10ApprovalEnvelope\x12%\n" +
 	"\x0eformat_version\x18\x01 \x01(\rR\rformatVersion\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x1d\n" +
@@ -872,7 +1054,7 @@ const file_ratchet_v1_common_proto_rawDesc = "" +
 	"command_id\x18\x06 \x01(\tR\tcommandId\x12'\n" +
 	"\x0fsource_revision\x18\a \x01(\x03R\x0esourceRevision\"0\n" +
 	"\vWatchCursor\x12!\n" +
-	"\fafter_cursor\x18\x01 \x01(\tR\vafterCursor*\xd0\x02\n" +
+	"\fafter_cursor\x18\x01 \x01(\tR\vafterCursor*\xf1\x02\n" +
 	"\n" +
 	"ChangeKind\x12\x1b\n" +
 	"\x17CHANGE_KIND_UNSPECIFIED\x10\x00\x12\x1b\n" +
@@ -884,7 +1066,9 @@ const file_ratchet_v1_common_proto_rawDesc = "" +
 	"\x1bCHANGE_KIND_CHANGE_APPROVER\x10\x06\x12 \n" +
 	"\x1cCHANGE_KIND_MODIFY_SAFEGUARD\x10\a\x12 \n" +
 	"\x1cCHANGE_KIND_RESTRICT_ACCOUNT\x10\b\x12!\n" +
-	"\x1dCHANGE_KIND_TERMINATE_SESSION\x10\t*\xf1\x02\n" +
+	"\x1dCHANGE_KIND_TERMINATE_SESSION\x10\t\x12\x1f\n" +
+	"\x1bCHANGE_KIND_K8S_RBAC_CHANGE\x10\n" +
+	"*\xf1\x02\n" +
 	"\vChangeState\x12\x1c\n" +
 	"\x18CHANGE_STATE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16CHANGE_STATE_SUBMITTED\x10\x01\x12\x19\n" +
@@ -933,30 +1117,33 @@ func file_ratchet_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_ratchet_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_ratchet_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_ratchet_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_ratchet_v1_common_proto_goTypes = []any{
-	(ChangeKind)(0),           // 0: ratchet.v1.ChangeKind
-	(ChangeState)(0),          // 1: ratchet.v1.ChangeState
-	(DecisionOutcome)(0),      // 2: ratchet.v1.DecisionOutcome
-	(ErrorReason)(0),          // 3: ratchet.v1.ErrorReason
-	(*MutationContext)(nil),   // 4: ratchet.v1.MutationContext
-	(*ErrorDetail)(nil),       // 5: ratchet.v1.ErrorDetail
-	(*ExactChangeIntent)(nil), // 6: ratchet.v1.ExactChangeIntent
-	(*ApprovalEnvelope)(nil),  // 7: ratchet.v1.ApprovalEnvelope
-	(*ConnectorEnvelope)(nil), // 8: ratchet.v1.ConnectorEnvelope
-	(*WatchCursor)(nil),       // 9: ratchet.v1.WatchCursor
-	nil,                       // 10: ratchet.v1.ExactChangeIntent.SafeguardParametersEntry
+	(ChangeKind)(0),                      // 0: ratchet.v1.ChangeKind
+	(ChangeState)(0),                     // 1: ratchet.v1.ChangeState
+	(DecisionOutcome)(0),                 // 2: ratchet.v1.DecisionOutcome
+	(ErrorReason)(0),                     // 3: ratchet.v1.ErrorReason
+	(*MutationContext)(nil),              // 4: ratchet.v1.MutationContext
+	(*ErrorDetail)(nil),                  // 5: ratchet.v1.ErrorDetail
+	(*ExactChangeIntent)(nil),            // 6: ratchet.v1.ExactChangeIntent
+	(*KubernetesChangeReference)(nil),    // 7: ratchet.v1.KubernetesChangeReference
+	(*NormalizedKubernetesMutation)(nil), // 8: ratchet.v1.NormalizedKubernetesMutation
+	(*ApprovalEnvelope)(nil),             // 9: ratchet.v1.ApprovalEnvelope
+	(*ConnectorEnvelope)(nil),            // 10: ratchet.v1.ConnectorEnvelope
+	(*WatchCursor)(nil),                  // 11: ratchet.v1.WatchCursor
+	nil,                                  // 12: ratchet.v1.ExactChangeIntent.SafeguardParametersEntry
 }
 var file_ratchet_v1_common_proto_depIdxs = []int32{
 	3,  // 0: ratchet.v1.ErrorDetail.reason:type_name -> ratchet.v1.ErrorReason
 	0,  // 1: ratchet.v1.ExactChangeIntent.kind:type_name -> ratchet.v1.ChangeKind
-	10, // 2: ratchet.v1.ExactChangeIntent.safeguard_parameters:type_name -> ratchet.v1.ExactChangeIntent.SafeguardParametersEntry
-	6,  // 3: ratchet.v1.ApprovalEnvelope.intent:type_name -> ratchet.v1.ExactChangeIntent
-	4,  // [4:4] is the sub-list for method output_type
-	4,  // [4:4] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	12, // 2: ratchet.v1.ExactChangeIntent.safeguard_parameters:type_name -> ratchet.v1.ExactChangeIntent.SafeguardParametersEntry
+	7,  // 3: ratchet.v1.ExactChangeIntent.kubernetes:type_name -> ratchet.v1.KubernetesChangeReference
+	6,  // 4: ratchet.v1.ApprovalEnvelope.intent:type_name -> ratchet.v1.ExactChangeIntent
+	5,  // [5:5] is the sub-list for method output_type
+	5,  // [5:5] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_common_proto_init() }
@@ -970,7 +1157,7 @@ func file_ratchet_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_common_proto_rawDesc), len(file_ratchet_v1_common_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

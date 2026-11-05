@@ -10,7 +10,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/policy"
 )
 
-func visibility(ctx context.Context, actor Actor, c domain.Change, snapshot *graph.Snapshot, active *policy.Active) (bool, error) {
+func (s *Service) visibility(ctx context.Context, tx pgx.Tx, actor Actor, c domain.Change, snapshot *graph.Snapshot, active *policy.Active) (bool, error) {
 	if c.TenantID != actor.TenantID {
 		return false, ErrPermission
 	}
@@ -24,7 +24,7 @@ func visibility(ctx context.Context, actor Actor, c domain.Change, snapshot *gra
 	if c.Requester == actor.ID {
 		return false, nil
 	}
-	result, delta, err := impact(snapshot, c.Intent)
+	snapshot, result, delta, err := s.changeImpactWithin(ctx, tx, snapshot, active, c)
 	if err != nil {
 		return false, ErrPermission
 	}
@@ -50,7 +50,7 @@ func (s *Service) ResponseDetail(ctx context.Context, actor Actor, c domain.Chan
 		if err != nil {
 			return err
 		}
-		detail, err = visibility(ctx, actor, c, snapshot, active)
+		detail, err = s.visibility(ctx, tx, actor, c, snapshot, active)
 		return err
 	})
 	return detail, err

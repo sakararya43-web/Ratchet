@@ -23,6 +23,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/bus"
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/policy"
@@ -52,6 +53,11 @@ type consoleConfig struct {
 		DriftResponder            string `json:"drift_responder"`
 		CheckpointActor           string `json:"checkpoint_actor"`
 		CheckpointIntervalSeconds int64  `json:"checkpoint_interval_seconds"`
+		KubernetesConnectors      []struct {
+			Connector string `json:"connector_id"`
+			Cluster   string `json:"cluster_id"`
+			PublicKey string `json:"public_key_hex"`
+		} `json:"kubernetes_connectors"`
 	} `json:"tenants"`
 }
 
@@ -191,7 +197,15 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	observer := telemetry.New(logger)
 	driftResponders := map[string]string{}
 	checkpointSchedules := map[string]workflow.CheckpointSchedule{}
+	nativePins := []kube.KubernetesConnectorKey{}
 	for _, tenant := range config.Tenants {
+		for _, connector := range tenant.KubernetesConnectors {
+			public, err := key32(connector.PublicKey)
+			if err != nil {
+				return err
+			}
+			nativePins = append(nativePins, kube.KubernetesConnectorKey{Tenant: tenant.ID, Connector: connector.Connector, Cluster: connector.Cluster, PublicKey: public})
+		}
 		if tenant.DriftResponder != "" {
 			driftResponders[tenant.ID] = tenant.DriftResponder
 		}
@@ -206,7 +220,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			checkpointSchedules[tenant.ID] = workflow.CheckpointSchedule{Actor: tenant.CheckpointActor, Interval: time.Duration(tenant.CheckpointIntervalSeconds) * time.Second, Authority: authority}
 		}
 	}
-	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second, Observer: observer, DriftResponders: driftResponders, CheckpointSchedules: checkpointSchedules, PublishedGraphVersion: func(ctx context.Context, tenant string) (int64, error) {
+	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{KubernetesConnectors: nativePins, ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second, Observer: observer, DriftResponders: driftResponders, CheckpointSchedules: checkpointSchedules, PublishedGraphVersion: func(ctx context.Context, tenant string) (int64, error) {
 		s, err := registry.Get(ctx, tenant, 0)
 		if err != nil {
 			return 0, err
@@ -303,6 +317,11 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		apiMux.Handle("/ratchet.v1.ContainmentService/", containment)
 	}
 	mux := http.NewServeMux()
+	nativeDecisions, err := api.NewKubernetesDecisionHandler(service)
+	if err != nil {
+		return err
+	}
+	mux.Handle("/api/ratchet.v1.DecisionService/DecideKubernetes", http.StripPrefix("/api", nativeDecisions))
 	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", sessions.Routes()))
 	mux.Handle("/api/", http.StripPrefix("/api", sessions.Require(apiMux)))
 	mux.Handle("/", api.Health{Database: store.CheckDatabase, Migrations: store.CheckMigrations, RuntimeRole: store.CheckRuntimeRole, Graph: func(ctx context.Context) error {

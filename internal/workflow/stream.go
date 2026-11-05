@@ -83,7 +83,7 @@ func (s *Service) listWindow(ctx context.Context, actor Actor, status string, af
 			if temporaryOnly && c.Intent.DurationSeconds <= 0 {
 				continue
 			}
-			if _, err := visibility(ctx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
+			if _, err := s.visibility(ctx, tx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
 				continue
 			} else if err != nil {
 				return err
@@ -143,7 +143,7 @@ func (s *Service) StreamPage(ctx context.Context, actor Actor, kind string, afte
 				if c.ID != event.StreamID[len("change:"):] || c.TenantID != actor.TenantID || c.Revision != event.StreamVersion || payload.Facts.Type != event.Type {
 					return eventstore.ErrIntegrity
 				}
-				if _, err := visibility(ctx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
+				if _, err := s.visibility(ctx, tx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
 					continue
 				} else if err != nil {
 					return err

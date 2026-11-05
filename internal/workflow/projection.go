@@ -21,7 +21,7 @@ func (s *Service) Position(ctx context.Context, actor Actor, request string) (in
 		if err != nil {
 			return err
 		}
-		if _, err := visibility(ctx, actor, c, snapshot, active); err != nil {
+		if _, err := s.visibility(ctx, tx, actor, c, snapshot, active); err != nil {
 			return err
 		}
 		return tx.QueryRow(ctx, `SELECT event_position FROM ratchet.change_projection WHERE tenant_id=$1 AND request_id=$2::uuid`, actor.TenantID, request).Scan(&position)
@@ -68,7 +68,7 @@ func (s *Service) Attention(ctx context.Context, actor Actor) ([]domain.Change, 
 			if err != nil {
 				return err
 			}
-			if _, err := visibility(ctx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
+			if _, err := s.visibility(ctx, tx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
 				continue
 			} else if err != nil {
 				return err

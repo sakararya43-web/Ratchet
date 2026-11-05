@@ -16,6 +16,7 @@ enum ChangeKind {
   CHANGE_KIND_MODIFY_SAFEGUARD = 7;
   CHANGE_KIND_RESTRICT_ACCOUNT = 8;
   CHANGE_KIND_TERMINATE_SESSION = 9;
+  CHANGE_KIND_K8S_RBAC_CHANGE = 10;
 }
 
 enum ChangeState {
@@ -84,6 +85,25 @@ message ExactChangeIntent {
   string private_record_reference = 9;
   string private_content_digest = 10;
   map<string, string> safeguard_parameters = 11;
+  KubernetesChangeReference kubernetes = 12;
+}
+
+// Only opaque commitments are retained in approval/lifecycle history. Actual
+// normalized API objects are separately encrypted and access-controlled.
+message KubernetesChangeReference {
+  string plan_id = 1;
+  string plan_digest = 2;
+  string mutation_digest = 3;
+  string source_digest = 4;
+  string source_key = 5;
+  string connector_id = 6;
+  string operation = 7;
+  string private_record_reference = 8;
+  string private_content_digest = 9;
+}
+
+message NormalizedKubernetesMutation {
+  bytes normalized_mutation_json = 1;
 }
 
 message ApprovalEnvelope {

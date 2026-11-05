@@ -22,37 +22,38 @@ const (
 )
 
 type ChangeRequest struct {
-	state                         protoimpl.MessageState `protogen:"open.v1"`
-	RequestId                     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	TenantId                      string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind                          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"` // ROLE_ASSIGN, ROLE_REVOKE, CREATE_ACCOUNT, MODIFY_SAFEGUARD
-	TargetIdentity                string                 `protobuf:"bytes,4,opt,name=target_identity,json=targetIdentity,proto3" json:"target_identity,omitempty"`
-	RequestedAccess               string                 `protobuf:"bytes,5,opt,name=requested_access,json=requestedAccess,proto3" json:"requested_access,omitempty"`
-	Justification                 string                 `protobuf:"bytes,6,opt,name=justification,proto3" json:"justification,omitempty"`
-	RequestedBy                   string                 `protobuf:"bytes,7,opt,name=requested_by,json=requestedBy,proto3" json:"requested_by,omitempty"`
-	Emergency                     bool                   `protobuf:"varint,8,opt,name=emergency,proto3" json:"emergency,omitempty"`
-	TimeLimitSeconds              int64                  `protobuf:"varint,9,opt,name=time_limit_seconds,json=timeLimitSeconds,proto3" json:"time_limit_seconds,omitempty"`
-	Status                        string                 `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"` // SUBMITTED, ASSESSED, ALLOWED, AWAITING_APPROVAL, HELD, REJECTED, EXECUTING, EXECUTED, FAILED
-	ChangeDigest                  string                 `protobuf:"bytes,11,opt,name=change_digest,json=changeDigest,proto3" json:"change_digest,omitempty"`
-	GraphVersion                  int64                  `protobuf:"varint,12,opt,name=graph_version,json=graphVersion,proto3" json:"graph_version,omitempty"`
-	RequiredApproverGroups        []string               `protobuf:"bytes,13,rep,name=required_approver_groups,json=requiredApproverGroups,proto3" json:"required_approver_groups,omitempty"`
-	RequiredQuorum                int32                  `protobuf:"varint,14,opt,name=required_quorum,json=requiredQuorum,proto3" json:"required_quorum,omitempty"`
-	DecisionReasons               []string               `protobuf:"bytes,15,rep,name=decision_reasons,json=decisionReasons,proto3" json:"decision_reasons,omitempty"`
-	CreatedAt                     string                 `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt                     string                 `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	TypedKind                     ChangeKind             `protobuf:"varint,18,opt,name=typed_kind,json=typedKind,proto3,enum=ratchet.v1.ChangeKind" json:"typed_kind,omitempty"`
-	State                         ChangeState            `protobuf:"varint,19,opt,name=state,proto3,enum=ratchet.v1.ChangeState" json:"state,omitempty"`
-	Revision                      int64                  `protobuf:"varint,20,opt,name=revision,proto3" json:"revision,omitempty"`
-	ApprovalEnvelope              *ApprovalEnvelope      `protobuf:"bytes,21,opt,name=approval_envelope,json=approvalEnvelope,proto3" json:"approval_envelope,omitempty"`
-	PolicyBundleHash              string                 `protobuf:"bytes,22,opt,name=policy_bundle_hash,json=policyBundleHash,proto3" json:"policy_bundle_hash,omitempty"`
-	CanonicalApprovalEnvelopeJson []byte                 `protobuf:"bytes,23,opt,name=canonical_approval_envelope_json,json=canonicalApprovalEnvelopeJson,proto3" json:"canonical_approval_envelope_json,omitempty"`
-	RequestedResources            []string               `protobuf:"bytes,24,rep,name=requested_resources,json=requestedResources,proto3" json:"requested_resources,omitempty"`
-	RequestedPermissions          []string               `protobuf:"bytes,25,rep,name=requested_permissions,json=requestedPermissions,proto3" json:"requested_permissions,omitempty"`
-	GrantExpiresAt                string                 `protobuf:"bytes,26,opt,name=grant_expires_at,json=grantExpiresAt,proto3" json:"grant_expires_at,omitempty"`
-	ExpiryStatus                  string                 `protobuf:"bytes,27,opt,name=expiry_status,json=expiryStatus,proto3" json:"expiry_status,omitempty"` // SCHEDULED, REVOKING, FAILED, REVOKED; target confirmation is required
-	ScopeOverBroad                bool                   `protobuf:"varint,28,opt,name=scope_over_broad,json=scopeOverBroad,proto3" json:"scope_over_broad,omitempty"`
-	ScopeExtraResources           []string               `protobuf:"bytes,29,rep,name=scope_extra_resources,json=scopeExtraResources,proto3" json:"scope_extra_resources,omitempty"`
-	ScopeExtraPermissions         []string               `protobuf:"bytes,30,rep,name=scope_extra_permissions,json=scopeExtraPermissions,proto3" json:"scope_extra_permissions,omitempty"`
+	state                         protoimpl.MessageState        `protogen:"open.v1"`
+	RequestId                     string                        `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	TenantId                      string                        `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind                          string                        `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"` // ROLE_ASSIGN, ROLE_REVOKE, CREATE_ACCOUNT, MODIFY_SAFEGUARD
+	TargetIdentity                string                        `protobuf:"bytes,4,opt,name=target_identity,json=targetIdentity,proto3" json:"target_identity,omitempty"`
+	RequestedAccess               string                        `protobuf:"bytes,5,opt,name=requested_access,json=requestedAccess,proto3" json:"requested_access,omitempty"`
+	Justification                 string                        `protobuf:"bytes,6,opt,name=justification,proto3" json:"justification,omitempty"`
+	RequestedBy                   string                        `protobuf:"bytes,7,opt,name=requested_by,json=requestedBy,proto3" json:"requested_by,omitempty"`
+	Emergency                     bool                          `protobuf:"varint,8,opt,name=emergency,proto3" json:"emergency,omitempty"`
+	TimeLimitSeconds              int64                         `protobuf:"varint,9,opt,name=time_limit_seconds,json=timeLimitSeconds,proto3" json:"time_limit_seconds,omitempty"`
+	Status                        string                        `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"` // SUBMITTED, ASSESSED, ALLOWED, AWAITING_APPROVAL, HELD, REJECTED, EXECUTING, EXECUTED, FAILED
+	ChangeDigest                  string                        `protobuf:"bytes,11,opt,name=change_digest,json=changeDigest,proto3" json:"change_digest,omitempty"`
+	GraphVersion                  int64                         `protobuf:"varint,12,opt,name=graph_version,json=graphVersion,proto3" json:"graph_version,omitempty"`
+	RequiredApproverGroups        []string                      `protobuf:"bytes,13,rep,name=required_approver_groups,json=requiredApproverGroups,proto3" json:"required_approver_groups,omitempty"`
+	RequiredQuorum                int32                         `protobuf:"varint,14,opt,name=required_quorum,json=requiredQuorum,proto3" json:"required_quorum,omitempty"`
+	DecisionReasons               []string                      `protobuf:"bytes,15,rep,name=decision_reasons,json=decisionReasons,proto3" json:"decision_reasons,omitempty"`
+	CreatedAt                     string                        `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                     string                        `protobuf:"bytes,17,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	TypedKind                     ChangeKind                    `protobuf:"varint,18,opt,name=typed_kind,json=typedKind,proto3,enum=ratchet.v1.ChangeKind" json:"typed_kind,omitempty"`
+	State                         ChangeState                   `protobuf:"varint,19,opt,name=state,proto3,enum=ratchet.v1.ChangeState" json:"state,omitempty"`
+	Revision                      int64                         `protobuf:"varint,20,opt,name=revision,proto3" json:"revision,omitempty"`
+	ApprovalEnvelope              *ApprovalEnvelope             `protobuf:"bytes,21,opt,name=approval_envelope,json=approvalEnvelope,proto3" json:"approval_envelope,omitempty"`
+	PolicyBundleHash              string                        `protobuf:"bytes,22,opt,name=policy_bundle_hash,json=policyBundleHash,proto3" json:"policy_bundle_hash,omitempty"`
+	CanonicalApprovalEnvelopeJson []byte                        `protobuf:"bytes,23,opt,name=canonical_approval_envelope_json,json=canonicalApprovalEnvelopeJson,proto3" json:"canonical_approval_envelope_json,omitempty"`
+	RequestedResources            []string                      `protobuf:"bytes,24,rep,name=requested_resources,json=requestedResources,proto3" json:"requested_resources,omitempty"`
+	RequestedPermissions          []string                      `protobuf:"bytes,25,rep,name=requested_permissions,json=requestedPermissions,proto3" json:"requested_permissions,omitempty"`
+	GrantExpiresAt                string                        `protobuf:"bytes,26,opt,name=grant_expires_at,json=grantExpiresAt,proto3" json:"grant_expires_at,omitempty"`
+	ExpiryStatus                  string                        `protobuf:"bytes,27,opt,name=expiry_status,json=expiryStatus,proto3" json:"expiry_status,omitempty"` // SCHEDULED, REVOKING, FAILED, REVOKED; target confirmation is required
+	ScopeOverBroad                bool                          `protobuf:"varint,28,opt,name=scope_over_broad,json=scopeOverBroad,proto3" json:"scope_over_broad,omitempty"`
+	ScopeExtraResources           []string                      `protobuf:"bytes,29,rep,name=scope_extra_resources,json=scopeExtraResources,proto3" json:"scope_extra_resources,omitempty"`
+	ScopeExtraPermissions         []string                      `protobuf:"bytes,30,rep,name=scope_extra_permissions,json=scopeExtraPermissions,proto3" json:"scope_extra_permissions,omitempty"`
+	KubernetesContext             *NormalizedKubernetesMutation `protobuf:"bytes,31,opt,name=kubernetes_context,json=kubernetesContext,proto3" json:"kubernetes_context,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -297,18 +298,26 @@ func (x *ChangeRequest) GetScopeExtraPermissions() []string {
 	return nil
 }
 
+func (x *ChangeRequest) GetKubernetesContext() *NormalizedKubernetesMutation {
+	if x != nil {
+		return x.KubernetesContext
+	}
+	return nil
+}
+
 type SubmitChangeRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	TenantId         string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Kind             string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	TargetIdentity   string                 `protobuf:"bytes,3,opt,name=target_identity,json=targetIdentity,proto3" json:"target_identity,omitempty"`
-	RequestedAccess  string                 `protobuf:"bytes,4,opt,name=requested_access,json=requestedAccess,proto3" json:"requested_access,omitempty"`
-	Justification    string                 `protobuf:"bytes,5,opt,name=justification,proto3" json:"justification,omitempty"`
-	RequestedBy      string                 `protobuf:"bytes,6,opt,name=requested_by,json=requestedBy,proto3" json:"requested_by,omitempty"`
-	Emergency        bool                   `protobuf:"varint,7,opt,name=emergency,proto3" json:"emergency,omitempty"`
-	TimeLimitSeconds int64                  `protobuf:"varint,8,opt,name=time_limit_seconds,json=timeLimitSeconds,proto3" json:"time_limit_seconds,omitempty"`
-	Mutation         *MutationContext       `protobuf:"bytes,9,opt,name=mutation,proto3" json:"mutation,omitempty"`
-	Intent           *ExactChangeIntent     `protobuf:"bytes,10,opt,name=intent,proto3" json:"intent,omitempty"`
+	state            protoimpl.MessageState        `protogen:"open.v1"`
+	TenantId         string                        `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Kind             string                        `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	TargetIdentity   string                        `protobuf:"bytes,3,opt,name=target_identity,json=targetIdentity,proto3" json:"target_identity,omitempty"`
+	RequestedAccess  string                        `protobuf:"bytes,4,opt,name=requested_access,json=requestedAccess,proto3" json:"requested_access,omitempty"`
+	Justification    string                        `protobuf:"bytes,5,opt,name=justification,proto3" json:"justification,omitempty"`
+	RequestedBy      string                        `protobuf:"bytes,6,opt,name=requested_by,json=requestedBy,proto3" json:"requested_by,omitempty"`
+	Emergency        bool                          `protobuf:"varint,7,opt,name=emergency,proto3" json:"emergency,omitempty"`
+	TimeLimitSeconds int64                         `protobuf:"varint,8,opt,name=time_limit_seconds,json=timeLimitSeconds,proto3" json:"time_limit_seconds,omitempty"`
+	Mutation         *MutationContext              `protobuf:"bytes,9,opt,name=mutation,proto3" json:"mutation,omitempty"`
+	Intent           *ExactChangeIntent            `protobuf:"bytes,10,opt,name=intent,proto3" json:"intent,omitempty"`
+	Kubernetes       *NormalizedKubernetesMutation `protobuf:"bytes,11,opt,name=kubernetes,proto3" json:"kubernetes,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -409,6 +418,13 @@ func (x *SubmitChangeRequest) GetMutation() *MutationContext {
 func (x *SubmitChangeRequest) GetIntent() *ExactChangeIntent {
 	if x != nil {
 		return x.Intent
+	}
+	return nil
+}
+
+func (x *SubmitChangeRequest) GetKubernetes() *NormalizedKubernetesMutation {
+	if x != nil {
+		return x.Kubernetes
 	}
 	return nil
 }
@@ -1746,7 +1762,7 @@ var File_ratchet_v1_change_proto protoreflect.FileDescriptor
 const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\n" +
 	"\x17ratchet/v1/change.proto\x12\n" +
-	"ratchet.v1\x1a\x17ratchet/v1/common.proto\"\x85\n" +
+	"ratchet.v1\x1a\x17ratchet/v1/common.proto\"\xde\n" +
 	"\n" +
 	"\rChangeRequest\x12\x1d\n" +
 	"\n" +
@@ -1783,7 +1799,8 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\rexpiry_status\x18\x1b \x01(\tR\fexpiryStatus\x12(\n" +
 	"\x10scope_over_broad\x18\x1c \x01(\bR\x0escopeOverBroad\x122\n" +
 	"\x15scope_extra_resources\x18\x1d \x03(\tR\x13scopeExtraResources\x126\n" +
-	"\x17scope_extra_permissions\x18\x1e \x03(\tR\x15scopeExtraPermissions\"\x9f\x03\n" +
+	"\x17scope_extra_permissions\x18\x1e \x03(\tR\x15scopeExtraPermissions\x12W\n" +
+	"\x12kubernetes_context\x18\x1f \x01(\v2(.ratchet.v1.NormalizedKubernetesMutationR\x11kubernetesContext\"\xe9\x03\n" +
 	"\x13SubmitChangeRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12'\n" +
@@ -1795,7 +1812,10 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\x12time_limit_seconds\x18\b \x01(\x03R\x10timeLimitSeconds\x127\n" +
 	"\bmutation\x18\t \x01(\v2\x1b.ratchet.v1.MutationContextR\bmutation\x125\n" +
 	"\x06intent\x18\n" +
-	" \x01(\v2\x1d.ratchet.v1.ExactChangeIntentR\x06intent\"K\n" +
+	" \x01(\v2\x1d.ratchet.v1.ExactChangeIntentR\x06intent\x12H\n" +
+	"\n" +
+	"kubernetes\x18\v \x01(\v2(.ratchet.v1.NormalizedKubernetesMutationR\n" +
+	"kubernetes\"K\n" +
 	"\x14SubmitChangeResponse\x123\n" +
 	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\"N\n" +
 	"\x10GetChangeRequest\x12\x1b\n" +
@@ -1923,86 +1943,89 @@ func file_ratchet_v1_change_proto_rawDescGZIP() []byte {
 
 var file_ratchet_v1_change_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_ratchet_v1_change_proto_goTypes = []any{
-	(*ChangeRequest)(nil),               // 0: ratchet.v1.ChangeRequest
-	(*SubmitChangeRequest)(nil),         // 1: ratchet.v1.SubmitChangeRequest
-	(*SubmitChangeResponse)(nil),        // 2: ratchet.v1.SubmitChangeResponse
-	(*GetChangeRequest)(nil),            // 3: ratchet.v1.GetChangeRequest
-	(*GetChangeResponse)(nil),           // 4: ratchet.v1.GetChangeResponse
-	(*ListChangesRequest)(nil),          // 5: ratchet.v1.ListChangesRequest
-	(*ListChangesResponse)(nil),         // 6: ratchet.v1.ListChangesResponse
-	(*ApproveChangeRequest)(nil),        // 7: ratchet.v1.ApproveChangeRequest
-	(*ApproveChangeResponse)(nil),       // 8: ratchet.v1.ApproveChangeResponse
-	(*RejectChangeRequest)(nil),         // 9: ratchet.v1.RejectChangeRequest
-	(*RejectChangeResponse)(nil),        // 10: ratchet.v1.RejectChangeResponse
-	(*HoldChangeRequest)(nil),           // 11: ratchet.v1.HoldChangeRequest
-	(*HoldChangeResponse)(nil),          // 12: ratchet.v1.HoldChangeResponse
-	(*RequestMoreInfoRequest)(nil),      // 13: ratchet.v1.RequestMoreInfoRequest
-	(*RequestMoreInfoResponse)(nil),     // 14: ratchet.v1.RequestMoreInfoResponse
-	(*WatchChangesRequest)(nil),         // 15: ratchet.v1.WatchChangesRequest
-	(*ProvideContextRequest)(nil),       // 16: ratchet.v1.ProvideContextRequest
-	(*ProvideContextResponse)(nil),      // 17: ratchet.v1.ProvideContextResponse
-	(*WatchChangesResponse)(nil),        // 18: ratchet.v1.WatchChangesResponse
-	(*GetDecisionEvidenceRequest)(nil),  // 19: ratchet.v1.GetDecisionEvidenceRequest
-	(*GetDecisionEvidenceResponse)(nil), // 20: ratchet.v1.GetDecisionEvidenceResponse
-	(*ListPolicyHistoryRequest)(nil),    // 21: ratchet.v1.ListPolicyHistoryRequest
-	(*PolicyActivationRecord)(nil),      // 22: ratchet.v1.PolicyActivationRecord
-	(*ListPolicyHistoryResponse)(nil),   // 23: ratchet.v1.ListPolicyHistoryResponse
-	(ChangeKind)(0),                     // 24: ratchet.v1.ChangeKind
-	(ChangeState)(0),                    // 25: ratchet.v1.ChangeState
-	(*ApprovalEnvelope)(nil),            // 26: ratchet.v1.ApprovalEnvelope
-	(*MutationContext)(nil),             // 27: ratchet.v1.MutationContext
-	(*ExactChangeIntent)(nil),           // 28: ratchet.v1.ExactChangeIntent
-	(*WatchCursor)(nil),                 // 29: ratchet.v1.WatchCursor
+	(*ChangeRequest)(nil),                // 0: ratchet.v1.ChangeRequest
+	(*SubmitChangeRequest)(nil),          // 1: ratchet.v1.SubmitChangeRequest
+	(*SubmitChangeResponse)(nil),         // 2: ratchet.v1.SubmitChangeResponse
+	(*GetChangeRequest)(nil),             // 3: ratchet.v1.GetChangeRequest
+	(*GetChangeResponse)(nil),            // 4: ratchet.v1.GetChangeResponse
+	(*ListChangesRequest)(nil),           // 5: ratchet.v1.ListChangesRequest
+	(*ListChangesResponse)(nil),          // 6: ratchet.v1.ListChangesResponse
+	(*ApproveChangeRequest)(nil),         // 7: ratchet.v1.ApproveChangeRequest
+	(*ApproveChangeResponse)(nil),        // 8: ratchet.v1.ApproveChangeResponse
+	(*RejectChangeRequest)(nil),          // 9: ratchet.v1.RejectChangeRequest
+	(*RejectChangeResponse)(nil),         // 10: ratchet.v1.RejectChangeResponse
+	(*HoldChangeRequest)(nil),            // 11: ratchet.v1.HoldChangeRequest
+	(*HoldChangeResponse)(nil),           // 12: ratchet.v1.HoldChangeResponse
+	(*RequestMoreInfoRequest)(nil),       // 13: ratchet.v1.RequestMoreInfoRequest
+	(*RequestMoreInfoResponse)(nil),      // 14: ratchet.v1.RequestMoreInfoResponse
+	(*WatchChangesRequest)(nil),          // 15: ratchet.v1.WatchChangesRequest
+	(*ProvideContextRequest)(nil),        // 16: ratchet.v1.ProvideContextRequest
+	(*ProvideContextResponse)(nil),       // 17: ratchet.v1.ProvideContextResponse
+	(*WatchChangesResponse)(nil),         // 18: ratchet.v1.WatchChangesResponse
+	(*GetDecisionEvidenceRequest)(nil),   // 19: ratchet.v1.GetDecisionEvidenceRequest
+	(*GetDecisionEvidenceResponse)(nil),  // 20: ratchet.v1.GetDecisionEvidenceResponse
+	(*ListPolicyHistoryRequest)(nil),     // 21: ratchet.v1.ListPolicyHistoryRequest
+	(*PolicyActivationRecord)(nil),       // 22: ratchet.v1.PolicyActivationRecord
+	(*ListPolicyHistoryResponse)(nil),    // 23: ratchet.v1.ListPolicyHistoryResponse
+	(ChangeKind)(0),                      // 24: ratchet.v1.ChangeKind
+	(ChangeState)(0),                     // 25: ratchet.v1.ChangeState
+	(*ApprovalEnvelope)(nil),             // 26: ratchet.v1.ApprovalEnvelope
+	(*NormalizedKubernetesMutation)(nil), // 27: ratchet.v1.NormalizedKubernetesMutation
+	(*MutationContext)(nil),              // 28: ratchet.v1.MutationContext
+	(*ExactChangeIntent)(nil),            // 29: ratchet.v1.ExactChangeIntent
+	(*WatchCursor)(nil),                  // 30: ratchet.v1.WatchCursor
 }
 var file_ratchet_v1_change_proto_depIdxs = []int32{
 	24, // 0: ratchet.v1.ChangeRequest.typed_kind:type_name -> ratchet.v1.ChangeKind
 	25, // 1: ratchet.v1.ChangeRequest.state:type_name -> ratchet.v1.ChangeState
 	26, // 2: ratchet.v1.ChangeRequest.approval_envelope:type_name -> ratchet.v1.ApprovalEnvelope
-	27, // 3: ratchet.v1.SubmitChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
-	28, // 4: ratchet.v1.SubmitChangeRequest.intent:type_name -> ratchet.v1.ExactChangeIntent
-	0,  // 5: ratchet.v1.SubmitChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	0,  // 6: ratchet.v1.GetChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	0,  // 7: ratchet.v1.ListChangesResponse.requests:type_name -> ratchet.v1.ChangeRequest
-	27, // 8: ratchet.v1.ApproveChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
-	0,  // 9: ratchet.v1.ApproveChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	27, // 10: ratchet.v1.RejectChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
-	0,  // 11: ratchet.v1.RejectChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	27, // 12: ratchet.v1.HoldChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
-	0,  // 13: ratchet.v1.HoldChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
-	27, // 14: ratchet.v1.RequestMoreInfoRequest.mutation:type_name -> ratchet.v1.MutationContext
-	0,  // 15: ratchet.v1.RequestMoreInfoResponse.request:type_name -> ratchet.v1.ChangeRequest
-	29, // 16: ratchet.v1.WatchChangesRequest.cursor:type_name -> ratchet.v1.WatchCursor
-	27, // 17: ratchet.v1.ProvideContextRequest.mutation:type_name -> ratchet.v1.MutationContext
-	0,  // 18: ratchet.v1.ProvideContextResponse.request:type_name -> ratchet.v1.ChangeRequest
-	0,  // 19: ratchet.v1.WatchChangesResponse.request:type_name -> ratchet.v1.ChangeRequest
-	22, // 20: ratchet.v1.ListPolicyHistoryResponse.activations:type_name -> ratchet.v1.PolicyActivationRecord
-	1,  // 21: ratchet.v1.ChangeService.SubmitChange:input_type -> ratchet.v1.SubmitChangeRequest
-	3,  // 22: ratchet.v1.ChangeService.GetChange:input_type -> ratchet.v1.GetChangeRequest
-	5,  // 23: ratchet.v1.ChangeService.ListChanges:input_type -> ratchet.v1.ListChangesRequest
-	7,  // 24: ratchet.v1.ChangeService.ApproveChange:input_type -> ratchet.v1.ApproveChangeRequest
-	9,  // 25: ratchet.v1.ChangeService.RejectChange:input_type -> ratchet.v1.RejectChangeRequest
-	11, // 26: ratchet.v1.ChangeService.HoldChange:input_type -> ratchet.v1.HoldChangeRequest
-	13, // 27: ratchet.v1.ChangeService.RequestMoreInfo:input_type -> ratchet.v1.RequestMoreInfoRequest
-	16, // 28: ratchet.v1.ChangeService.ProvideContext:input_type -> ratchet.v1.ProvideContextRequest
-	19, // 29: ratchet.v1.ChangeService.GetDecisionEvidence:input_type -> ratchet.v1.GetDecisionEvidenceRequest
-	21, // 30: ratchet.v1.ChangeService.ListPolicyHistory:input_type -> ratchet.v1.ListPolicyHistoryRequest
-	15, // 31: ratchet.v1.ChangeService.WatchChanges:input_type -> ratchet.v1.WatchChangesRequest
-	2,  // 32: ratchet.v1.ChangeService.SubmitChange:output_type -> ratchet.v1.SubmitChangeResponse
-	4,  // 33: ratchet.v1.ChangeService.GetChange:output_type -> ratchet.v1.GetChangeResponse
-	6,  // 34: ratchet.v1.ChangeService.ListChanges:output_type -> ratchet.v1.ListChangesResponse
-	8,  // 35: ratchet.v1.ChangeService.ApproveChange:output_type -> ratchet.v1.ApproveChangeResponse
-	10, // 36: ratchet.v1.ChangeService.RejectChange:output_type -> ratchet.v1.RejectChangeResponse
-	12, // 37: ratchet.v1.ChangeService.HoldChange:output_type -> ratchet.v1.HoldChangeResponse
-	14, // 38: ratchet.v1.ChangeService.RequestMoreInfo:output_type -> ratchet.v1.RequestMoreInfoResponse
-	17, // 39: ratchet.v1.ChangeService.ProvideContext:output_type -> ratchet.v1.ProvideContextResponse
-	20, // 40: ratchet.v1.ChangeService.GetDecisionEvidence:output_type -> ratchet.v1.GetDecisionEvidenceResponse
-	23, // 41: ratchet.v1.ChangeService.ListPolicyHistory:output_type -> ratchet.v1.ListPolicyHistoryResponse
-	18, // 42: ratchet.v1.ChangeService.WatchChanges:output_type -> ratchet.v1.WatchChangesResponse
-	32, // [32:43] is the sub-list for method output_type
-	21, // [21:32] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	27, // 3: ratchet.v1.ChangeRequest.kubernetes_context:type_name -> ratchet.v1.NormalizedKubernetesMutation
+	28, // 4: ratchet.v1.SubmitChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	29, // 5: ratchet.v1.SubmitChangeRequest.intent:type_name -> ratchet.v1.ExactChangeIntent
+	27, // 6: ratchet.v1.SubmitChangeRequest.kubernetes:type_name -> ratchet.v1.NormalizedKubernetesMutation
+	0,  // 7: ratchet.v1.SubmitChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
+	0,  // 8: ratchet.v1.GetChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
+	0,  // 9: ratchet.v1.ListChangesResponse.requests:type_name -> ratchet.v1.ChangeRequest
+	28, // 10: ratchet.v1.ApproveChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	0,  // 11: ratchet.v1.ApproveChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
+	28, // 12: ratchet.v1.RejectChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	0,  // 13: ratchet.v1.RejectChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
+	28, // 14: ratchet.v1.HoldChangeRequest.mutation:type_name -> ratchet.v1.MutationContext
+	0,  // 15: ratchet.v1.HoldChangeResponse.request:type_name -> ratchet.v1.ChangeRequest
+	28, // 16: ratchet.v1.RequestMoreInfoRequest.mutation:type_name -> ratchet.v1.MutationContext
+	0,  // 17: ratchet.v1.RequestMoreInfoResponse.request:type_name -> ratchet.v1.ChangeRequest
+	30, // 18: ratchet.v1.WatchChangesRequest.cursor:type_name -> ratchet.v1.WatchCursor
+	28, // 19: ratchet.v1.ProvideContextRequest.mutation:type_name -> ratchet.v1.MutationContext
+	0,  // 20: ratchet.v1.ProvideContextResponse.request:type_name -> ratchet.v1.ChangeRequest
+	0,  // 21: ratchet.v1.WatchChangesResponse.request:type_name -> ratchet.v1.ChangeRequest
+	22, // 22: ratchet.v1.ListPolicyHistoryResponse.activations:type_name -> ratchet.v1.PolicyActivationRecord
+	1,  // 23: ratchet.v1.ChangeService.SubmitChange:input_type -> ratchet.v1.SubmitChangeRequest
+	3,  // 24: ratchet.v1.ChangeService.GetChange:input_type -> ratchet.v1.GetChangeRequest
+	5,  // 25: ratchet.v1.ChangeService.ListChanges:input_type -> ratchet.v1.ListChangesRequest
+	7,  // 26: ratchet.v1.ChangeService.ApproveChange:input_type -> ratchet.v1.ApproveChangeRequest
+	9,  // 27: ratchet.v1.ChangeService.RejectChange:input_type -> ratchet.v1.RejectChangeRequest
+	11, // 28: ratchet.v1.ChangeService.HoldChange:input_type -> ratchet.v1.HoldChangeRequest
+	13, // 29: ratchet.v1.ChangeService.RequestMoreInfo:input_type -> ratchet.v1.RequestMoreInfoRequest
+	16, // 30: ratchet.v1.ChangeService.ProvideContext:input_type -> ratchet.v1.ProvideContextRequest
+	19, // 31: ratchet.v1.ChangeService.GetDecisionEvidence:input_type -> ratchet.v1.GetDecisionEvidenceRequest
+	21, // 32: ratchet.v1.ChangeService.ListPolicyHistory:input_type -> ratchet.v1.ListPolicyHistoryRequest
+	15, // 33: ratchet.v1.ChangeService.WatchChanges:input_type -> ratchet.v1.WatchChangesRequest
+	2,  // 34: ratchet.v1.ChangeService.SubmitChange:output_type -> ratchet.v1.SubmitChangeResponse
+	4,  // 35: ratchet.v1.ChangeService.GetChange:output_type -> ratchet.v1.GetChangeResponse
+	6,  // 36: ratchet.v1.ChangeService.ListChanges:output_type -> ratchet.v1.ListChangesResponse
+	8,  // 37: ratchet.v1.ChangeService.ApproveChange:output_type -> ratchet.v1.ApproveChangeResponse
+	10, // 38: ratchet.v1.ChangeService.RejectChange:output_type -> ratchet.v1.RejectChangeResponse
+	12, // 39: ratchet.v1.ChangeService.HoldChange:output_type -> ratchet.v1.HoldChangeResponse
+	14, // 40: ratchet.v1.ChangeService.RequestMoreInfo:output_type -> ratchet.v1.RequestMoreInfoResponse
+	17, // 41: ratchet.v1.ChangeService.ProvideContext:output_type -> ratchet.v1.ProvideContextResponse
+	20, // 42: ratchet.v1.ChangeService.GetDecisionEvidence:output_type -> ratchet.v1.GetDecisionEvidenceResponse
+	23, // 43: ratchet.v1.ChangeService.ListPolicyHistory:output_type -> ratchet.v1.ListPolicyHistoryResponse
+	18, // 44: ratchet.v1.ChangeService.WatchChanges:output_type -> ratchet.v1.WatchChangesResponse
+	34, // [34:45] is the sub-list for method output_type
+	23, // [23:34] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_change_proto_init() }

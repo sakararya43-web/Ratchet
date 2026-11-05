@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore/storedb"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
@@ -67,6 +68,38 @@ func (s *Store) GraphWithin(ctx context.Context, tx pgx.Tx, tenant string, key [
 		return nil, err
 	}
 	return graph.Build(version, publicGraph(merged.Data()))
+}
+
+// KubernetesSourceWithin exposes retained exact source facts only to an already
+// authorized tenant transaction. GraphWithin deliberately returns public facts.
+func (s *Store) KubernetesSourceWithin(ctx context.Context, tx pgx.Tx, tenant, connector, sourceKey string, key []byte) (kube.State, int64, error) {
+	sources, err := loadSources(ctx, tx, tenant, key)
+	if err != nil {
+		return kube.State{}, 0, err
+	}
+	for _, source := range sources {
+		if source.id != connector {
+			continue
+		}
+		if source.resync {
+			return kube.State{}, 0, ErrResyncRequired
+		}
+		state, ok := source.data.Kubernetes[sourceKey]
+		if !ok {
+			return kube.State{}, 0, graph.ErrUnavailable
+		}
+		copyState, err := state.Clone()
+		return copyState, source.revision, err
+	}
+	return kube.State{}, 0, graph.ErrUnavailable
+}
+
+func (s *Store) PrivateWithin(ctx context.Context, tx pgx.Tx, tenant, reference string, key []byte) ([]byte, error) {
+	var record PrivateRecord
+	if err := tx.QueryRow(ctx, `SELECT record_id,key_reference,ciphertext FROM ratchet.private_records WHERE tenant_id=$1 AND record_id=$2::uuid`, tenant, reference).Scan(&record.ID, &record.KeyReference, &record.Ciphertext); err != nil {
+		return nil, err
+	}
+	return OpenPrivate(key, tenant, record)
 }
 func (s *Store) ChangeWithin(ctx context.Context, tx pgx.Tx, tenant, id string) (domain.Change, error) {
 	return s.ChangeAtWithin(ctx, tx, tenant, id, 0)

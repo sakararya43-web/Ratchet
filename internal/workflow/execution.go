@@ -29,6 +29,7 @@ type Capability struct {
 	DurableDedup        bool      `json:"durable_dedup"`
 	IndependentReadBack bool      `json:"independent_read_back"`
 	ScheduledRevocation bool      `json:"scheduled_revocation,omitempty"`
+	ProvenReductions    bool      `json:"proven_reductions,omitempty"`
 	Signature           []byte    `json:"signature"`
 }
 
@@ -81,6 +82,9 @@ type PreparedCommand struct {
 	GrantExpiresAt    time.Time         `json:"grant_expires_at,omitempty"`
 	OriginalCommandID string            `json:"original_command_id,omitempty"`
 	TraceParent       string            `json:"traceparent,omitempty"`
+	SourceDrift       string            `json:"source_drift_id,omitempty"`
+	IncidentReference string            `json:"incident_reference,omitempty"`
+	ReductionDigest   ports.Digest      `json:"reduction_digest,omitempty"`
 }
 
 func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id string, now time.Time) (PreparedCommand, error) {
@@ -238,7 +242,13 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		return err
 	}
 	r.Signature = signature
-	_, err = s.Store.MutateChange(ctx, eventstore.ChangeMutation{TenantID: tenant, ActorID: "connector:" + e.Connector, RequestID: r.RequestID, ID: messageID, ExpectedRevision: request.Revision, InputDigest: digest}, func(tx pgx.Tx, now time.Time, c domain.Change) ([]domain.Event, error) {
+	mutation := eventstore.ChangeMutation{TenantID: tenant, ActorID: "connector:" + e.Connector, RequestID: r.RequestID, ID: messageID, ExpectedRevision: request.Revision, InputDigest: digest}
+	if request.SourceDrift != "" {
+		mutation.Additional = func(tx pgx.Tx, _ eventstore.Receipt) error {
+			return s.recordDriftResultWithin(ctx, tx, tenant, r.RequestID)
+		}
+	}
+	_, err = s.Store.MutateChange(ctx, mutation, func(tx pgx.Tx, now time.Time, c domain.Change) ([]domain.Event, error) {
 		var commandRaw []byte
 		if err := tx.QueryRow(ctx, `SELECT command_payload FROM ratchet.execution_attempts WHERE tenant_id=$1 AND command_id=$2::uuid`, tenant, r.CommandID).Scan(&commandRaw); err != nil {
 			return nil, err

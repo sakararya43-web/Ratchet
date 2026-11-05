@@ -276,6 +276,7 @@ func signCapability(t *testing.T, tenant string, timed ...bool) (*workflow.Execu
 	}
 	capability := workflow.Capability{Tenant: tenant, Connector: "source", Protocol: "RATCHET_EXEC_V1", Expires: time.Now().Add(time.Hour), BoundCommands: true, AtomicPreconditions: true, DurableDedup: true, IndependentReadBack: true}
 	capability.ScheduledRevocation = len(timed) > 0 && timed[0]
+	capability.ProvenReductions = len(timed) > 1 && timed[1]
 	digest, err := canon.New().Digest(struct {
 		Domain string `json:"domain"`
 		Body   any    `json:"body"`
@@ -360,7 +361,7 @@ func readyExecution(t *testing.T, intents ...domain.Intent) (system, *workflow.S
 	}
 	execution, connectorKey := signCapability(t, sys.tenant, intent.DurationSeconds > 0)
 	open := func() *workflow.Service {
-		service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, execution)
+		service, err := workflow.NewConfigured(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, workflow.Config{DriftResponders: map[string]string{sys.tenant: "user:sec1"}}, execution)
 		if err != nil {
 			t.Fatal(err)
 		}

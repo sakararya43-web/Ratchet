@@ -44,11 +44,14 @@ type consoleConfig struct {
 	ContainmentCosts        map[string]int64 `json:"containment_costs"`
 	ApprovalLifetimeSeconds int64            `json:"approval_lifetime_seconds"`
 	Tenants                 []struct {
-		ID                     string `json:"tenant_id"`
-		AuthorityFile          string `json:"authority_file"`
-		GenesisDigest          string `json:"genesis_digest"`
-		BundleFile             string `json:"bundle_file"`
-		CheckpointAuthorityURL string `json:"checkpoint_authority_url"`
+		ID                        string `json:"tenant_id"`
+		AuthorityFile             string `json:"authority_file"`
+		GenesisDigest             string `json:"genesis_digest"`
+		BundleFile                string `json:"bundle_file"`
+		CheckpointAuthorityURL    string `json:"checkpoint_authority_url"`
+		DriftResponder            string `json:"drift_responder"`
+		CheckpointActor           string `json:"checkpoint_actor"`
+		CheckpointIntervalSeconds int64  `json:"checkpoint_interval_seconds"`
 	} `json:"tenants"`
 }
 
@@ -186,7 +189,24 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		return errors.New("approval_lifetime_seconds must be between 1 and 86400, or zero for 900")
 	}
 	observer := telemetry.New(logger)
-	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second, Observer: observer, PublishedGraphVersion: func(ctx context.Context, tenant string) (int64, error) {
+	driftResponders := map[string]string{}
+	checkpointSchedules := map[string]workflow.CheckpointSchedule{}
+	for _, tenant := range config.Tenants {
+		if tenant.DriftResponder != "" {
+			driftResponders[tenant.ID] = tenant.DriftResponder
+		}
+		if tenant.CheckpointIntervalSeconds < 0 || tenant.CheckpointIntervalSeconds > 86400 || (tenant.CheckpointActor == "" && tenant.CheckpointIntervalSeconds != 0) {
+			return errors.New("checkpoint schedule requires an actor and an interval between 1 and 86400 seconds, or zero for 900")
+		}
+		if tenant.CheckpointActor != "" {
+			authority, err := workflow.NewCheckpointAuthority(tenant.CheckpointAuthorityURL, nil)
+			if err != nil {
+				return err
+			}
+			checkpointSchedules[tenant.ID] = workflow.CheckpointSchedule{Actor: tenant.CheckpointActor, Interval: time.Duration(tenant.CheckpointIntervalSeconds) * time.Second, Authority: authority}
+		}
+	}
+	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second, Observer: observer, DriftResponders: driftResponders, CheckpointSchedules: checkpointSchedules, PublishedGraphVersion: func(ctx context.Context, tenant string) (int64, error) {
 		s, err := registry.Get(ctx, tenant, 0)
 		if err != nil {
 			return 0, err
@@ -307,6 +327,17 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}
 	for tenant := range tenants {
 		start(func() error { return broker.Relay(ctx, store, tenant, logger, observer) })
+		if driftResponders[tenant] != "" {
+			start(func() error {
+				return broker.ConsumeDrift(ctx, tenant, func(ctx context.Context, raw []byte) error {
+					_, err := service.RecordDrift(ctx, tenant, raw)
+					if errors.Is(err, workflow.ErrPermission) || errors.Is(err, domain.ErrInvalid) {
+						return eventstore.ErrInvalid
+					}
+					return err
+				}, logger)
+			})
+		}
 		start(func() error {
 			return broker.ConsumeResults(ctx, tenant, func(ctx context.Context, raw []byte) error {
 				err := service.RecordExecutionResult(ctx, tenant, raw)

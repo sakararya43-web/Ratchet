@@ -38,6 +38,9 @@ func TestCheckpointCandidatesVerifyEveryReturnedSignature(t *testing.T) {
 		t.Fatal("wrong event-hash leaf encoding")
 	}
 	returned := candidate.Checkpoint
+	if ready, err := registry.CheckpointStatus(candidate, returned); ready || err != nil {
+		t.Fatal("unsigned candidate did not remain pending", ready, err)
+	}
 	d := trust.ComputeCheckpointSigningDigest("tenant", 1, returned.CheckpointDigest)
 	for i := range 2 {
 		sig, err := ecdsa.SignASN1(rand.Reader, keys[i], d[:])
@@ -46,6 +49,9 @@ func TestCheckpointCandidatesVerifyEveryReturnedSignature(t *testing.T) {
 		}
 		if err := authority.SignCheckpoint(&returned, trust.MemberSignature{ActorID: members[i].ActorID, Signature: sig}); err != nil {
 			t.Fatal(err)
+		}
+		if ready, err := registry.CheckpointStatus(candidate, returned); err != nil || ready != (i == 1) {
+			t.Fatal("verified partial/full quorum status", ready, err)
 		}
 	}
 	if err := registry.VerifyCheckpoint(candidate, returned); err != nil {
@@ -79,6 +85,10 @@ func TestCheckpointCandidatesVerifyEveryReturnedSignature(t *testing.T) {
 			}
 			if registry.VerifyCheckpoint(candidate, changed) == nil {
 				t.Fatal("unverified checkpoint accepted")
+			}
+			ready, err := registry.CheckpointStatus(candidate, changed)
+			if ready || (kind == "missing-quorum" && err != nil) || (kind != "missing-quorum" && err == nil) {
+				t.Fatal("invalid evidence confused with pending quorum", ready, err)
 			}
 		})
 	}

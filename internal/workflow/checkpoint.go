@@ -188,6 +188,16 @@ func (s *Service) latestCheckpoint(ctx context.Context, tx pgx.Tx, tenant string
 
 func (s *Service) PrepareCheckpoint(ctx context.Context, actor Actor, input PrepareCheckpointInput) (CheckpointProposal, error) {
 	var proposal CheckpointProposal
+	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, now time.Time) error {
+		var err error
+		proposal, err = s.prepareCheckpointWithin(ctx, tx, now, actor, input)
+		return err
+	})
+	return proposal, err
+}
+
+func (s *Service) prepareCheckpointWithin(ctx context.Context, tx pgx.Tx, now time.Time, actor Actor, input PrepareCheckpointInput) (CheckpointProposal, error) {
+	var proposal CheckpointProposal
 	if input.CommandID == uuid.Nil || input.EndSequence < 0 || input.EndSequence > ledger.MaxSafeInteger {
 		return proposal, domain.ErrInvalid
 	}
@@ -198,7 +208,7 @@ func (s *Service) PrepareCheckpoint(ctx context.Context, actor Actor, input Prep
 	if err != nil {
 		return proposal, err
 	}
-	err = s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, now time.Time) error {
+	err = func() error {
 		_, active, err := s.context(ctx, tx, actor, "checkpoint_manage", nil)
 		if err != nil {
 			return err
@@ -271,7 +281,7 @@ func (s *Service) PrepareCheckpoint(ctx context.Context, actor Actor, input Prep
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO ratchet.checkpoint_candidates(tenant_id,digest,command_id,input_digest,document,event_position) VALUES($1,$2,$3,$4,$5,$6)`, actor.TenantID, candidate.Checkpoint.CheckpointDigest.Bytes(), input.CommandID, fingerprint.Bytes(), raw, receipt.LastSequence)
 		return err
-	})
+	}()
 	return proposal, err
 }
 

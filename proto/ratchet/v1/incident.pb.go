@@ -43,6 +43,9 @@ type Incident struct {
 	RestorationPrerequisites []string               `protobuf:"bytes,18,rep,name=restoration_prerequisites,json=restorationPrerequisites,proto3" json:"restoration_prerequisites,omitempty"`
 	Revision                 int64                  `protobuf:"varint,19,opt,name=revision,proto3" json:"revision,omitempty"`
 	RestorationRequestIds    []string               `protobuf:"bytes,20,rep,name=restoration_request_ids,json=restorationRequestIds,proto3" json:"restoration_request_ids,omitempty"`
+	SourceDriftId            string                 `protobuf:"bytes,21,opt,name=source_drift_id,json=sourceDriftId,proto3" json:"source_drift_id,omitempty"`
+	CorrectiveRequestId      string                 `protobuf:"bytes,22,opt,name=corrective_request_id,json=correctiveRequestId,proto3" json:"corrective_request_id,omitempty"`
+	CorrectiveVerifiedAt     string                 `protobuf:"bytes,23,opt,name=corrective_verified_at,json=correctiveVerifiedAt,proto3" json:"corrective_verified_at,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -215,6 +218,27 @@ func (x *Incident) GetRestorationRequestIds() []string {
 		return x.RestorationRequestIds
 	}
 	return nil
+}
+
+func (x *Incident) GetSourceDriftId() string {
+	if x != nil {
+		return x.SourceDriftId
+	}
+	return ""
+}
+
+func (x *Incident) GetCorrectiveRequestId() string {
+	if x != nil {
+		return x.CorrectiveRequestId
+	}
+	return ""
+}
+
+func (x *Incident) GetCorrectiveVerifiedAt() string {
+	if x != nil {
+		return x.CorrectiveVerifiedAt
+	}
+	return ""
 }
 
 type ListIncidentsRequest struct {
@@ -678,7 +702,7 @@ var File_ratchet_v1_incident_proto protoreflect.FileDescriptor
 const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"\n" +
 	"\x19ratchet/v1/incident.proto\x12\n" +
-	"ratchet.v1\x1a\x17ratchet/v1/common.proto\x1a\x1cratchet/v1/containment.proto\x1a\x17ratchet/v1/impact.proto\"\xbf\x06\n" +
+	"ratchet.v1\x1a\x17ratchet/v1/common.proto\x1a\x1cratchet/v1/containment.proto\x1a\x17ratchet/v1/impact.proto\"\xd1\a\n" +
 	"\bIncident\x12\x1f\n" +
 	"\vincident_id\x18\x01 \x01(\tR\n" +
 	"incidentId\x12\x1b\n" +
@@ -703,7 +727,10 @@ const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"observedAt\x12;\n" +
 	"\x19restoration_prerequisites\x18\x12 \x03(\tR\x18restorationPrerequisites\x12\x1a\n" +
 	"\brevision\x18\x13 \x01(\x03R\brevision\x126\n" +
-	"\x17restoration_request_ids\x18\x14 \x03(\tR\x15restorationRequestIds\"\x94\x01\n" +
+	"\x17restoration_request_ids\x18\x14 \x03(\tR\x15restorationRequestIds\x12&\n" +
+	"\x0fsource_drift_id\x18\x15 \x01(\tR\rsourceDriftId\x122\n" +
+	"\x15corrective_request_id\x18\x16 \x01(\tR\x13correctiveRequestId\x124\n" +
+	"\x16corrective_verified_at\x18\x17 \x01(\tR\x14correctiveVerifiedAt\"\x94\x01\n" +
 	"\x14ListIncidentsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
 	"\rstatus_filter\x18\x02 \x01(\tR\fstatusFilter\x12\x1b\n" +

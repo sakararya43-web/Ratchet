@@ -73,10 +73,25 @@ jobs:
         run: |
           . ./scripts/core-env-load.ps1
           $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
-          go test -race -tags=integration -count=1 -timeout=3m ./...
+          # Serialize packages sharing the local database and bounded runner CPU.
+          # The complete suite includes durable replay, expiry and drift tests.
+          go test -race -p=1 -tags=integration -count=1 -timeout=6m ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: New-process persistence and readiness smoke
         run: sh scripts/core-smoke.sh
+      - name: Measure P1 workloads without race instrumentation
+        shell: pwsh
+        run: |
+          . ./scripts/core-env-load.ps1
+          $env:RATCHET_EVALUATION_DIR = Join-Path $PWD '.local/phase5-evaluation'
+          go test -tags=integration -count=1 -v ./internal/workflow -run 'TestPhase5MeasuredPerformance|TestPhase5BenignCoreReplay' -timeout=2m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve P1 measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-core-measurements
+          path: .local/phase5-evaluation/*.json
+          retention-days: 7
       - name: Independent graph and adversarial workflow properties
         run: go test ./internal/graph ./internal/domain ./internal/workflow -count=1 -rapid.seed=20261105 -rapid.checks=300
       - name: Actual Authority checkpoint HTTP and restart when integrated

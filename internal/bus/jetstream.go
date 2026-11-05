@@ -46,13 +46,16 @@ func (b *Broker) EnsureTenant(ctx context.Context, tenant string) error {
 	if !tenantToken.MatchString(tenant) {
 		return eventstore.ErrInvalid
 	}
-	for _, kind := range []string{"EVENTS", "INGEST", "RESULTS"} {
+	for _, kind := range []string{"EVENTS", "INGEST", "RESULTS", "DRIFT"} {
 		subject := "ratchet." + tenant + ".changes.>"
 		if kind == "INGEST" {
 			subject = "ratchet." + tenant + ".ingest.sync"
 		}
 		if kind == "RESULTS" {
 			subject = "ratchet." + tenant + ".exec.results"
+		}
+		if kind == "DRIFT" {
+			subject = "ratchet." + tenant + ".drift.reports"
 		}
 		config := &nats.StreamConfig{Name: StreamName(tenant, kind), Subjects: []string{subject}, Storage: nats.FileStorage, Retention: nats.LimitsPolicy, MaxMsgSize: 1 << 20, MaxAge: 24 * time.Hour, Duplicates: 2 * time.Minute}
 		old, err := b.js.StreamInfo(config.Name, nats.Context(ctx))
@@ -122,6 +125,10 @@ func (b *Broker) Consume(ctx context.Context, tenant string, handler func(contex
 }
 func (b *Broker) ConsumeResults(ctx context.Context, tenant string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
 	return b.consume(ctx, tenant, "RESULTS", "exec.results", "core-results-v1", handler, logger)
+}
+
+func (b *Broker) ConsumeDrift(ctx context.Context, tenant string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
+	return b.consume(ctx, tenant, "DRIFT", "drift.reports", "core-drift-v1", handler, logger)
 }
 func (b *Broker) consume(ctx context.Context, tenant, kind, suffix, durable string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
 	if handler == nil || logger == nil || !tenantToken.MatchString(tenant) {

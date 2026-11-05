@@ -46,6 +46,11 @@ type RatchetCheckpointCandidate struct {
 	EventPosition int64
 }
 
+type RatchetCheckpointSchedule struct {
+	TenantID  string
+	NextRunAt pgtype.Timestamptz
+}
+
 type RatchetCommandReceipt struct {
 	TenantID      string
 	CommandID     pgtype.UUID
@@ -76,6 +81,16 @@ type RatchetContainmentPlan struct {
 	PlanID        pgtype.UUID
 	InputDigest   []byte
 	PlanDigest    []byte
+	Document      []byte
+	EventPosition int64
+}
+
+type RatchetDriftReceipt struct {
+	TenantID      string
+	ConnectorID   string
+	DriftID       pgtype.UUID
+	OperationID   pgtype.UUID
+	InputDigest   []byte
 	Document      []byte
 	EventPosition int64
 }

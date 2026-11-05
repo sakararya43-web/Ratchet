@@ -118,10 +118,22 @@ type ChangeMutation struct {
 // exact transaction. The durable command receipt is checked before any callback.
 func (s *Store) MutateChange(ctx context.Context, m ChangeMutation, fn func(pgx.Tx, time.Time, domain.Change) ([]domain.Event, error)) (domain.Change, error) {
 	var result domain.Change
+	err := s.WithTenantTx(ctx, m.TenantID, func(tx pgx.Tx, now time.Time) error {
+		var err error
+		result, err = s.MutateChangeWithin(ctx, tx, now, m, fn)
+		return err
+	})
+	return result, err
+}
+
+// MutateChangeWithin joins an already locked tenant transaction. It preserves
+// the same receipts, event validation, private data, projection and outbox rules.
+func (s *Store) MutateChangeWithin(ctx context.Context, tx pgx.Tx, now time.Time, m ChangeMutation, fn func(pgx.Tx, time.Time, domain.Change) ([]domain.Event, error)) (domain.Change, error) {
+	var result domain.Change
 	if _, err := uuid.Parse(m.RequestID); err != nil || m.ID == uuid.Nil || m.ActorID == "" || m.InputDigest.IsZero() {
 		return result, ErrInvalid
 	}
-	err := s.WithTenantTx(ctx, m.TenantID, func(tx pgx.Tx, now time.Time) error {
+	err := func() error {
 		var prior []byte
 		var document []byte
 		var request string
@@ -181,7 +193,7 @@ func (s *Store) MutateChange(ctx context.Context, m ChangeMutation, fn func(pgx.
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO ratchet.workflow_receipts(tenant_id,command_id,request_id,input_digest,document) VALUES($1,$2,$3,$4,$5)`, m.TenantID, m.ID, m.RequestID, m.InputDigest.Bytes(), document)
 		return err
-	})
+	}()
 	return result, err
 }
 func (s *Store) ReadChange(ctx context.Context, tenant, id string) (domain.Change, error) {

@@ -39,15 +39,32 @@ func NewIncidentHandler(service *workflow.Service, key []byte) (http.Handler, er
 }
 
 func incidentView(view workflow.IncidentView) (*v1.Incident, error) {
-	plan, err := containmentView(view.Proposal)
-	if err != nil {
-		return nil, err
+	var plan *v1.ContainmentPlan
+	if view.Incident.Origin != "DRIFT" {
+		var err error
+		plan, err = containmentView(view.Proposal)
+		if err != nil {
+			return nil, err
+		}
 	}
 	severity := "LOW"
 	if len(view.Observed.Routes) > 0 {
 		severity = "CRITICAL"
 	}
 	result := &v1.Incident{IncidentId: view.Incident.ID, TenantId: view.Incident.Tenant, Title: "Manual containment investigation", Severity: severity, Status: view.Incident.Status, AffectedIdentity: view.Incident.Identity, RootCauseType: "MANUAL_CONTAINMENT", ContainmentPlan: plan, OpenedAt: view.Incident.OpenedAt.Format(time.RFC3339Nano), CorrelationId: view.Incident.CorrelationID, ResidualRoutesComplete: !view.Observed.Truncated, ObservedGraphVersion: view.Observed.Version, ObservedAt: view.ObservedAt.Format(time.RFC3339Nano), Revision: view.Incident.Revision, RestorationPrerequisites: []string{"Review the current incident and observed target state.", "Request a new access increase linked to this incident.", "Collect fresh independent approvals and target verification."}}
+	if view.Incident.Origin == "DRIFT" {
+		result.Title = "Unauthorized IAM change"
+		result.RootCauseType = "UNAUTHORIZED_DRIFT"
+		result.SourceDriftId, result.CorrectiveRequestId = view.Incident.SourceDrift, view.Incident.CorrectiveRequest
+		if !view.Incident.ContainedAt.IsZero() {
+			result.ContainedAt = view.Incident.ContainedAt.Format(time.RFC3339Nano)
+		}
+		if view.VerifiedCorrection != nil {
+			c := view.VerifiedCorrection
+			result.CorrectiveVerifiedAt = view.Incident.CorrectiveVerifiedAt.Format(time.RFC3339Nano)
+			result.ActionsTaken = []string{c.Intent.Kind + ": " + c.Intent.Target + " / " + c.Intent.Access}
+		}
+	}
 	for _, r := range view.Observed.Routes {
 		result.ResidualRoutes = append(result.ResidualRoutes, route(r))
 	}

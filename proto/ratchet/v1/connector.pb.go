@@ -977,6 +977,60 @@ func (x *DriftReport) GetObservedRevision() int64 {
 	return 0
 }
 
+// Authentication wrapper for the actual DriftReport. The signature is over
+// canonical proto JSON with signature empty, domain RATCHET_DRIFT_REPORT_V1.
+type SignedDriftReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Report        *DriftReport           `protobuf:"bytes,1,opt,name=report,proto3" json:"report,omitempty"`
+	Signature     []byte                 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignedDriftReport) Reset() {
+	*x = SignedDriftReport{}
+	mi := &file_ratchet_v1_connector_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignedDriftReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignedDriftReport) ProtoMessage() {}
+
+func (x *SignedDriftReport) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_connector_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignedDriftReport.ProtoReflect.Descriptor instead.
+func (*SignedDriftReport) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_connector_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SignedDriftReport) GetReport() *DriftReport {
+	if x != nil {
+		return x.Report
+	}
+	return nil
+}
+
+func (x *SignedDriftReport) GetSignature() []byte {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
 // Connector-authenticated sync; signature covers canonical proto JSON with this
 // signature field empty. Trusted keys are pinned by tenant and connector.
 type SignedGraphSync struct {
@@ -994,7 +1048,7 @@ type SignedGraphSync struct {
 
 func (x *SignedGraphSync) Reset() {
 	*x = SignedGraphSync{}
-	mi := &file_ratchet_v1_connector_proto_msgTypes[9]
+	mi := &file_ratchet_v1_connector_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1006,7 +1060,7 @@ func (x *SignedGraphSync) String() string {
 func (*SignedGraphSync) ProtoMessage() {}
 
 func (x *SignedGraphSync) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_connector_proto_msgTypes[9]
+	mi := &file_ratchet_v1_connector_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1019,7 +1073,7 @@ func (x *SignedGraphSync) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedGraphSync.ProtoReflect.Descriptor instead.
 func (*SignedGraphSync) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_connector_proto_rawDescGZIP(), []int{9}
+	return file_ratchet_v1_connector_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SignedGraphSync) GetEnvelope() *ConnectorEnvelope {
@@ -1201,7 +1255,10 @@ const file_ratchet_v1_connector_proto_rawDesc = "" +
 	"detectedAt\x12\x1a\n" +
 	"\bseverity\x18\x06 \x01(\tR\bseverity\x129\n" +
 	"\benvelope\x18\a \x01(\v2\x1d.ratchet.v1.ConnectorEnvelopeR\benvelope\x12+\n" +
-	"\x11observed_revision\x18\b \x01(\x03R\x10observedRevision\"\xde\x01\n" +
+	"\x11observed_revision\x18\b \x01(\x03R\x10observedRevision\"b\n" +
+	"\x11SignedDriftReport\x12/\n" +
+	"\x06report\x18\x01 \x01(\v2\x17.ratchet.v1.DriftReportR\x06report\x12\x1c\n" +
+	"\tsignature\x18\x02 \x01(\fR\tsignature\"\xde\x01\n" +
 	"\x0fSignedGraphSync\x129\n" +
 	"\benvelope\x18\x01 \x01(\v2\x1d.ratchet.v1.ConnectorEnvelopeR\benvelope\x127\n" +
 	"\bsnapshot\x18\x02 \x01(\v2\x19.ratchet.v1.GraphSnapshotH\x00R\bsnapshot\x12.\n" +
@@ -1221,7 +1278,7 @@ func file_ratchet_v1_connector_proto_rawDescGZIP() []byte {
 	return file_ratchet_v1_connector_proto_rawDescData
 }
 
-var file_ratchet_v1_connector_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_ratchet_v1_connector_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_ratchet_v1_connector_proto_goTypes = []any{
 	(*GraphNode)(nil),         // 0: ratchet.v1.GraphNode
 	(*GraphEdge)(nil),         // 1: ratchet.v1.GraphEdge
@@ -1232,38 +1289,40 @@ var file_ratchet_v1_connector_proto_goTypes = []any{
 	(*ExecResult)(nil),        // 6: ratchet.v1.ExecResult
 	(*AuditEvent)(nil),        // 7: ratchet.v1.AuditEvent
 	(*DriftReport)(nil),       // 8: ratchet.v1.DriftReport
-	(*SignedGraphSync)(nil),   // 9: ratchet.v1.SignedGraphSync
-	nil,                       // 10: ratchet.v1.GraphNode.PropertiesEntry
-	nil,                       // 11: ratchet.v1.GraphEdge.PropertiesEntry
-	nil,                       // 12: ratchet.v1.AuditEvent.DetailsEntry
-	(*ConnectorEnvelope)(nil), // 13: ratchet.v1.ConnectorEnvelope
+	(*SignedDriftReport)(nil), // 9: ratchet.v1.SignedDriftReport
+	(*SignedGraphSync)(nil),   // 10: ratchet.v1.SignedGraphSync
+	nil,                       // 11: ratchet.v1.GraphNode.PropertiesEntry
+	nil,                       // 12: ratchet.v1.GraphEdge.PropertiesEntry
+	nil,                       // 13: ratchet.v1.AuditEvent.DetailsEntry
+	(*ConnectorEnvelope)(nil), // 14: ratchet.v1.ConnectorEnvelope
 }
 var file_ratchet_v1_connector_proto_depIdxs = []int32{
-	10, // 0: ratchet.v1.GraphNode.properties:type_name -> ratchet.v1.GraphNode.PropertiesEntry
-	11, // 1: ratchet.v1.GraphEdge.properties:type_name -> ratchet.v1.GraphEdge.PropertiesEntry
+	11, // 0: ratchet.v1.GraphNode.properties:type_name -> ratchet.v1.GraphNode.PropertiesEntry
+	12, // 1: ratchet.v1.GraphEdge.properties:type_name -> ratchet.v1.GraphEdge.PropertiesEntry
 	0,  // 2: ratchet.v1.GraphSnapshot.nodes:type_name -> ratchet.v1.GraphNode
 	1,  // 3: ratchet.v1.GraphSnapshot.edges:type_name -> ratchet.v1.GraphEdge
-	13, // 4: ratchet.v1.GraphSnapshot.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	14, // 4: ratchet.v1.GraphSnapshot.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	0,  // 5: ratchet.v1.GraphDelta.nodes_added:type_name -> ratchet.v1.GraphNode
 	1,  // 6: ratchet.v1.GraphDelta.edges_added:type_name -> ratchet.v1.GraphEdge
 	1,  // 7: ratchet.v1.GraphDelta.edges_removed:type_name -> ratchet.v1.GraphEdge
-	13, // 8: ratchet.v1.GraphDelta.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	13, // 9: ratchet.v1.ExecCommand.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	13, // 10: ratchet.v1.ObservedState.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	14, // 8: ratchet.v1.GraphDelta.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	14, // 9: ratchet.v1.ExecCommand.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	14, // 10: ratchet.v1.ObservedState.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	5,  // 11: ratchet.v1.ExecResult.observed_state:type_name -> ratchet.v1.ObservedState
-	13, // 12: ratchet.v1.ExecResult.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	12, // 13: ratchet.v1.AuditEvent.details:type_name -> ratchet.v1.AuditEvent.DetailsEntry
-	13, // 14: ratchet.v1.AuditEvent.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	14, // 12: ratchet.v1.ExecResult.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	13, // 13: ratchet.v1.AuditEvent.details:type_name -> ratchet.v1.AuditEvent.DetailsEntry
+	14, // 14: ratchet.v1.AuditEvent.envelope:type_name -> ratchet.v1.ConnectorEnvelope
 	7,  // 15: ratchet.v1.DriftReport.unapproved_operation:type_name -> ratchet.v1.AuditEvent
-	13, // 16: ratchet.v1.DriftReport.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	13, // 17: ratchet.v1.SignedGraphSync.envelope:type_name -> ratchet.v1.ConnectorEnvelope
-	2,  // 18: ratchet.v1.SignedGraphSync.snapshot:type_name -> ratchet.v1.GraphSnapshot
-	3,  // 19: ratchet.v1.SignedGraphSync.delta:type_name -> ratchet.v1.GraphDelta
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	14, // 16: ratchet.v1.DriftReport.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	8,  // 17: ratchet.v1.SignedDriftReport.report:type_name -> ratchet.v1.DriftReport
+	14, // 18: ratchet.v1.SignedGraphSync.envelope:type_name -> ratchet.v1.ConnectorEnvelope
+	2,  // 19: ratchet.v1.SignedGraphSync.snapshot:type_name -> ratchet.v1.GraphSnapshot
+	3,  // 20: ratchet.v1.SignedGraphSync.delta:type_name -> ratchet.v1.GraphDelta
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_connector_proto_init() }
@@ -1272,7 +1331,7 @@ func file_ratchet_v1_connector_proto_init() {
 		return
 	}
 	file_ratchet_v1_common_proto_init()
-	file_ratchet_v1_connector_proto_msgTypes[9].OneofWrappers = []any{
+	file_ratchet_v1_connector_proto_msgTypes[10].OneofWrappers = []any{
 		(*SignedGraphSync_Snapshot)(nil),
 		(*SignedGraphSync_Delta)(nil),
 	}
@@ -1282,7 +1341,7 @@ func file_ratchet_v1_connector_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_connector_proto_rawDesc), len(file_ratchet_v1_connector_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

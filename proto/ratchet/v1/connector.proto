@@ -112,6 +112,13 @@ message DriftReport {
   int64 observed_revision = 8;
 }
 
+// Authentication wrapper for the actual DriftReport. The signature is over
+// canonical proto JSON with signature empty, domain RATCHET_DRIFT_REPORT_V1.
+message SignedDriftReport {
+  DriftReport report = 1;
+  bytes signature = 2;
+}
+
 // Connector-authenticated sync; signature covers canonical proto JSON with this
 // signature field empty. Trusted keys are pinned by tenant and connector.
 message SignedGraphSync {

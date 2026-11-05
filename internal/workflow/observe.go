@@ -19,23 +19,26 @@ func (s *Service) decidePolicy(ctx context.Context, tenant, correlation string, 
 }
 
 type Diagnostics struct {
-	At                           time.Time                  `json:"at"`
-	OutboxPending                int64                      `json:"outbox_pending"`
-	OutboxOldestSeconds          float64                    `json:"outbox_oldest_seconds"`
-	OutboxAttempts               int64                      `json:"outbox_attempts"`
-	GraphVersion                 int64                      `json:"durable_graph_version"`
-	PublishedGraphVersion        *int64                     `json:"published_graph_version"`
-	GraphPublicationLagPositions *int64                     `json:"graph_publication_lag_positions"`
-	GraphQuarantined             int64                      `json:"graph_quarantined_sources"`
-	GraphObservationAgeSeconds   float64                    `json:"graph_observation_age_seconds"`
-	PolicyVersion                string                     `json:"policy_version"`
-	RegistryEpoch                int64                      `json:"registry_epoch"`
-	JobsDue                      int64                      `json:"jobs_due"`
-	JobsFailed                   int64                      `json:"jobs_failed"`
-	TemporaryGrantsOverdue       int64                      `json:"temporary_grants_overdue"`
-	ExpiryFailures               int64                      `json:"expiry_failures"`
-	OpenIncidentOldestSeconds    float64                    `json:"oldest_open_incident_seconds"`
-	Spans                        map[string]telemetry.Count `json:"spans"`
+	At                              time.Time                  `json:"at"`
+	OutboxPending                   int64                      `json:"outbox_pending"`
+	OutboxOldestSeconds             float64                    `json:"outbox_oldest_seconds"`
+	OutboxAttempts                  int64                      `json:"outbox_attempts"`
+	GraphVersion                    int64                      `json:"durable_graph_version"`
+	PublishedGraphVersion           *int64                     `json:"published_graph_version"`
+	GraphPublicationLagPositions    *int64                     `json:"graph_publication_lag_positions"`
+	GraphQuarantined                int64                      `json:"graph_quarantined_sources"`
+	GraphObservationAgeSeconds      float64                    `json:"graph_observation_age_seconds"`
+	PolicyVersion                   string                     `json:"policy_version"`
+	RegistryEpoch                   int64                      `json:"registry_epoch"`
+	JobsDue                         int64                      `json:"jobs_due"`
+	JobsFailed                      int64                      `json:"jobs_failed"`
+	TemporaryGrantsOverdue          int64                      `json:"temporary_grants_overdue"`
+	ExpiryFailures                  int64                      `json:"expiry_failures"`
+	OpenIncidentOldestSeconds       float64                    `json:"oldest_open_incident_seconds"`
+	VerifiedContainmentSamples      int64                      `json:"verified_containment_samples"`
+	VerifiedContainmentTotalSeconds float64                    `json:"verified_containment_total_seconds"`
+	VerifiedContainmentMaxSeconds   float64                    `json:"verified_containment_max_seconds"`
+	Spans                           map[string]telemetry.Count `json:"spans"`
 }
 
 // Diagnostics contains tenant-local counts/versions only. Observation age is not
@@ -78,7 +81,7 @@ func (s *Service) diagnostics(ctx context.Context, tenant string, actor *Actor) 
 			return err
 		}
 		// These are ages of open investigations, not verified containment times.
-		rows, err := tx.Query(ctx, `SELECT canonical_content FROM ratchet.events WHERE tenant_id=$1 AND event_type='IncidentOpened'`, tenant)
+		rows, err := tx.Query(ctx, `SELECT DISTINCT ON(stream_id) canonical_content FROM ratchet.events WHERE tenant_id=$1 AND event_type IN ('IncidentOpened','IncidentDriftOpened','IncidentCorrectionVerified','IncidentCorrectionFailed','IncidentContained','IncidentResidualReviewRequired') ORDER BY stream_id,sequence DESC`, tenant)
 		if err != nil {
 			return err
 		}
@@ -91,7 +94,9 @@ func (s *Service) diagnostics(ctx context.Context, tenant string, actor *Actor) 
 			var event struct {
 				Payload struct {
 					Facts struct {
-						OpenedAt time.Time `json:"opened_at"`
+						OpenedAt    time.Time `json:"opened_at"`
+						Status      string    `json:"status"`
+						ContainedAt time.Time `json:"contained_at"`
 					} `json:"facts"`
 				} `json:"payload"`
 			}
@@ -101,7 +106,15 @@ func (s *Service) diagnostics(ctx context.Context, tenant string, actor *Actor) 
 			if event.Payload.Facts.OpenedAt.IsZero() || event.Payload.Facts.OpenedAt.After(now) {
 				return eventstore.ErrIntegrity
 			}
-			if age := now.Sub(event.Payload.Facts.OpenedAt).Seconds(); age > d.OpenIncidentOldestSeconds {
+			if event.Payload.Facts.Status == "CONTAINED" {
+				elapsed := event.Payload.Facts.ContainedAt.Sub(event.Payload.Facts.OpenedAt).Seconds()
+				if event.Payload.Facts.ContainedAt.After(now) || elapsed < 0 {
+					return eventstore.ErrIntegrity
+				}
+				d.VerifiedContainmentSamples++
+				d.VerifiedContainmentTotalSeconds += elapsed
+				d.VerifiedContainmentMaxSeconds = max(d.VerifiedContainmentMaxSeconds, elapsed)
+			} else if age := now.Sub(event.Payload.Facts.OpenedAt).Seconds(); age > d.OpenIncidentOldestSeconds {
 				d.OpenIncidentOldestSeconds = age
 			}
 		}

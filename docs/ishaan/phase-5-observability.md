@@ -32,9 +32,13 @@ graph and the graph currently published to API readers. It is named in positions
 not target mutations or milliseconds. A missing publication measurement is null,
 not a false zero. Graph observation age is time since the oldest source's last
 recorded observation; target freshness cannot be invented without connector data.
-Open incident age is not verified containment duration. Actual containment timing
-remains pending the verified corrective-action/incident path; no zero-duration
-success metric substitutes for that unfinished acceptance gate.
+Open incident age is distinct from verified containment duration. Drift incidents
+contribute durable sample count, total seconds and maximum seconds only after
+signed independent corrective read-back, synchronized target roles and complete
+zero-residual-path analysis mark them CONTAINED. Pending and failed corrections
+do not contribute success samples. Durations run from incident opening to verified
+containment, using database timestamps; the source observations are replayed from
+the durable incident events after restart.
 
 Real PostgreSQL and TLS tests verify actual queue/backlog/version values,
 publication lag, trace correlation, privacy and investigator-only access. A

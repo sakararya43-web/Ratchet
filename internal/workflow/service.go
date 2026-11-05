@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -68,6 +69,9 @@ func (w *worker) Work(ctx context.Context, j *river.Job[JobArgs]) error {
 	if j.Args.Operation == "reconcile" {
 		return w.service.Reconcile(ctx, j.Args)
 	}
+	if j.Args.Operation == "incident" {
+		return w.service.ReconcileDriftIncident(ctx, j.Args)
+	}
 	return river.JobCancel(domain.ErrInvalid)
 }
 func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, tenants []string, execution ...*Execution) (*Service, error) {
@@ -79,6 +83,8 @@ type Config struct {
 	ApprovalLifetime      time.Duration
 	Observer              *telemetry.Recorder
 	PublishedGraphVersion func(context.Context, string) (int64, error)
+	DriftResponders       map[string]string
+	CheckpointSchedules   map[string]CheckpointSchedule
 }
 
 func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, tenants []string, config Config, execution ...*Execution) (*Service, error) {
@@ -91,6 +97,8 @@ func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy
 	if config.Observer == nil {
 		config.Observer = telemetry.New(nil)
 	}
+	config.DriftResponders = maps.Clone(config.DriftResponders)
+	config.CheckpointSchedules = maps.Clone(config.CheckpointSchedules)
 	if pool == nil || store == nil || policies == nil || len(key) != 32 || len(tenants) == 0 {
 		return nil, domain.ErrInvalid
 	}
@@ -110,10 +118,26 @@ func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy
 		}
 		s.executions[e.Tenant] = e
 	}
+	for tenant, responder := range config.DriftResponders {
+		if !s.tenants[tenant] || responder == "" {
+			return nil, domain.ErrInvalid
+		}
+	}
+	for tenant, schedule := range config.CheckpointSchedules {
+		if schedule.Interval == 0 {
+			schedule.Interval = 15 * time.Minute
+		}
+		if !s.tenants[tenant] || schedule.Actor == "" || schedule.Interval < time.Second || schedule.Interval > 24*time.Hour {
+			return nil, domain.ErrInvalid
+		}
+		s.config.CheckpointSchedules[tenant] = schedule
+	}
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &worker{service: s})
 	river.AddWorker(workers, &approvalExpiryWorker{service: s})
 	river.AddWorker(workers, &grantExpiryWorker{service: s})
+	river.AddWorker(workers, &checkpointTickWorker{service: s})
+	river.AddWorker(workers, &checkpointDeliveryWorker{service: s})
 	jobs, err := river.NewClient(riverpgxv5.New(pool), &river.Config{Schema: "ratchet_jobs", Workers: workers, Queues: queues})
 	if err != nil {
 		return nil, err
@@ -121,7 +145,12 @@ func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy
 	s.jobs = jobs
 	return s, nil
 }
-func (s *Service) Start(ctx context.Context) error { return s.jobs.Start(ctx) }
+func (s *Service) Start(ctx context.Context) error {
+	if err := s.ensureCheckpointSchedules(ctx); err != nil {
+		return err
+	}
+	return s.jobs.Start(ctx)
+}
 func (s *Service) Ready(ctx context.Context) error {
 	if s.approvals == nil || len(s.executions) != len(s.tenants) {
 		return ErrDependency

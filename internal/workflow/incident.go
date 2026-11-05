@@ -17,17 +17,23 @@ import (
 )
 
 type Incident struct {
-	ID                  string       `json:"incident_id"`
-	Tenant              string       `json:"tenant_id"`
-	CorrelationID       string       `json:"correlation_id"`
-	Identity            string       `json:"affected_identity"`
-	PlanID              string       `json:"plan_id"`
-	PlanDigest          ports.Digest `json:"plan_digest"`
-	Status              string       `json:"status"`
-	OpenedAt            time.Time    `json:"opened_at"`
-	Revision            int64        `json:"revision"`
-	OpenFingerprint     ports.Digest `json:"open_fingerprint"`
-	RestorationRequests []string     `json:"restoration_request_ids"`
+	ID                   string       `json:"incident_id"`
+	Tenant               string       `json:"tenant_id"`
+	CorrelationID        string       `json:"correlation_id"`
+	Identity             string       `json:"affected_identity"`
+	PlanID               string       `json:"plan_id"`
+	PlanDigest           ports.Digest `json:"plan_digest"`
+	Status               string       `json:"status"`
+	OpenedAt             time.Time    `json:"opened_at"`
+	Revision             int64        `json:"revision"`
+	OpenFingerprint      ports.Digest `json:"open_fingerprint"`
+	RestorationRequests  []string     `json:"restoration_request_ids"`
+	Origin               string       `json:"origin,omitempty"`
+	SourceDrift          string       `json:"source_drift_id,omitempty"`
+	CorrectiveRequest    string       `json:"corrective_request_id,omitempty"`
+	CorrectiveVerifiedAt time.Time    `json:"corrective_verified_at,omitempty"`
+	ContainedAt          time.Time    `json:"contained_at,omitempty"`
+	ObservedRevision     int64        `json:"verified_observed_revision,omitempty"`
 }
 type incidentRestoration struct {
 	ID            string    `json:"incident_id"`
@@ -37,10 +43,11 @@ type incidentRestoration struct {
 	At            time.Time `json:"requested_at"`
 }
 type IncidentView struct {
-	Incident   Incident
-	Proposal   ContainmentProposal
-	Observed   graph.Paths
-	ObservedAt time.Time
+	Incident           Incident
+	Proposal           ContainmentProposal
+	Observed           graph.Paths
+	ObservedAt         time.Time
+	VerifiedCorrection *domain.Change
 }
 type OpenIncidentInput struct {
 	CommandID             uuid.UUID
@@ -111,6 +118,45 @@ func (s *Service) incidentWithin(ctx context.Context, tx pgx.Tx, tenant, id stri
 			return incident, eventstore.ErrIntegrity
 		}
 		switch event.Type {
+		case "IncidentCorrectionVerified", "IncidentCorrectionFailed", "IncidentContained", "IncidentResidualReviewRequired":
+			var next Incident
+			if incident.Origin != "DRIFT" || json.Unmarshal(payload.Facts, &next) != nil || next.ID != incident.ID || next.Tenant != tenant || next.Revision != incident.Revision+1 || event.StreamVersion != next.Revision || next.CorrectiveRequest != incident.CorrectiveRequest || next.SourceDrift != incident.SourceDrift || next.Identity != incident.Identity || !next.OpenedAt.Equal(incident.OpenedAt) {
+				return incident, eventstore.ErrIntegrity
+			}
+			c, err := s.Store.ChangeAtWithin(ctx, tx, tenant, next.CorrectiveRequest, event.Sequence)
+			if err != nil {
+				return incident, err
+			}
+			if c.IncidentReference != id || c.SourceDrift != incident.SourceDrift {
+				return incident, eventstore.ErrIntegrity
+			}
+			if event.Type == "IncidentCorrectionFailed" {
+				if c.State != domain.Failed || next.Status != "OPEN" {
+					return incident, eventstore.ErrIntegrity
+				}
+			} else if c.State != domain.Executed || next.CorrectiveVerifiedAt.IsZero() || next.CorrectiveVerifiedAt.After(event.RecordedAt) || next.ObservedRevision < 1 {
+				return incident, eventstore.ErrIntegrity
+			}
+			if event.Type == "IncidentContained" && (next.Status != "CONTAINED" || next.ContainedAt.Before(next.CorrectiveVerifiedAt) || next.ContainedAt.After(event.RecordedAt)) {
+				return incident, eventstore.ErrIntegrity
+			}
+			incident = next
+		case "IncidentDriftOpened":
+			if incident.Revision != 0 || event.StreamVersion != 1 || json.Unmarshal(payload.Facts, &incident) != nil || incident.ID != id || incident.Tenant != tenant || incident.Origin != "DRIFT" || incident.SourceDrift == "" || incident.Identity == "" || incident.OpenFingerprint.IsZero() || incident.Revision != 1 || incident.OpenedAt.IsZero() || incident.OpenedAt.After(event.RecordedAt) || incident.PlanID != "" || !incident.PlanDigest.IsZero() {
+				return incident, eventstore.ErrIntegrity
+			}
+			if incident.Status != "OPEN" && incident.Status != "CONTAINING" {
+				return incident, eventstore.ErrIntegrity
+			}
+			if incident.CorrectiveRequest != "" {
+				c, err := s.Store.ChangeAtWithin(ctx, tx, tenant, incident.CorrectiveRequest, event.Sequence)
+				if err != nil {
+					return incident, err
+				}
+				if c.SourceDrift != incident.SourceDrift || c.IncidentReference != id || c.State != domain.Executing {
+					return incident, eventstore.ErrIntegrity
+				}
+			}
 		case "IncidentOpened":
 			if incident.Revision != 0 || event.StreamVersion != 1 || json.Unmarshal(payload.Facts, &incident) != nil {
 				return incident, eventstore.ErrIntegrity
@@ -151,17 +197,28 @@ func (s *Service) validateRestoration(ctx context.Context, tx pgx.Tx, actor Acto
 	if err != nil {
 		return err
 	}
-	proposal, err := s.containmentProposal(ctx, tx, actor.TenantID, incident.PlanID)
-	if err != nil {
-		return err
-	}
-	if proposal.Digest != incident.PlanDigest || intent.Kind != "ROLE_ASSIGN" {
-		return domain.ErrInvalid
-	}
 	permitted := false
-	for _, action := range proposal.Body.Plan.Actions {
-		if action.Kind == "ROLE_REVOKE" && action.Target == intent.Target && action.Access == intent.Access {
-			permitted = true
+	if incident.Origin == "DRIFT" {
+		if incident.CorrectiveVerifiedAt.IsZero() {
+			return domain.ErrTransition
+		}
+		c, err := s.Store.ChangeWithin(ctx, tx, actor.TenantID, incident.CorrectiveRequest)
+		if err != nil {
+			return err
+		}
+		permitted = c.State == domain.Executed && c.Intent.Kind == "ROLE_REVOKE" && c.Intent.Target == intent.Target && c.Intent.Access == intent.Access && intent.Kind == "ROLE_ASSIGN"
+	} else {
+		proposal, err := s.containmentProposal(ctx, tx, actor.TenantID, incident.PlanID)
+		if err != nil {
+			return err
+		}
+		if proposal.Digest != incident.PlanDigest || intent.Kind != "ROLE_ASSIGN" {
+			return domain.ErrInvalid
+		}
+		for _, action := range proposal.Body.Plan.Actions {
+			if action.Kind == "ROLE_REVOKE" && action.Target == intent.Target && action.Access == intent.Access {
+				permitted = true
+			}
 		}
 	}
 	if !permitted {
@@ -194,6 +251,26 @@ func (s *Service) recordRestoration(ctx context.Context, tx pgx.Tx, actor Actor,
 
 func (s *Service) incidentView(ctx context.Context, tx pgx.Tx, incident Incident, snapshot *graph.Snapshot, now time.Time) (IncidentView, error) {
 	view := IncidentView{Incident: incident, ObservedAt: now}
+	if incident.Origin == "DRIFT" {
+		n, err := snapshot.Node(incident.Identity)
+		if err != nil {
+			return view, err
+		}
+		if !graph.Identity(n.Type) {
+			view.Observed = graph.Paths{Version: snapshot.Version(), Routes: []graph.Route{}, Truncated: true}
+			return view, nil
+		}
+		observed, err := snapshot.PathsTo(incident.Identity, 1000, 1_000_000)
+		view.Observed = observed
+		if err == nil && !incident.CorrectiveVerifiedAt.IsZero() {
+			c, e := s.Store.ChangeWithin(ctx, tx, incident.Tenant, incident.CorrectiveRequest)
+			if e != nil {
+				return view, e
+			}
+			view.VerifiedCorrection = &c
+		}
+		return view, err
+	}
 	proposal, err := s.containmentProposal(ctx, tx, incident.Tenant, incident.PlanID)
 	if err != nil {
 		return view, err

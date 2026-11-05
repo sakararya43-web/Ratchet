@@ -36,6 +36,9 @@ message Incident {
   repeated string restoration_prerequisites = 18;
   int64 revision = 19;
   repeated string restoration_request_ids = 20;
+  string source_drift_id = 21;
+  string corrective_request_id = 22;
+  string corrective_verified_at = 23;
 }
 
 message ListIncidentsRequest {

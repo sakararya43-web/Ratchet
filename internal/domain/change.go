@@ -163,6 +163,8 @@ type Change struct {
 	ExpiryExecutionID string          `json:"expiry_execution_id,omitempty"`
 	ExpiryStatus      string          `json:"expiry_status,omitempty"`
 	Scope             *ScopeReview    `json:"scope_review,omitempty"`
+	SourceDrift       string          `json:"source_drift_id,omitempty"`
+	IncidentReference string          `json:"incident_reference,omitempty"`
 }
 type Event struct {
 	Type   string `json:"type"`

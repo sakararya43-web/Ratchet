@@ -228,8 +228,8 @@ on 2026-11-05 while these peer gates remain open.
 
 - [x] Add requester-safe response redaction at the API boundary. Keep investigator detail policy-restricted; do not rely on the frontend to hide sensitive fields.
 - [ ] Implement configurable approval expiry and durable emergency-grant expiry using database time. Schedule revocation atomically when the grant is committed, preserve it across restart, and reconcile missed/late jobs. Never record Revoked until the target confirms revocation.
-- [ ] Route emergency requests to the existing eligible independent approver policy and enforce fixed duration/minimum necessary access. An emergency flag must not disable quorum, passkeys or impact analysis.
-- [ ] Add temporary-grant review read models, including failed expiry/revocation requiring attention. Flag over-broad access from explicit requested resources/permissions; do not infer business intent through AI or invented scores.
+- [x] Route emergency requests to the existing eligible independent approver policy and enforce fixed duration/minimum necessary access. An emergency flag must not disable quorum, passkeys or impact analysis.
+- [x] Add temporary-grant review read models, including failed expiry/revocation requiring attention. Flag over-broad access from explicit requested resources/permissions; do not infer business intent through AI or invented scores.
 - [x] Implement resumable Change/Incident Watch streams with stable cursors and explicit reconnect behavior, backed by real projections/events. Avoid data races between list results and streamed updates.
 - [ ] Consume actual `DriftReport`/audit observations. Correlate against approved commands, decide whether a reversal is a proven reduction, open the incident and publish the authorized corrective command. Unknown/unsafe restoration is held for review rather than labeled reduction.
 - [ ] Prevent drift-reversion loops, duplicate incidents and false drift alarms from normal read-back delay. Preserve provenance of the observed and corrective changes.

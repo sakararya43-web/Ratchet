@@ -50,6 +50,18 @@ func (i Intent) Validate() error {
 	if strings.TrimSpace(i.Target) == "" || len(i.Target) > 256 || len(i.Access) > 256 || i.DurationSeconds < 0 || i.DurationSeconds > 86400 || len(i.Resources) > 100 || len(i.Permissions) > 100 {
 		return ErrInvalid
 	}
+	for _, values := range [][]string{i.Resources, i.Permissions} {
+		seen := map[string]bool{}
+		for _, value := range values {
+			if value == "" || value != strings.TrimSpace(value) || len(value) > 256 || seen[value] {
+				return ErrInvalid
+			}
+			seen[value] = true
+		}
+	}
+	if (i.DurationSeconds > 0 || i.Emergency) && i.Kind != "ROLE_ASSIGN" {
+		return ErrInvalid
+	}
 	switch i.Kind {
 	case "ROLE_ASSIGN", "ROLE_REVOKE":
 		if i.Access == "" || len(i.Parameters) != 0 {
@@ -75,6 +87,14 @@ type Decision struct {
 	Reasons []string `json:"reasons"`
 	Groups  []string `json:"approver_groups"`
 	Quorum  int      `json:"quorum"`
+}
+
+type ScopeReview struct {
+	Complete                bool     `json:"complete"`
+	OverBroad               bool     `json:"over_broad"`
+	Resources               []string `json:"extra_resources"`
+	Permissions             []string `json:"extra_permissions"`
+	ControlsOtherIdentities bool     `json:"controls_other_identities"`
 }
 
 func (d Decision) Validate() error {
@@ -120,25 +140,29 @@ type Approval struct {
 	VerifiedAt   time.Time                `json:"verified_at"`
 }
 type Change struct {
-	ID               string          `json:"request_id"`
-	CorrelationID    string          `json:"correlation_id,omitempty"`
-	TenantID         string          `json:"tenant_id"`
-	Requester        string          `json:"requester"`
-	Intent           Intent          `json:"intent"`
-	State            State           `json:"state"`
-	Revision         int64           `json:"revision"`
-	Decision         Decision        `json:"decision"`
-	Facts            json.RawMessage `json:"decision_facts,omitempty"`
-	Envelope         *Envelope       `json:"approval_envelope,omitempty"`
-	Digest           ports.Digest    `json:"change_digest"`
-	Approvals        []Approval      `json:"approvals"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
-	PrivateReference string          `json:"private_record_reference"`
-	PrivateDigest    ports.Digest    `json:"private_content_digest"`
-	ExecutionID      string          `json:"execution_id,omitempty"`
-	ReviewReference  string          `json:"review_private_reference,omitempty"`
-	ReviewKind       string          `json:"review_kind,omitempty"`
+	ID                string          `json:"request_id"`
+	CorrelationID     string          `json:"correlation_id,omitempty"`
+	TenantID          string          `json:"tenant_id"`
+	Requester         string          `json:"requester"`
+	Intent            Intent          `json:"intent"`
+	State             State           `json:"state"`
+	Revision          int64           `json:"revision"`
+	Decision          Decision        `json:"decision"`
+	Facts             json.RawMessage `json:"decision_facts,omitempty"`
+	Envelope          *Envelope       `json:"approval_envelope,omitempty"`
+	Digest            ports.Digest    `json:"change_digest"`
+	Approvals         []Approval      `json:"approvals"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
+	PrivateReference  string          `json:"private_record_reference"`
+	PrivateDigest     ports.Digest    `json:"private_content_digest"`
+	ExecutionID       string          `json:"execution_id,omitempty"`
+	ReviewReference   string          `json:"review_private_reference,omitempty"`
+	ReviewKind        string          `json:"review_kind,omitempty"`
+	GrantExpiresAt    time.Time       `json:"grant_expires_at,omitempty"`
+	ExpiryExecutionID string          `json:"expiry_execution_id,omitempty"`
+	ExpiryStatus      string          `json:"expiry_status,omitempty"`
+	Scope             *ScopeReview    `json:"scope_review,omitempty"`
 }
 type Event struct {
 	Type   string `json:"type"`
@@ -158,6 +182,8 @@ type Command struct {
 	Facts            json.RawMessage
 	PrivateReference string
 	PrivateDigest    ports.Digest
+	GrantExpiresAt   time.Time
+	Scope            *ScopeReview
 }
 
 func clone(c Change) Change {
@@ -226,6 +252,7 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 		next.Envelope = nil
 		next.Digest = ports.Digest{}
 		next.Decision = Decision{}
+		next.Scope = nil
 		return []Event{emit("ChangeContextProvided", Submitted)}, nil
 	case "ASSESS":
 		if !slices.Contains([]State{Submitted, Held, Assessed, AwaitingApproval, Allowed, Approved}, current.State) {
@@ -235,6 +262,7 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 			return nil, err
 		}
 		next.Decision = cmd.Decision
+		next.Scope = cmd.Scope
 		next.Facts = cmd.Facts
 		next.Envelope = cmd.Envelope
 		next.Digest = cmd.Digest
@@ -303,6 +331,13 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 			return nil, ErrTransition
 		}
 		next.ExecutionID = cmd.ExecutionID
+		if current.Intent.DurationSeconds > 0 {
+			if current.Intent.Kind != "ROLE_ASSIGN" || !cmd.GrantExpiresAt.Equal(cmd.At.Add(time.Duration(current.Intent.DurationSeconds)*time.Second)) {
+				return nil, ErrInvalid
+			}
+			next.GrantExpiresAt = cmd.GrantExpiresAt
+			next.ExpiryStatus = "SCHEDULED"
+		}
 		return []Event{emit("ChangeExecuting", Executing)}, nil
 	case "VERIFIED", "EXECUTION_FAILED":
 		if current.State != Executing || current.ExecutionID != cmd.ExecutionID || cmd.ExecutionID == "" {
@@ -324,10 +359,29 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 			return nil, ErrTransition
 		}
 		return []Event{emit("ChangeReconciliationRequested", Executing)}, nil
-	case "REVOKE_VERIFIED":
-		if current.State != Executed || !cmd.Verified {
+	case "EXPIRE_GRANT":
+		if current.State != Executed || current.GrantExpiresAt.IsZero() || cmd.At.Before(current.GrantExpiresAt) || current.ExpiryStatus != "SCHEDULED" || cmd.ExecutionID == "" {
 			return nil, ErrTransition
 		}
+		next.ExpiryExecutionID = cmd.ExecutionID
+		next.ExpiryStatus = "REVOKING"
+		return []Event{emit("ChangeExpiryDispatched", Executed)}, nil
+	case "EXPIRY_RECONCILE", "EXPIRY_FAILED", "REVOKE_VERIFIED":
+		if current.State != Executed || current.ExpiryStatus != "REVOKING" || current.ExpiryExecutionID != cmd.ExecutionID || cmd.ExecutionID == "" {
+			return nil, ErrTransition
+		}
+		if cmd.Kind == "EXPIRY_RECONCILE" {
+			return []Event{emit("ChangeExpiryReconciliationRequested", Executed)}, nil
+		}
+		if !cmd.Verified {
+			return nil, ErrInvalid
+		}
+		if cmd.Kind == "EXPIRY_FAILED" {
+			next.ExpiryStatus = "FAILED"
+			next.Decision.Reasons = append(next.Decision.Reasons, "expiry revocation refused; access requires attention")
+			return []Event{emit("ChangeExpiryFailed", Executed)}, nil
+		}
+		next.ExpiryStatus = "REVOKED"
 		return []Event{emit("ChangeRevoked", Revoked)}, nil
 	default:
 		return nil, ErrInvalid

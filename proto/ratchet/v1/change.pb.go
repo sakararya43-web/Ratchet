@@ -46,6 +46,13 @@ type ChangeRequest struct {
 	ApprovalEnvelope              *ApprovalEnvelope      `protobuf:"bytes,21,opt,name=approval_envelope,json=approvalEnvelope,proto3" json:"approval_envelope,omitempty"`
 	PolicyBundleHash              string                 `protobuf:"bytes,22,opt,name=policy_bundle_hash,json=policyBundleHash,proto3" json:"policy_bundle_hash,omitempty"`
 	CanonicalApprovalEnvelopeJson []byte                 `protobuf:"bytes,23,opt,name=canonical_approval_envelope_json,json=canonicalApprovalEnvelopeJson,proto3" json:"canonical_approval_envelope_json,omitempty"`
+	RequestedResources            []string               `protobuf:"bytes,24,rep,name=requested_resources,json=requestedResources,proto3" json:"requested_resources,omitempty"`
+	RequestedPermissions          []string               `protobuf:"bytes,25,rep,name=requested_permissions,json=requestedPermissions,proto3" json:"requested_permissions,omitempty"`
+	GrantExpiresAt                string                 `protobuf:"bytes,26,opt,name=grant_expires_at,json=grantExpiresAt,proto3" json:"grant_expires_at,omitempty"`
+	ExpiryStatus                  string                 `protobuf:"bytes,27,opt,name=expiry_status,json=expiryStatus,proto3" json:"expiry_status,omitempty"` // SCHEDULED, REVOKING, FAILED, REVOKED; target confirmation is required
+	ScopeOverBroad                bool                   `protobuf:"varint,28,opt,name=scope_over_broad,json=scopeOverBroad,proto3" json:"scope_over_broad,omitempty"`
+	ScopeExtraResources           []string               `protobuf:"bytes,29,rep,name=scope_extra_resources,json=scopeExtraResources,proto3" json:"scope_extra_resources,omitempty"`
+	ScopeExtraPermissions         []string               `protobuf:"bytes,30,rep,name=scope_extra_permissions,json=scopeExtraPermissions,proto3" json:"scope_extra_permissions,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -237,6 +244,55 @@ func (x *ChangeRequest) GetPolicyBundleHash() string {
 func (x *ChangeRequest) GetCanonicalApprovalEnvelopeJson() []byte {
 	if x != nil {
 		return x.CanonicalApprovalEnvelopeJson
+	}
+	return nil
+}
+
+func (x *ChangeRequest) GetRequestedResources() []string {
+	if x != nil {
+		return x.RequestedResources
+	}
+	return nil
+}
+
+func (x *ChangeRequest) GetRequestedPermissions() []string {
+	if x != nil {
+		return x.RequestedPermissions
+	}
+	return nil
+}
+
+func (x *ChangeRequest) GetGrantExpiresAt() string {
+	if x != nil {
+		return x.GrantExpiresAt
+	}
+	return ""
+}
+
+func (x *ChangeRequest) GetExpiryStatus() string {
+	if x != nil {
+		return x.ExpiryStatus
+	}
+	return ""
+}
+
+func (x *ChangeRequest) GetScopeOverBroad() bool {
+	if x != nil {
+		return x.ScopeOverBroad
+	}
+	return false
+}
+
+func (x *ChangeRequest) GetScopeExtraResources() []string {
+	if x != nil {
+		return x.ScopeExtraResources
+	}
+	return nil
+}
+
+func (x *ChangeRequest) GetScopeExtraPermissions() []string {
+	if x != nil {
+		return x.ScopeExtraPermissions
 	}
 	return nil
 }
@@ -498,13 +554,14 @@ func (x *GetChangeResponse) GetRequest() *ChangeRequest {
 }
 
 type ListChangesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	StatusFilter  string                 `protobuf:"bytes,2,opt,name=status_filter,json=statusFilter,proto3" json:"status_filter,omitempty"`
-	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageToken     string                 `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	StatusFilter        string                 `protobuf:"bytes,2,opt,name=status_filter,json=statusFilter,proto3" json:"status_filter,omitempty"`
+	PageSize            int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken           string                 `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	TemporaryGrantsOnly bool                   `protobuf:"varint,5,opt,name=temporary_grants_only,json=temporaryGrantsOnly,proto3" json:"temporary_grants_only,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ListChangesRequest) Reset() {
@@ -563,6 +620,13 @@ func (x *ListChangesRequest) GetPageToken() string {
 		return x.PageToken
 	}
 	return ""
+}
+
+func (x *ListChangesRequest) GetTemporaryGrantsOnly() bool {
+	if x != nil {
+		return x.TemporaryGrantsOnly
+	}
+	return false
 }
 
 type ListChangesResponse struct {
@@ -1682,7 +1746,8 @@ var File_ratchet_v1_change_proto protoreflect.FileDescriptor
 const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\n" +
 	"\x17ratchet/v1/change.proto\x12\n" +
-	"ratchet.v1\x1a\x17ratchet/v1/common.proto\"\xba\a\n" +
+	"ratchet.v1\x1a\x17ratchet/v1/common.proto\"\x85\n" +
+	"\n" +
 	"\rChangeRequest\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1b\n" +
@@ -1711,7 +1776,14 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\brevision\x18\x14 \x01(\x03R\brevision\x12I\n" +
 	"\x11approval_envelope\x18\x15 \x01(\v2\x1c.ratchet.v1.ApprovalEnvelopeR\x10approvalEnvelope\x12,\n" +
 	"\x12policy_bundle_hash\x18\x16 \x01(\tR\x10policyBundleHash\x12G\n" +
-	" canonical_approval_envelope_json\x18\x17 \x01(\fR\x1dcanonicalApprovalEnvelopeJson\"\x9f\x03\n" +
+	" canonical_approval_envelope_json\x18\x17 \x01(\fR\x1dcanonicalApprovalEnvelopeJson\x12/\n" +
+	"\x13requested_resources\x18\x18 \x03(\tR\x12requestedResources\x123\n" +
+	"\x15requested_permissions\x18\x19 \x03(\tR\x14requestedPermissions\x12(\n" +
+	"\x10grant_expires_at\x18\x1a \x01(\tR\x0egrantExpiresAt\x12#\n" +
+	"\rexpiry_status\x18\x1b \x01(\tR\fexpiryStatus\x12(\n" +
+	"\x10scope_over_broad\x18\x1c \x01(\bR\x0escopeOverBroad\x122\n" +
+	"\x15scope_extra_resources\x18\x1d \x03(\tR\x13scopeExtraResources\x126\n" +
+	"\x17scope_extra_permissions\x18\x1e \x03(\tR\x15scopeExtraPermissions\"\x9f\x03\n" +
 	"\x13SubmitChangeRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12'\n" +
@@ -1731,13 +1803,14 @@ const file_ratchet_v1_change_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x02 \x01(\tR\trequestId\"H\n" +
 	"\x11GetChangeResponse\x123\n" +
-	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\"\x92\x01\n" +
+	"\arequest\x18\x01 \x01(\v2\x19.ratchet.v1.ChangeRequestR\arequest\"\xc6\x01\n" +
 	"\x12ListChangesRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
 	"\rstatus_filter\x18\x02 \x01(\tR\fstatusFilter\x12\x1b\n" +
 	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x04 \x01(\tR\tpageToken\"\xcb\x01\n" +
+	"page_token\x18\x04 \x01(\tR\tpageToken\x122\n" +
+	"\x15temporary_grants_only\x18\x05 \x01(\bR\x13temporaryGrantsOnly\"\xcb\x01\n" +
 	"\x13ListChangesResponse\x125\n" +
 	"\brequests\x18\x01 \x03(\v2\x19.ratchet.v1.ChangeRequestR\brequests\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x122\n" +

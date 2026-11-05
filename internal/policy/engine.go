@@ -37,7 +37,10 @@ type Facts struct {
 	Owners         []string      `json:"owners"`
 	Intent         domain.Intent `json:"intent"`
 	Impact         any           `json:"impact"`
+	Scope          *ScopeReview  `json:"scope,omitempty"`
 }
+
+type ScopeReview = domain.ScopeReview
 type Active struct {
 	Hash           ports.Digest
 	Version        string

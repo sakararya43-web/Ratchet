@@ -15,6 +15,25 @@ The user explicitly authorized advancing while leaving Sakar's dependencies alon
 Phase 4's unfinished work remains in its handoff; it is not marked complete.
 Only Phase 5 is active.
 
+- Added core temporary/emergency grant expiry: dispatch freezes a database-time
+  deadline and atomically commits the durable timer, signed command and outbox.
+  Replacement workers recover overdue timers; uncertain grant writes reconcile.
+  Expiry issues only an exact revision-bound inverse, retains active status until
+  signed independent read-back, and exposes CAS refusal as failed expiry requiring
+  attention. Lost replies generate durable read-only probes. The signed connector
+  capability must explicitly support scheduled revocation; peer adoption/actual
+  target acceptance remains outstanding in `phase-5-expiry-contract.md`.
+- Emergency routing retains owner or two-security-lead quorum and actual passkey
+  checks. Deterministic scope review compares new effective authority with explicit
+  requested resources/actions; excess scope or missing bounds is held. Version 3
+  facts retain that evidence while version 2 historical decisions remain replayable.
+  Temporary-only stable lists include revoked/failed expiry for review. API fields
+  expose expiry state and keep excess-scope detail reviewer restricted.
+- Real PostgreSQL/River tests cover emergency owner/tier-0 routing, extra resources/
+  actions, replacement-worker revocation, write-ACK rejection, wrong roles, changed
+  target refusal, attention and post-expiry review. Full workflow and console
+  integration tests passed after these changes; peer simulator acceptance is not
+  represented by the signed core protocol fixtures.
 - Approval lifetime is configurable (1 second to 24 hours, default 900 seconds)
   through `approval_lifetime_seconds`. Assessment atomically persists its expiry
   job with the exact envelope digest/deadline. Workers compare database time,

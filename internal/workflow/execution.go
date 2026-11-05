@@ -27,6 +27,7 @@ type Capability struct {
 	AtomicPreconditions bool      `json:"atomic_preconditions"`
 	DurableDedup        bool      `json:"durable_dedup"`
 	IndependentReadBack bool      `json:"independent_read_back"`
+	ScheduledRevocation bool      `json:"scheduled_revocation,omitempty"`
 	Signature           []byte    `json:"signature"`
 }
 
@@ -58,23 +59,26 @@ func NewExecution(tenant, connector string, public ed25519.PublicKey, private ed
 }
 
 type PreparedCommand struct {
-	MessageID        string            `json:"message_id"`
-	VerifyOnly       bool              `json:"verify_only"`
-	SchemaVersion    int               `json:"schema_version"`
-	Tenant           string            `json:"tenant_id"`
-	Connector        string            `json:"connector_id"`
-	CommandID        string            `json:"command_id"`
-	RequestID        string            `json:"request_id"`
-	CorrelationID    string            `json:"correlation_id"`
-	ExpectedRevision int64             `json:"expected_target_revision"`
-	ExpectedRoles    []string          `json:"expected_roles"`
-	BeforeRoles      []string          `json:"before_roles"`
-	Envelope         *domain.Envelope  `json:"approved_envelope"`
-	EnvelopeDigest   ports.Digest      `json:"approved_envelope_digest"`
-	Approvals        []domain.Approval `json:"approvals"`
-	Deadline         time.Time         `json:"deadline"`
-	DispatchedAt     time.Time         `json:"dispatched_at"`
-	Signature        []byte            `json:"signature"`
+	MessageID         string            `json:"message_id"`
+	VerifyOnly        bool              `json:"verify_only"`
+	SchemaVersion     int               `json:"schema_version"`
+	Tenant            string            `json:"tenant_id"`
+	Connector         string            `json:"connector_id"`
+	CommandID         string            `json:"command_id"`
+	RequestID         string            `json:"request_id"`
+	CorrelationID     string            `json:"correlation_id"`
+	ExpectedRevision  int64             `json:"expected_target_revision"`
+	ExpectedRoles     []string          `json:"expected_roles"`
+	BeforeRoles       []string          `json:"before_roles"`
+	Envelope          *domain.Envelope  `json:"approved_envelope"`
+	EnvelopeDigest    ports.Digest      `json:"approved_envelope_digest"`
+	Approvals         []domain.Approval `json:"approvals"`
+	Deadline          time.Time         `json:"deadline"`
+	DispatchedAt      time.Time         `json:"dispatched_at"`
+	Signature         []byte            `json:"signature"`
+	Purpose           string            `json:"purpose,omitempty"`
+	GrantExpiresAt    time.Time         `json:"grant_expires_at,omitempty"`
+	OriginalCommandID string            `json:"original_command_id,omitempty"`
 }
 
 func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id string, now time.Time) (PreparedCommand, error) {
@@ -84,6 +88,9 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	}
 	if c.Intent.Kind != "ROLE_ASSIGN" && c.Intent.Kind != "ROLE_REVOKE" {
 		return cmd, domain.ErrInvalid
+	}
+	if c.Intent.DurationSeconds > 0 && (!e.capability.ScheduledRevocation || c.Intent.Kind != "ROLE_ASSIGN") {
+		return cmd, ErrDependency
 	}
 	var revision int64
 	var raw []byte
@@ -123,6 +130,10 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	roles = slices.Compact(roles)
 	beforeRoles := slices.Clone(roles)
 	if c.Intent.Kind == "ROLE_ASSIGN" {
+		if c.Intent.DurationSeconds > 0 && slices.Contains(roles, c.Intent.Access) {
+			// An existing permanent grant cannot silently become timer-owned.
+			return cmd, domain.ErrInvalid
+		}
 		if !slices.Contains(roles, c.Intent.Access) {
 			roles = append(roles, c.Intent.Access)
 		}
@@ -139,6 +150,13 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	}
 	cmd.DispatchedAt = now
 	cmd.BeforeRoles = beforeRoles
+	if c.Intent.DurationSeconds > 0 {
+		cmd.GrantExpiresAt = now.Add(time.Duration(c.Intent.DurationSeconds) * time.Second)
+		cmd.Purpose = "TEMPORARY_GRANT"
+		if cmd.GrantExpiresAt.Before(cmd.Deadline) {
+			cmd.Deadline = cmd.GrantExpiresAt
+		}
+	}
 	digest, err := signingDigest("RATCHET_EXEC_COMMAND_V1", cmd)
 	if err != nil {
 		return cmd, err
@@ -223,6 +241,9 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 			return nil, err
 		}
 		if c.State != domain.Executing || c.ExecutionID != r.CommandID || r.RequestID != command.RequestID || r.CorrelationID != command.CorrelationID || r.EnvelopeDigest != command.EnvelopeDigest {
+			if command.Purpose == "EXPIRE_GRANT" && c.State == domain.Executed && c.ExpiryStatus == "REVOKING" && c.ExpiryExecutionID == r.CommandID && r.RequestID == command.RequestID && r.CorrelationID == command.CorrelationID && r.EnvelopeDigest == command.EnvelopeDigest {
+				return s.expiryResult(ctx, tx, now, c, command, r)
+			}
 			return nil, ErrPermission
 		}
 		// Uncertain application stays EXECUTING for reconciliation. It is never

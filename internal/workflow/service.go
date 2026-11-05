@@ -105,6 +105,7 @@ func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &worker{service: s})
 	river.AddWorker(workers, &approvalExpiryWorker{service: s})
+	river.AddWorker(workers, &grantExpiryWorker{service: s})
 	jobs, err := river.NewClient(riverpgxv5.New(pool), &river.Config{Schema: "ratchet_jobs", Workers: workers, Queues: queues})
 	if err != nil {
 		return nil, err
@@ -362,6 +363,8 @@ func factsFor(ctx context.Context, snapshot *graph.Snapshot, a *policy.Active, c
 			}
 		}
 	}
+	f.SchemaVersion = 3
+	f.Scope = scopeReview(c.Intent, result)
 	return f
 }
 func hold(c domain.Change, now time.Time, reason string) ([]domain.Event, error) {
@@ -410,7 +413,7 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) error {
 		if err != nil {
 			return nil, err
 		}
-		events, err := domain.Decide(c, domain.Command{Kind: "ASSESS", At: now, Decision: decision, Envelope: envelope, Digest: bound, Facts: replayFacts})
+		events, err := domain.Decide(c, domain.Command{Kind: "ASSESS", At: now, Decision: decision, Envelope: envelope, Digest: bound, Facts: replayFacts, Scope: facts.Scope})
 		if err != nil {
 			return nil, err
 		}
@@ -600,6 +603,11 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		if prepared == nil {
 			return nil
 		}
+		if !prepared.GrantExpiresAt.IsZero() {
+			if err := s.scheduleGrantExpiry(ctx, tx, GrantExpiryArgs{Tenant: args.Tenant, Request: args.Request, ExecutionID: prepared.CommandID, Digest: prepared.EnvelopeDigest}, prepared.GrantExpiresAt); err != nil {
+				return err
+			}
+		}
 		return s.executions[args.Tenant].stage(ctx, tx, *prepared, receipt, preparedAt)
 	}
 	_, err = s.Store.MutateChange(ctx, m, func(tx pgx.Tx, now time.Time, c domain.Change) ([]domain.Event, error) {
@@ -628,6 +636,12 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		decision, err := a.Decision(ctx, factsFor(ctx, snapshot, a, c, result))
 		if err != nil {
 			return hold(c, now, "policy reevaluation unavailable")
+		}
+		if c.Intent.Emergency && c.Intent.DurationSeconds <= 0 {
+			return hold(c, now, "emergency access requires a fixed duration")
+		}
+		if scope := scopeReview(c.Intent, result); scope != nil && (!scope.Complete || scope.OverBroad) {
+			return hold(c, now, "explicit requested scope cannot be satisfied without excess access")
 		}
 		if decision.Outcome != c.Decision.Outcome || decision.Quorum != c.Decision.Quorum || !slices.Equal(decision.Groups, c.Decision.Groups) {
 			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
@@ -666,7 +680,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		}
 		prepared = &command
 		preparedAt = now
-		events, err := domain.Decide(c, domain.Command{Kind: "DISPATCH", At: now, Digest: c.Digest, ExecutionID: id})
+		events, err := domain.Decide(c, domain.Command{Kind: "DISPATCH", At: now, Digest: c.Digest, ExecutionID: id, GrantExpiresAt: command.GrantExpiresAt})
 		if err != nil {
 			return nil, err
 		}

@@ -4,10 +4,13 @@ decision := {"outcome": "HOLD", "reasons": ["complete replayable context require
  not input.complete
 } else := {"outcome": "REJECT", "reasons": ["tier-0 safeguard weakening is prohibited"], "approver_groups": [], "quorum": 0} if {
  input.tier0_weakening
-} else := {"outcome": "HOLD", "reasons": ["temporary and emergency grant execution requires expiry orchestration"], "approver_groups": [], "quorum": 0} if {
+} else := {"outcome": "HOLD", "reasons": ["emergency access requires a fixed duration"], "approver_groups": [], "quorum": 0} if {
  input.intent.emergency
-} else := {"outcome": "HOLD", "reasons": ["temporary grant execution requires expiry orchestration"], "approver_groups": [], "quorum": 0} if {
- input.intent.time_limit_seconds > 0
+ input.intent.time_limit_seconds <= 0
+} else := {"outcome": "HOLD", "reasons": ["explicit resources and permissions required for temporary access"], "approver_groups": [], "quorum": 0} if {
+ input.scope.complete == false
+} else := {"outcome": "HOLD", "reasons": ["role exceeds explicitly requested resources or permissions"], "approver_groups": [], "quorum": 0} if {
+ input.scope.over_broad
 } else := {"outcome": "ALLOW", "reasons": ["authorized verified reduction"], "approver_groups": [], "quorum": 0} if {
  input.reduction
  input.authorized_responder

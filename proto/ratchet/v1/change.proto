@@ -44,6 +44,13 @@ message ChangeRequest {
   ApprovalEnvelope approval_envelope = 21;
   string policy_bundle_hash = 22;
   bytes canonical_approval_envelope_json = 23;
+  repeated string requested_resources = 24;
+  repeated string requested_permissions = 25;
+  string grant_expires_at = 26;
+  string expiry_status = 27; // SCHEDULED, REVOKING, FAILED, REVOKED; target confirmation is required
+  bool scope_over_broad = 28;
+  repeated string scope_extra_resources = 29;
+  repeated string scope_extra_permissions = 30;
 }
 
 message SubmitChangeRequest {
@@ -77,6 +84,7 @@ message ListChangesRequest {
   string status_filter = 2;
   int32 page_size = 3;
   string page_token = 4;
+  bool temporary_grants_only = 5;
 }
 
 message ListChangesResponse {

@@ -15,7 +15,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
 
-const evaluatorVersion = "opa-1.22.0/ratchet-facts-v2"
+const evaluatorVersion = "opa-1.22.0/ratchet-facts-v3"
 
 type recordedFacts struct {
 	Evaluator   string       `json:"evaluator"`
@@ -153,7 +153,7 @@ func ReplayDecision(ctx context.Context, e DecisionEvidence, root, expectedHash 
 		return result, err
 	}
 	var recorded recordedFacts
-	if json.Unmarshal(c.Facts, &recorded) != nil || recorded.Evaluator != evaluatorVersion || recorded.Input.SchemaVersion != 2 {
+	if json.Unmarshal(c.Facts, &recorded) != nil || !((recorded.Evaluator == evaluatorVersion && recorded.Input.SchemaVersion == 3) || (recorded.Evaluator == "opa-1.22.0/ratchet-facts-v2" && recorded.Input.SchemaVersion == 2)) {
 		return result, ErrDependency
 	}
 	graphDigest, err := canon.New().Digest(snapshot.Data())
@@ -169,6 +169,9 @@ func ReplayDecision(ctx context.Context, e DecisionEvidence, root, expectedHash 
 		return result, eventstore.ErrIntegrity
 	}
 	facts := factsFor(ctx, snapshot, a, c, impact)
+	if recorded.Input.SchemaVersion == 2 {
+		facts.SchemaVersion, facts.Scope = 2, nil
+	}
 	expectedInput, err := canon.New().Digest(facts)
 	if err != nil {
 		return result, err
@@ -189,5 +192,5 @@ func ReplayDecision(ctx context.Context, e DecisionEvidence, root, expectedHash 
 	if err != nil || actualDecision != expectedDecision {
 		return result, eventstore.ErrIntegrity
 	}
-	return ReplayResult{Decision: decision, GraphVersion: snapshot.Version(), PolicyDigest: a.Hash, RegistryEpoch: a.RegistryEpoch, Evaluator: evaluatorVersion}, nil
+	return ReplayResult{Decision: decision, GraphVersion: snapshot.Version(), PolicyDigest: a.Hash, RegistryEpoch: a.RegistryEpoch, Evaluator: recorded.Evaluator}, nil
 }

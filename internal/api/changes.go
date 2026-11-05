@@ -128,6 +128,17 @@ func (a *ChangeAPI) request(ctx context.Context, c domain.Change) (*v1.ChangeReq
 	}
 	r := &v1.ChangeRequest{RequestId: c.ID, TenantId: c.TenantID, Kind: c.Intent.Kind, TargetIdentity: c.Intent.Target, RequestedAccess: c.Intent.Access, Justification: text, RequestedBy: c.Requester, Emergency: c.Intent.Emergency, TimeLimitSeconds: c.Intent.DurationSeconds, Status: string(c.State), ChangeDigest: c.Digest.String(), Revision: c.Revision, RequiredApproverGroups: c.Decision.Groups, RequiredQuorum: int32(c.Decision.Quorum), DecisionReasons: c.Decision.Reasons, CreatedAt: c.CreatedAt.Format("2006-01-02T15:04:05.999999999Z07:00"), UpdatedAt: c.UpdatedAt.Format("2006-01-02T15:04:05.999999999Z07:00")}
 	r.TypedKind = v1.ChangeKind(v1.ChangeKind_value["CHANGE_KIND_"+c.Intent.Kind])
+	r.RequestedResources, r.RequestedPermissions = c.Intent.Resources, c.Intent.Permissions
+	r.ExpiryStatus = c.ExpiryStatus
+	if !c.GrantExpiresAt.IsZero() {
+		r.GrantExpiresAt = c.GrantExpiresAt.Format("2006-01-02T15:04:05.999999999Z07:00")
+	}
+	if c.Scope != nil {
+		r.ScopeOverBroad = c.Scope.OverBroad
+		if detail {
+			r.ScopeExtraResources, r.ScopeExtraPermissions = c.Scope.Resources, c.Scope.Permissions
+		}
+	}
 	var requesterQuestion string
 	if (detail || c.ReviewKind == "MORE_INFO") && c.ReviewReference != "" {
 		review := c
@@ -218,6 +229,7 @@ func (a *ChangeAPI) GetChange(ctx context.Context, r *connect.Request[v1.GetChan
 type changeCursor struct {
 	Tenant, Filter  string
 	After, Position int64
+	Temporary       bool
 }
 
 func (a *ChangeAPI) cursor(c changeCursor) string {
@@ -238,7 +250,7 @@ func (a *ChangeAPI) ListChanges(ctx context.Context, r *connect.Request[v1.ListC
 	if size < 1 || size > 200 {
 		return nil, changeError(domain.ErrInvalid)
 	}
-	cursor := changeCursor{Tenant: p.TenantID, Filter: r.Msg.StatusFilter}
+	cursor := changeCursor{Tenant: p.TenantID, Filter: r.Msg.StatusFilter, Temporary: r.Msg.TemporaryGrantsOnly}
 	if token := r.Msg.PageToken; token != "" {
 		parts := strings.Split(token, ".")
 		if len(parts) != 2 {
@@ -248,17 +260,21 @@ func (a *ChangeAPI) ListChanges(ctx context.Context, r *connect.Request[v1.ListC
 		sig, e2 := base64.RawURLEncoding.DecodeString(parts[1])
 		mac := hmac.New(sha256.New, a.key)
 		_, _ = mac.Write(raw)
-		if e1 != nil || e2 != nil || !hmac.Equal(sig, mac.Sum(nil)) || json.Unmarshal(raw, &cursor) != nil || cursor.Tenant != p.TenantID || cursor.Filter != r.Msg.StatusFilter || cursor.After < 0 || cursor.Position < 1 {
+		if e1 != nil || e2 != nil || !hmac.Equal(sig, mac.Sum(nil)) || json.Unmarshal(raw, &cursor) != nil || cursor.Tenant != p.TenantID || cursor.Filter != r.Msg.StatusFilter || cursor.Temporary != r.Msg.TemporaryGrantsOnly || cursor.After < 0 || cursor.Position < 1 {
 			return nil, changeError(domain.ErrInvalid)
 		}
 	}
-	page, err := a.service.ListWindow(ctx, p, cursor.Filter, cursor.After, cursor.Position, size)
+	list := a.service.ListWindow
+	if cursor.Temporary {
+		list = a.service.ListTemporaryGrants
+	}
+	page, err := list(ctx, p, cursor.Filter, cursor.After, cursor.Position, size)
 	if err != nil {
 		return nil, changeError(err)
 	}
 	response := &v1.ListChangesResponse{SnapshotEndSequence: page.End, WatchCursor: watchToken(a.key, p, "changes", page.End)}
 	if page.More {
-		response.NextPageToken = a.cursor(changeCursor{Tenant: p.TenantID, Filter: cursor.Filter, After: page.After, Position: page.End})
+		response.NextPageToken = a.cursor(changeCursor{Tenant: p.TenantID, Filter: cursor.Filter, After: page.After, Position: page.End, Temporary: cursor.Temporary})
 	}
 	for _, c := range page.Changes {
 		view, err := a.request(ctx, c)
@@ -336,7 +352,7 @@ func (a *ChangeAPI) GetAttentionItems(ctx context.Context, r *connect.Request[v1
 	}
 	response := &v1.GetAttentionItemsResponse{}
 	for _, c := range changes {
-		if c.State == domain.Executed || c.State == domain.Expired || c.State == domain.Revoked {
+		if c.State == domain.Expired || c.State == domain.Revoked {
 			continue
 		}
 		view, err := a.request(ctx, c)
@@ -344,7 +360,11 @@ func (a *ChangeAPI) GetAttentionItems(ctx context.Context, r *connect.Request[v1
 			return nil, changeError(err)
 		}
 		response.PendingRequests = append(response.PendingRequests, view)
-		response.AttentionItems = append(response.AttentionItems, &v1.AttentionItem{ItemId: c.ID, ItemType: "PENDING_CHANGE", Title: string(c.State) + ": " + c.Intent.Kind, Description: strings.Join(view.DecisionReasons, "; "), Severity: "review", EntityId: c.ID, CreatedAt: view.CreatedAt})
+		itemType, title, severity := "PENDING_CHANGE", string(c.State)+": "+c.Intent.Kind, "review"
+		if c.State == domain.Executed {
+			itemType, title, severity = "TEMPORARY_GRANT_EXPIRY", "Temporary access requires verified revocation: "+c.ExpiryStatus, "high"
+		}
+		response.AttentionItems = append(response.AttentionItems, &v1.AttentionItem{ItemId: c.ID, ItemType: itemType, Title: title, Description: strings.Join(view.DecisionReasons, "; "), Severity: severity, EntityId: c.ID, CreatedAt: view.CreatedAt})
 	}
 	incidentPage, err := a.service.ListIncidents(ctx, p, "", 0, 0, 20)
 	if err != nil && !errors.Is(err, workflow.ErrPermission) {

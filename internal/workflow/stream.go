@@ -19,6 +19,14 @@ type ChangeWindow struct {
 }
 
 func (s *Service) ListWindow(ctx context.Context, actor Actor, status string, after, end int64, limit int) (ChangeWindow, error) {
+	return s.listWindow(ctx, actor, status, after, end, limit, false)
+}
+
+func (s *Service) ListTemporaryGrants(ctx context.Context, actor Actor, status string, after, end int64, limit int) (ChangeWindow, error) {
+	return s.listWindow(ctx, actor, status, after, end, limit, true)
+}
+
+func (s *Service) listWindow(ctx context.Context, actor Actor, status string, after, end int64, limit int, temporaryOnly bool) (ChangeWindow, error) {
 	page := ChangeWindow{Changes: []domain.Change{}, After: after, End: end}
 	if after < 0 || end < 0 || end > ledger.MaxSafeInteger || limit < 1 || limit > 201 {
 		return page, domain.ErrInvalid
@@ -70,6 +78,9 @@ func (s *Service) ListWindow(ctx context.Context, actor Actor, status string, af
 				return err
 			}
 			if status != "" && string(c.State) != status {
+				continue
+			}
+			if temporaryOnly && c.Intent.DurationSeconds <= 0 {
 				continue
 			}
 			if _, err := visibility(ctx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {

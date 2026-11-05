@@ -39,7 +39,8 @@ func (s *Service) Attention(ctx context.Context, actor Actor) ([]domain.Change, 
 		}
 		// Filter before the limit so historical executions cannot hide pending work.
 		rows, err := tx.Query(ctx, `SELECT request_id::text FROM ratchet.change_projection WHERE tenant_id=$1 AND
- (state IN ('SUBMITTED','ASSESSED','ALLOWED','AWAITING_APPROVAL','HELD','APPROVED','EXECUTING','FAILED') OR (state='REJECTED' AND updated_at>clock_timestamp()-interval '7 days'))
+ (state IN ('SUBMITTED','ASSESSED','ALLOWED','AWAITING_APPROVAL','HELD','APPROVED','EXECUTING','FAILED') OR (state='REJECTED' AND updated_at>clock_timestamp()-interval '7 days') OR
+ (state='EXECUTED' AND document->>'expiry_status' IN ('FAILED','REVOKING','SCHEDULED') AND (document->>'grant_expires_at')::timestamptz<=clock_timestamp()))
  ORDER BY CASE state WHEN 'FAILED' THEN 0 WHEN 'HELD' THEN 1 WHEN 'EXECUTING' THEN 2 WHEN 'AWAITING_APPROVAL' THEN 3 WHEN 'REJECTED' THEN 5 ELSE 4 END,updated_at DESC,request_id LIMIT 201`, actor.TenantID)
 		if err != nil {
 			return err

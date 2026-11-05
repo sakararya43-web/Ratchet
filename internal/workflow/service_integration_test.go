@@ -264,7 +264,7 @@ func TestRealRiverAssessmentIdempotencyContextAndProjectionRecovery(t *testing.T
 		t.Fatal("tier-0 request did not require two security leads")
 	}
 }
-func signCapability(t *testing.T, tenant string) (*workflow.Execution, ed25519.PrivateKey) {
+func signCapability(t *testing.T, tenant string, timed ...bool) (*workflow.Execution, ed25519.PrivateKey) {
 	t.Helper()
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -275,6 +275,7 @@ func signCapability(t *testing.T, tenant string) (*workflow.Execution, ed25519.P
 		t.Fatal(err)
 	}
 	capability := workflow.Capability{Tenant: tenant, Connector: "source", Protocol: "RATCHET_EXEC_V1", Expires: time.Now().Add(time.Hour), BoundCommands: true, AtomicPreconditions: true, DurableDedup: true, IndependentReadBack: true}
+	capability.ScheduledRevocation = len(timed) > 0 && timed[0]
 	digest, err := canon.New().Digest(struct {
 		Domain string `json:"domain"`
 		Body   any    `json:"body"`
@@ -333,7 +334,7 @@ func signedResult(t *testing.T, result workflow.ExecutionResult, key ed25519.Pri
 
 // This is a real-cryptography protocol fixture, not a browser passkey ceremony
 // or the unsafe peer handler. Production mounting remains separately gated.
-func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed25519.PrivateKey, func() *workflow.Service) {
+func readyExecution(t *testing.T, intents ...domain.Intent) (system, *workflow.Service, domain.Change, ed25519.PrivateKey, func() *workflow.Service) {
 	t.Helper()
 	sys := setup(t)
 	credentials := approval.NewCredentialStore()
@@ -353,7 +354,11 @@ func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed2
 	if err != nil {
 		t.Fatal(err)
 	}
-	execution, connectorKey := signCapability(t, sys.tenant)
+	intent := domain.Intent{Kind: "ROLE_ASSIGN", Target: "user:requester", Access: "role:finance"}
+	if len(intents) > 0 {
+		intent = intents[0]
+	}
+	execution, connectorKey := signCapability(t, sys.tenant, intent.DurationSeconds > 0)
 	open := func() *workflow.Service {
 		service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, execution)
 		if err != nil {
@@ -363,7 +368,7 @@ func readyExecution(t *testing.T) (system, *workflow.Service, domain.Change, ed2
 	}
 	service := open()
 	start(t, service, sys.ctx)
-	created, err := service.Submit(sys.ctx, workflow.Actor{TenantID: sys.tenant, ID: "user:requester"}, workflow.Submit{Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: "user:requester", Access: "role:finance"}, Justification: "Finance reporting access for the daily report", CommandID: uuid.New()})
+	created, err := service.Submit(sys.ctx, workflow.Actor{TenantID: sys.tenant, ID: "user:requester"}, workflow.Submit{Intent: intent, Justification: "Finance reporting access for the daily report", CommandID: uuid.New()})
 	if err != nil {
 		t.Fatal(err)
 	}

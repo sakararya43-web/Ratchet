@@ -139,6 +139,24 @@ executable passed creation, real signing, process restart, signature-preserving
 resubmission and durable core acceptance. This does not close the separate peer
 passkey or connector conformance gates.
 
+The [checkpoint handoff fixtures](../../testdata/audit/checkpoints/README.md)
+include a valid chain signed by two real Authority members and nine corrupted
+exports. `VerifyCheckpointHistory` verifies canonical bytes, externally supplied
+root/tip pins, every signature, historical registry proof, complete acceptance
+artifacts, consecutive ranges and reference positions. A real PostgreSQL export
+passes the same verifier. Forged database ordering aliases are detected against
+the artifact and ledger reference rather than trusted as proof.
+
+An actual-peer conformance test converts these exact canonical contents into the
+peer's `AuditExportBundle` representation. At `origin/sakar d823a10` the valid
+handoff and eight applicable corruption cases behave correctly except
+`wrong-prior-checkpoint`: the peer returns `Valid=true` after that metadata is
+changed while retaining the original checkpoint digest/signatures. Its verifier
+does not recompute the checkpoint metadata digest or enforce prior continuity.
+The new failing gate remains in `internal/connector/conformance/audit_peer_test.go`;
+core verification rejects the fixture. The peer must resolve this before the
+joint D8 verdict. None of these fixtures claims complete browser-approval proof.
+
 ## Evidence and remaining work
 
 Passing focused checks cover surgical two-asset cuts, finance-report preservation,

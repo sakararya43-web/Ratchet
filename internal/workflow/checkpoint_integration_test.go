@@ -17,6 +17,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/policy"
+	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
@@ -241,5 +242,36 @@ func TestCheckpointsPersistVerifiedContinuityAndExcludeTheirOwnReference(t *test
 	}
 	if _, _, err := sys.store.VerifyTenant(sys.ctx, sys.tenant); err != nil {
 		t.Fatal(err)
+	}
+	chain, err := service.ExportAudit(sys.ctx, actor, 0, 0, 100, nil, nil)
+	if err != nil || chain.After != chain.End {
+		t.Fatal("checkpoint history fixture needs the complete chain", err)
+	}
+	records, _, err = service.Checkpoints(sys.ctx, actor, 0, chain.End, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	history := workflow.CheckpointHistory{Profile: workflow.CheckpointHistoryProfile, Tenant: sys.tenant, Checkpoints: records}
+	for _, event := range chain.Events {
+		history.Events = append(history.Events, workflow.CheckpointChainEvent{Canonical: event.Entry.Canonical, Previous: event.Entry.Previous, Hash: event.Entry.Hash})
+	}
+	verified, err := workflow.VerifyCheckpointHistory(sys.ctx, history, sys.root, chain.EndHash)
+	if err != nil || verified.VerifiedEvents != chain.End || verified.CoveredThrough != second.Evidence.Signed.ToSequence {
+		t.Fatal("real database export failed independent checkpoint history verification", err)
+	}
+	// Runtime INSERT privilege cannot turn an alias of genuine signed evidence
+	// into a different accepted range or an extra reference in evidence exports.
+	if err := sys.store.WithTenantTx(sys.ctx, sys.tenant, func(tx pgx.Tx, _ time.Time) error {
+		alias := ports.Digest{99}
+		if _, err := tx.Exec(sys.ctx, `INSERT INTO ratchet.checkpoint_candidates(tenant_id,digest,command_id,input_digest,document,event_position) SELECT tenant_id,$2,$3,input_digest,document,event_position FROM ratchet.checkpoint_candidates WHERE tenant_id=$1 AND digest=$4`, sys.tenant, alias.Bytes(), uuid.New(), signed.CheckpointDigest.Bytes()); err != nil {
+			return err
+		}
+		_, err := tx.Exec(sys.ctx, `INSERT INTO ratchet.accepted_checkpoints(tenant_id,digest,from_sequence,to_sequence,document,event_position) SELECT tenant_id,$2,2,to_sequence+1,document,event_position FROM ratchet.accepted_checkpoints WHERE tenant_id=$1 AND digest=$3`, sys.tenant, alias.Bytes(), signed.CheckpointDigest.Bytes())
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := service.Checkpoints(sys.ctx, actor, 0, 0, 10); !errors.Is(err, eventstore.ErrIntegrity) {
+		t.Fatal("forged checkpoint ordering metadata was trusted", err)
 	}
 }

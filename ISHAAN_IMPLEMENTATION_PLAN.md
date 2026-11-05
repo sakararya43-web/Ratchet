@@ -214,7 +214,7 @@ on 2026-11-05 while these peer gates remain open.
 - [x] Complete audit projections and `AuditService` search/export with actor/resource/request/incident/time filters and role-based visibility. Export raw chain evidence separately from redacted display records.
 - [ ] Finalize the versioned offline chain format: canonical event bytes, previous/current hashes, ordered tenant sequence, approval envelopes/assertions, historical public keys and registry/bundle evidence. Export no private keys. Privacy retention may erase separate encrypted personal data without changing immutable bytes.
 - [x] Compute unambiguous checkpoint candidates with sequence range, prior checkpoint reference, leaf encoding and Merkle algorithm. Submit candidates through the peer signing contract, verify returned signatures and append checkpoint references without a self-referential hash cycle.
-- [ ] Add DB tamper-denial, chain-fork, replay/rebuild and checkpoint-continuity tests. Supply deliberately corrupted export fixtures for the peer's verifier tests.
+- [x] Add DB tamper-denial, chain-fork, replay/rebuild and checkpoint-continuity tests. Supply deliberately corrupted export fixtures for the peer's verifier tests.
 
 **Verification:** Measure from containment click initiation through passkey confirmation, dispatch and verified read-back; also report machine processing time separately so human interaction is visible. Exercise a normal-work backlog and a connector restart. Check actual report-access probes before/after containment, not merely counts in the graph.
 

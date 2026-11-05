@@ -35,6 +35,16 @@
   Peer source and branch remain untouched. CI runs this check when integrated.
 - A real registry-rotation regression rejects new acceptance of pending old-epoch
   candidates while preserving verification/export of previously accepted proofs.
+- Added bounded pure checkpoint-history verification with independently supplied
+  root/tip pins and exact source bytes. It validates every acceptance artifact,
+  signature, registry proof, contiguous range and later reference; actual database
+  exports pass. SQL ordering aliases cannot masquerade as accepted evidence.
+- Supplied a valid two-member signed history and nine deliberately corrupted
+  export fixtures for the peer handoff. Core tests reject every corruption,
+  including a fully rehashed fork with a substituted tip.
+- Actual peer offline-verifier conformance exposes an additional unresolved gate:
+  altered `prior_checkpoint_digest` is accepted because metadata digest/continuity
+  is not rechecked. The failing test is retained; peer code remains untouched.
 
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux

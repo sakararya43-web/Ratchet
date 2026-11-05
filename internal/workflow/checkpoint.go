@@ -133,6 +133,16 @@ func (s *Service) checkpointRecord(ctx context.Context, tx pgx.Tx, tenant string
 		return record, eventstore.ErrIntegrity
 	}
 	e := record.Evidence
+	// Ordering/filter columns are not proof. Check them against the immutable
+	// artifact and reject aliases of one ledger reference under another digest.
+	var references int64
+	var metadataMatches bool
+	if err := tx.QueryRow(ctx, `SELECT count(*),coalesce(bool_and(digest=$3 AND from_sequence=$4 AND to_sequence=$5 AND document=$6),false) FROM ratchet.accepted_checkpoints WHERE tenant_id=$1 AND event_position=$2`, tenant, position, e.Signed.CheckpointDigest.Bytes(), e.Signed.FromSequence, e.Signed.ToSequence, raw).Scan(&references, &metadataMatches); err != nil {
+		return record, err
+	}
+	if references != 1 || !metadataMatches {
+		return record, eventstore.ErrIntegrity
+	}
 	p, err := s.checkpointProposal(ctx, tx, tenant, e.Signed.CheckpointDigest, root)
 	if err != nil {
 		return record, err

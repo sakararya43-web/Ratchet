@@ -14,6 +14,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
+	"github.com/sakararya43-web/Ratchet/internal/telemetry"
 )
 
 // Capability is signed by the configured connector, not asserted by a runtime
@@ -79,6 +80,7 @@ type PreparedCommand struct {
 	Purpose           string            `json:"purpose,omitempty"`
 	GrantExpiresAt    time.Time         `json:"grant_expires_at,omitempty"`
 	OriginalCommandID string            `json:"original_command_id,omitempty"`
+	TraceParent       string            `json:"traceparent,omitempty"`
 }
 
 func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id string, now time.Time) (PreparedCommand, error) {
@@ -150,6 +152,7 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	}
 	cmd.DispatchedAt = now
 	cmd.BeforeRoles = beforeRoles
+	cmd.TraceParent = telemetry.Parent(ctx)
 	if c.Intent.DurationSeconds > 0 {
 		cmd.GrantExpiresAt = now.Add(time.Duration(c.Intent.DurationSeconds) * time.Second)
 		cmd.Purpose = "TEMPORARY_GRANT"
@@ -204,7 +207,7 @@ type ExecutionResult struct {
 	Signature         []byte       `json:"signature"`
 }
 
-func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw []byte) error {
+func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw []byte) (err error) {
 	if len(raw) > 1<<20 {
 		return domain.ErrInvalid
 	}
@@ -226,6 +229,10 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 	if err != nil {
 		return domain.ErrInvalid
 	}
+	ctx, resultSpan := s.observer.Start(ctx, "connector_result", tenant, r.CorrelationID)
+	defer func() { resultSpan.End(err) }()
+	ctx, verificationSpan := s.observer.Start(ctx, "verification", tenant, r.CorrelationID)
+	defer func() { verificationSpan.End(err) }()
 	request, err := s.Store.ReadChange(ctx, tenant, r.RequestID)
 	if err != nil {
 		return err

@@ -48,8 +48,7 @@ type InlineDecision struct {
 // DecideInline records a policy refusal/approval requirement or consumes exactly
 // one staged, independently approved simulator command. It never submits a new
 // change, skips the execution guard or marks a target write as verified.
-func (s *Service) DecideInline(ctx context.Context, actor Actor, input InlineInput) (InlineDecision, error) {
-	var out InlineDecision
+func (s *Service) DecideInline(ctx context.Context, actor Actor, input InlineInput) (out InlineDecision, err error) {
 	admission, err := uuid.Parse(input.AdmissionID)
 	if err != nil || admission == uuid.Nil || admission.String() != input.AdmissionID || input.ObjectDigest.IsZero() || input.MinGraphVersion < 0 || input.MinGraphVersion > ledger.MaxSafeInteger || len(input.TargetRevision) > 128 {
 		return out, domain.ErrInvalid
@@ -57,6 +56,8 @@ func (s *Service) DecideInline(ctx context.Context, actor Actor, input InlineInp
 	if err := input.Intent.Validate(); err != nil {
 		return out, err
 	}
+	ctx, span := s.observer.Start(ctx, "inline_decision", actor.TenantID, input.AdmissionID)
+	defer func() { span.End(err) }()
 	if input.ApprovedRequest != "" {
 		id, err := uuid.Parse(input.ApprovedRequest)
 		if err != nil || id == uuid.Nil || id.String() != input.ApprovedRequest {
@@ -108,7 +109,7 @@ func (s *Service) DecideInline(ctx context.Context, actor Actor, input InlineInp
 			if err != nil {
 				out.Decision = domain.Decision{Outcome: "HOLD", Reasons: []string{"complete impact context unavailable"}}
 			} else {
-				out.Decision, err = active.Decision(ctx, factsFor(ctx, snapshot, active, domain.Change{Requester: actor.ID, Intent: input.Intent}, result))
+				out.Decision, err = s.decidePolicy(ctx, actor.TenantID, input.AdmissionID, active, factsFor(ctx, snapshot, active, domain.Change{Requester: actor.ID, Intent: input.Intent}, result))
 				if err != nil {
 					return err
 				}

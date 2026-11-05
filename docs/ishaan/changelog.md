@@ -15,6 +15,16 @@ The user explicitly authorized advancing while leaving Sakar's dependencies alon
 Phase 4's unfinished work remains in its handoff; it is not marked complete.
 Only Phase 5 is active.
 
+- Added privacy-restricted structured spans across submit, assessment, policy
+  decision, execution guard, outbox publication, connector result and verification.
+  Tenant/correlation trace IDs survive worker boundaries; signed command parents
+  link delivery. Error text, private inputs and approval material are excluded.
+- Mounted investigator-only `/api/metrics` with tenant-local durable backlog,
+  graph publication lag/observation age/quarantine, policy/registry versions,
+  due/failed jobs, overdue/failed expiry and span aggregates. Real PostgreSQL/TLS
+  tests cover values, access restrictions and privacy. Open investigation age is
+  distinct from verified containment duration, which remains an unfinished gate.
+  Full semantics and limitations are in `phase-5-observability.md`.
 - Added reproducible core measurement/replay harnesses without changing peer
   e2e scripts. Published hardware, exact demo/100k-edge compositions, samples,
   warmups, latency tails and native/Linux results in `phase-5-measurements.md`.

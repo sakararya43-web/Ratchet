@@ -27,6 +27,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/policy"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
+	"github.com/sakararya43-web/Ratchet/internal/telemetry"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
@@ -184,7 +185,14 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	if config.ApprovalLifetimeSeconds < 0 || config.ApprovalLifetimeSeconds > 86400 {
 		return errors.New("approval_lifetime_seconds must be between 1 and 86400, or zero for 900")
 	}
-	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second})
+	observer := telemetry.New(logger)
+	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second, Observer: observer, PublishedGraphVersion: func(ctx context.Context, tenant string) (int64, error) {
+		s, err := registry.Get(ctx, tenant, 0)
+		if err != nil {
+			return 0, err
+		}
+		return s.Version(), nil
+	}})
 	if err != nil {
 		return err
 	}
@@ -241,6 +249,11 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	apiMux.Handle("/ratchet.v1.DecisionService/", decisions)
+	metrics, err := api.NewMetricsHandler(service)
+	if err != nil {
+		return err
+	}
+	apiMux.Handle("/metrics", metrics)
 	checkpointAuthorities := map[string]*workflow.CheckpointAuthority{}
 	for _, tenant := range config.Tenants {
 		if tenant.CheckpointAuthorityURL == "" {
@@ -293,7 +306,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		}()
 	}
 	for tenant := range tenants {
-		start(func() error { return broker.Relay(ctx, store, tenant, logger) })
+		start(func() error { return broker.Relay(ctx, store, tenant, logger, observer) })
 		start(func() error {
 			return broker.ConsumeResults(ctx, tenant, func(ctx context.Context, raw []byte) error {
 				err := service.RecordExecutionResult(ctx, tenant, raw)

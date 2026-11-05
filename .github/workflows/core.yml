@@ -62,7 +62,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
-          args: --config .golangci-core.yml ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./internal/graph/... ./internal/bus/... ./internal/connector/conformance/... ./internal/domain/... ./internal/policy/... ./internal/workflow/... ./internal/evaluation/...
+          args: --config .golangci-core.yml ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./internal/graph/... ./internal/bus/... ./internal/connector/conformance/... ./internal/domain/... ./internal/policy/... ./internal/workflow/... ./internal/evaluation/... ./internal/telemetry/...
       - name: Start real local dependencies
         shell: pwsh
         run: ./scripts/core-env.ps1

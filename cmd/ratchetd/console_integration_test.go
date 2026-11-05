@@ -643,4 +643,32 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	if _, err := anonymousDecision.Decide(ctx, connect.NewRequest(decisionInput)); err == nil {
 		t.Fatal("anonymous inline decision accepted")
 	}
+	for _, test := range []struct {
+		client *http.Client
+		status int
+	}{{investigatorClient, http.StatusOK}, {requester, http.StatusForbidden}, {client, http.StatusUnauthorized}} {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/metrics", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := test.client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.StatusCode != test.status {
+			_ = resp.Body.Close()
+			t.Fatal("metrics authorization", resp.StatusCode, test.status)
+		}
+		if resp.StatusCode == http.StatusOK {
+			var metrics workflow.Diagnostics
+			if err := json.NewDecoder(resp.Body).Decode(&metrics); err != nil {
+				_ = resp.Body.Close()
+				t.Fatal(err)
+			}
+			if metrics.GraphVersion == 0 || metrics.PolicyVersion == "" || metrics.Spans["submit"].Spans == 0 || metrics.PublishedGraphVersion == nil {
+				t.Fatal("runtime metrics missing")
+			}
+		}
+		_ = resp.Body.Close()
+	}
 }

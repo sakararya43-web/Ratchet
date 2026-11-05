@@ -14,6 +14,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
+	"github.com/sakararya43-web/Ratchet/internal/telemetry"
 )
 
 var tenantToken = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
@@ -78,15 +79,26 @@ func (b *Broker) Publish(ctx context.Context, subject, id string, payload []byte
 	return err
 }
 
-func (b *Broker) Relay(ctx context.Context, store *eventstore.Store, tenant string, logger *slog.Logger) error {
+func (b *Broker) Relay(ctx context.Context, store *eventstore.Store, tenant string, logger *slog.Logger, observers ...*telemetry.Recorder) error {
 	if store == nil || logger == nil {
 		return eventstore.ErrInvalid
+	}
+	var observer *telemetry.Recorder
+	if len(observers) > 0 {
+		observer = observers[0]
+	}
+	publish := func(ctx context.Context, subject, id string, raw []byte) (err error) {
+		correlation, parent := telemetry.TransportContext(raw, id)
+		ctx = telemetry.Resume(ctx, parent, tenant, correlation)
+		ctx, span := observer.Start(ctx, "outbox", tenant, correlation)
+		defer func() { span.End(err) }()
+		return b.Publish(ctx, subject, id, raw)
 	}
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		publication, cancel := context.WithTimeout(ctx, 3*time.Second)
-		worked, err := store.DeliverOne(publication, tenant, b.Publish)
+		worked, err := store.DeliverOne(publication, tenant, publish)
 		cancel()
 		if err != nil {
 			backlog, _ := store.OutboxBacklog(ctx, tenant)

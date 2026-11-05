@@ -23,6 +23,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/policy"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
+	"github.com/sakararya43-web/Ratchet/internal/telemetry"
 )
 
 var ErrPermission = errors.New("operation not authorized")
@@ -38,6 +39,7 @@ type Service struct {
 	executions map[string]*Execution
 	tenants    map[string]bool
 	config     Config
+	observer   *telemetry.Recorder
 }
 type JobArgs struct {
 	Tenant    string `json:"tenant_id"`
@@ -74,7 +76,9 @@ func New(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, k
 
 // Config is frozen at construction. Zero selects the documented default.
 type Config struct {
-	ApprovalLifetime time.Duration
+	ApprovalLifetime      time.Duration
+	Observer              *telemetry.Recorder
+	PublishedGraphVersion func(context.Context, string) (int64, error)
 }
 
 func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy.Engine, key []byte, approvals ports.ApprovalVerifier, tenants []string, config Config, execution ...*Execution) (*Service, error) {
@@ -84,10 +88,14 @@ func NewConfigured(pool *pgxpool.Pool, store *eventstore.Store, policies *policy
 	if config.ApprovalLifetime < time.Second || config.ApprovalLifetime > 24*time.Hour {
 		return nil, domain.ErrInvalid
 	}
+	if config.Observer == nil {
+		config.Observer = telemetry.New(nil)
+	}
 	if pool == nil || store == nil || policies == nil || len(key) != 32 || len(tenants) == 0 {
 		return nil, domain.ErrInvalid
 	}
 	s := &Service{Store: store, Policies: policies, key: append([]byte(nil), key...), approvals: approvals, executions: map[string]*Execution{}, tenants: map[string]bool{}, config: config}
+	s.observer = config.Observer
 	queues := map[string]river.QueueConfig{}
 	for _, tenant := range tenants {
 		if tenant == "" || s.tenants[tenant] {
@@ -212,7 +220,7 @@ type Submit struct {
 	CorrelationID   string
 }
 
-func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain.Change, error) {
+func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (change domain.Change, err error) {
 	if err := input.Intent.Validate(); err != nil {
 		return domain.Change{}, err
 	}
@@ -232,6 +240,8 @@ func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain
 	if id, err := uuid.Parse(input.CorrelationID); err != nil || id == uuid.Nil {
 		return domain.Change{}, domain.ErrInvalid
 	}
+	ctx, span := s.observer.Start(ctx, "submit", actor.TenantID, input.CorrelationID)
+	defer func() { span.End(err) }()
 	privateDigest, err := canon.New().Digest(struct {
 		Context string `json:"context"`
 	}{input.Justification})
@@ -373,12 +383,15 @@ func hold(c domain.Change, now time.Time, reason string) ([]domain.Event, error)
 func jobID(args JobArgs) uuid.UUID {
 	return uuid.NewSHA1(uuid.NameSpaceOID, []byte(fmt.Sprintf("%s:%s:%d:%s", args.Tenant, args.Request, args.Revision, args.Operation)))
 }
-func (s *Service) Assess(ctx context.Context, args JobArgs) error {
+func (s *Service) Assess(ctx context.Context, args JobArgs) (err error) {
+	var span *telemetry.Span
+	defer func() { span.End(err) }()
 	digest, err := canon.New().Digest(args)
 	if err != nil {
 		return err
 	}
 	_, err = s.Store.MutateChange(ctx, eventstore.ChangeMutation{TenantID: args.Tenant, ActorID: "core-assessor", RequestID: args.Request, ID: jobID(args), ExpectedRevision: args.Revision, InputDigest: digest}, func(tx pgx.Tx, now time.Time, c domain.Change) ([]domain.Event, error) {
+		ctx, span = s.observer.Start(ctx, "assessment", args.Tenant, c.CorrelationID)
 		snapshot, err := s.Store.GraphWithin(ctx, tx, args.Tenant, s.key)
 		if err != nil {
 			return hold(c, now, "graph unavailable or resync required")
@@ -392,7 +405,7 @@ func (s *Service) Assess(ctx context.Context, args JobArgs) error {
 			return hold(c, now, "impact context cannot be proved")
 		}
 		facts := factsFor(ctx, snapshot, a, c, result)
-		decision, err := a.Decision(ctx, facts)
+		decision, err := s.decidePolicy(ctx, c.TenantID, c.CorrelationID, a, facts)
 		if err != nil {
 			return hold(c, now, "policy evaluation unavailable")
 		}
@@ -591,7 +604,9 @@ func (s *Service) Review(ctx context.Context, actor Actor, request string, id uu
 // Guard rechecks every bound input before dispatch. Until the peer supplies a
 // conformant authenticated execution transport, a proved approval is kept in
 // review rather than sending it to a connector that ignores the envelope.
-func (s *Service) Guard(ctx context.Context, args JobArgs) error {
+func (s *Service) Guard(ctx context.Context, args JobArgs) (err error) {
+	var span *telemetry.Span
+	defer func() { span.End(err) }()
 	digest, err := canon.New().Digest(args)
 	if err != nil {
 		return err
@@ -611,6 +626,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		return s.executions[args.Tenant].stage(ctx, tx, *prepared, receipt, preparedAt)
 	}
 	_, err = s.Store.MutateChange(ctx, m, func(tx pgx.Tx, now time.Time, c domain.Change) ([]domain.Event, error) {
+		ctx, span = s.observer.Start(ctx, "execution_guard", args.Tenant, c.CorrelationID)
 		snapshot, err := s.Store.GraphWithin(ctx, tx, args.Tenant, s.key)
 		if err != nil {
 			return hold(c, now, "graph unavailable before dispatch")
@@ -633,7 +649,7 @@ func (s *Service) Guard(ctx context.Context, args JobArgs) error {
 		if hash != c.Envelope.ImpactDigest {
 			return domain.Decide(c, domain.Command{Kind: "CONTEXT_CHANGED", At: now, Reason: "context changed"})
 		}
-		decision, err := a.Decision(ctx, factsFor(ctx, snapshot, a, c, result))
+		decision, err := s.decidePolicy(ctx, c.TenantID, c.CorrelationID, a, factsFor(ctx, snapshot, a, c, result))
 		if err != nil {
 			return hold(c, now, "policy reevaluation unavailable")
 		}

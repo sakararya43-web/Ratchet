@@ -4,12 +4,28 @@
 
 - Work on `main` only; implement phases sequentially.
 - Commit useful increments without Codex/ChatGPT co-author trailers.
-- Preserve Sakar-owned code and `SAKAR_IMPLEMENTATION_PLAN.md`.
+- Preserve Sakar's branch and `SAKAR_IMPLEMENTATION_PLAN.md`. The user explicitly
+  authorized fixing the Kubernetes connector on `main` for Phase 6 acceptance.
 - Shared contracts require peer agreement; a compiled proposal is not a frozen contract.
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
 ## Phase 6 - in progress (2026-11-05)
+
+- Real kind inventory exposed anonymous bindings, dangling service-account
+  subjects and certificate credential IDs. Model anonymous read-only authority
+  with unauthenticated groups, dormant accounts without invented observed UIDs,
+  and exact directory-pinned credential fingerprints. Admission still rejects
+  anonymous/dormant callers and unknown extra claims.
+- Share immutable rule-clause graph nodes and index validated rule matching by
+  API group. The actual kind snapshot falls from 663,688 edges (209 MB diagnostic
+  JSON) to 36,752 edges (12 MB). Common comparison clauses preserve reduction
+  proofs; existing graph/domain regressions pass. Add bounded compressed graph
+  dictionaries for native immutable facts and encrypted source records, with
+  legacy decoding, exact edge IDs and privacy-preserving historical replay.
+  PostgreSQL/JetStream ingest/replay tests and codec corruption/bounds tests pass.
+  Authorized live connector changes are being validated separately; real
+  approved-write/outage acceptance remains open and Phase 7 has not started.
 
 - Added authenticated native drift ingestion with exact committed baselines,
   current observed cuts, policy/impact evidence, consumed-admission correlation,

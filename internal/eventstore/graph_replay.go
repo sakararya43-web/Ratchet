@@ -51,6 +51,7 @@ func (s *Store) ReplayGraph(ctx context.Context, tenant string) (*graph.Snapshot
 						ConnectorID string     `json:"connector_id"`
 						Revision    int64      `json:"source_revision"`
 						Data        graph.Data `json:"graph"`
+						Compact     []byte     `json:"graph_compact"`
 					} `json:"facts"`
 				} `json:"payload"`
 			}
@@ -62,7 +63,11 @@ func (s *Store) ReplayGraph(ctx context.Context, tenant string) (*graph.Snapshot
 				return nil, ErrIntegrity
 			}
 			if event.Type == "SyncCompleted" {
-				sources[facts.ConnectorID] = sourceGraph{id: facts.ConnectorID, revision: facts.Revision, version: position, data: facts.Data}
+				data, err := graphFromFacts(facts.Data, facts.Compact)
+				if err != nil {
+					return nil, err
+				}
+				sources[facts.ConnectorID] = sourceGraph{id: facts.ConnectorID, revision: facts.Revision, version: position, data: data}
 			} else {
 				source := sources[facts.ConnectorID]
 				source.id = facts.ConnectorID

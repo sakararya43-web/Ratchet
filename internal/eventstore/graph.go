@@ -167,8 +167,17 @@ func (s *Store) IngestGraph(ctx context.Context, input GraphInput, key []byte) (
 		outcome = "resync_required"
 		facts["expected_source_revision"] = current.revision
 	} else {
-		facts["graph"] = publicGraph(next.Data())
-		raw, err := json.Marshal(next.Data())
+		public := publicGraph(next.Data())
+		if len(public.KubernetesDigests) > 0 {
+			compact, err := encodeCompactGraph(public)
+			if err != nil {
+				return GraphReceipt{}, err
+			}
+			facts["graph_compact"] = compact
+		} else {
+			facts["graph"] = public
+		}
+		raw, err := encodePrivateGraph(next.Data())
 		if err != nil {
 			return GraphReceipt{}, err
 		}
@@ -263,7 +272,8 @@ func loadSources(ctx context.Context, tx pgx.Tx, tenant string, key []byte) ([]s
 				return nil, fmt.Errorf("%w: graph private data authentication", ErrIntegrity)
 			}
 		}
-		if err := json.Unmarshal(raw, &source.data); err != nil {
+		source.data, err = decodePrivateGraph(raw)
+		if err != nil {
 			return nil, ErrIntegrity
 		}
 		result = append(result, source)

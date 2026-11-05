@@ -39,6 +39,14 @@ func TestKubernetesRuleMatchingPreservesScopeNamesAndSubresources(t *testing.T) 
 			if err != nil || got != tc.allow {
 				t.Fatal("authorization mismatch", got, err)
 			}
+			compiled, err := kube.CompileRules([]kube.ScopedRule{tc.rule})
+			if err != nil {
+				t.Fatal(err)
+			}
+			indexed, work, err := compiled.Allows(tc.permission)
+			if err != nil || indexed != got || work < 1 {
+				t.Fatal("indexed matcher changed authority", indexed, work, err)
+			}
 		})
 	}
 	if allowed, err := kube.Allows([]kube.ScopedRule{cases[0].rule, {Rule: kube.Rule{Resources: []string{"pods"}, Verbs: []string{"*"}}}}, cases[0].permission); err == nil || allowed {

@@ -71,12 +71,17 @@ func (s *Store) GraphAtWithin(ctx context.Context, tx pgx.Tx, tenant string, ver
 					Connector string     `json:"connector_id"`
 					Revision  int64      `json:"source_revision"`
 					Graph     graph.Data `json:"graph"`
+					Compact   []byte     `json:"graph_compact"`
 				} `json:"facts"`
 			}
 			if json.Unmarshal(content.Payload, &payload) != nil || entry.StreamID != "graph:"+payload.Facts.Connector {
 				return nil, ErrIntegrity
 			}
-			sources[payload.Facts.Connector] = sourceGraph{id: payload.Facts.Connector, revision: payload.Facts.Revision, version: entry.Sequence, data: payload.Facts.Graph, resync: entry.Type == "GraphResyncRequired"}
+			data, err := graphFromFacts(payload.Facts.Graph, payload.Facts.Compact)
+			if err != nil {
+				return nil, err
+			}
+			sources[payload.Facts.Connector] = sourceGraph{id: payload.Facts.Connector, revision: payload.Facts.Revision, version: entry.Sequence, data: data, resync: entry.Type == "GraphResyncRequired"}
 			graphVersion = entry.Sequence
 		}
 	}

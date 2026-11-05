@@ -3,6 +3,7 @@ package kubernetes_test
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"testing"
 
 	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
@@ -14,6 +15,26 @@ func state() kube.State {
 		{Kind: "ClusterRole", Name: "reader", UID: "role-1", ResourceVersion: "rv-A", Rules: []kube.Rule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get"}}}},
 		{Kind: "RoleBinding", Name: "read", Namespace: "finance", UID: "binding-1", ResourceVersion: "rv-B", RoleKind: "ClusterRole", RoleName: "reader", Subjects: []kube.Subject{{Kind: "Group", Name: "finance-readers"}}},
 	}}
+}
+
+func TestAnonymousAuthorityIsAnalyzedWithoutAuthenticatedGroupOrAdmissionAuthority(t *testing.T) {
+	s := state()
+	s.Principals = append(s.Principals, kube.Principal{ID: "anonymous", Kind: "User", Name: "system:anonymous", Groups: []string{"system:unauthenticated"}})
+	s.Objects = append(s.Objects, kube.Object{Kind: "ClusterRoleBinding", Name: "authenticated-only", UID: "auth-only-uid", ResourceVersion: "rv", RoleKind: "ClusterRole", RoleName: "reader", Subjects: []kube.Subject{{Kind: "Group", Name: "system:authenticated"}}})
+	if err := s.ValidateObserved(); err != nil {
+		t.Fatal(err)
+	}
+	groups := kube.PrincipalGroups(s.Principals[len(s.Principals)-1])
+	if slices.Contains(groups, "system:authenticated") || !slices.Contains(groups, "system:unauthenticated") {
+		t.Fatal("anonymous authentication invented", groups)
+	}
+	rules, err := s.EffectiveRules("anonymous")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allowed, err := kube.Allows(rules, kube.Permission{Resource: "pods", Verb: "get", Namespace: "finance"}); err != nil || allowed {
+		t.Fatal("anonymous inherited authenticated permissions", err)
+	}
 }
 
 func TestEffectiveRulesResolveNamespacedClusterRolesAndServiceAccountGroups(t *testing.T) {

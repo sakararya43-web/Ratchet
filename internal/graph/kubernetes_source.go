@@ -12,6 +12,14 @@ import (
 // KubernetesSourceKey avoids retaining personal/source names in public facts.
 func KubernetesSourceKey(cluster string) string { return KubernetesNodeID(cluster, "source", "") }
 
+// NativeEdgeID is recoverable from anonymous endpoints. Raw Kubernetes names or
+// binding UIDs are never needed to replay a retained authority edge.
+func NativeEdgeID(edge Edge) string {
+	edge.ID = ""
+	edge.Properties = nil
+	return "k8s:" + EdgeID(edge)
+}
+
 func KubernetesStateDigest(state kube.State) (string, error) {
 	if err := state.ValidateObserved(); err != nil {
 		return "", err

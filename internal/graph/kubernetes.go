@@ -344,7 +344,12 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 	nodes := map[string]Node{}
 	edges := map[string]Edge{}
 	addEdge := func(source, target, kind, provenance string) bool {
-		id := KubernetesNodeID(state.Cluster, "edge", source+"\x00"+target+"\x00"+kind+"\x00"+provenance)
+		// Exact raw binding provenance is committed in the source digest. Equal
+		// authority edges share an ID instead of duplicating the same grant for
+		// each native object or derivation of that authority.
+		_ = provenance
+		edge := Edge{Source: source, Target: target, Kind: kind}
+		id := NativeEdgeID(edge)
 		if _, exists := edges[id]; exists {
 			return false
 		}
@@ -374,25 +379,47 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 	}
 	atomKeys := slices.Sorted(maps.Keys(atoms))
 	work := 0
+	clauses := map[string]bool{}
 	grantView := func(id string, view kubeView) error {
-		nodes[id] = Node{ID: id, Type: "Role"}
-		for _, signature := range atomKeys {
-			p := atoms[signature]
-			work += len(view.rules)
-			if work > 10_000_000 {
-				return ErrAnalysisLimit
-			}
-			allowed, err := kube.Allows(scopedRules(view), p)
+		if id != "" {
+			nodes[id] = Node{ID: id, Type: "Role"}
+		}
+		for _, rule := range scopedRules(view) {
+			raw, err := json.Marshal(rule)
 			if err != nil {
 				return err
 			}
-			if !allowed {
+			clause := KubernetesNodeID(state.Cluster, "rule", string(raw))
+			nodes[clause] = Node{ID: clause, Type: "Role"}
+			if id != "" {
+				addEdge(id, clause, "ASSIGNED", "shared-rule")
+			}
+			if clauses[clause] {
 				continue
 			}
-			target := KubernetesNodeID(state.Cluster, "permission", signature)
-			edge := Edge{Source: id, Target: target, Kind: "GRANTS", Action: p.Verb}
-			edge.ID = KubernetesNodeID(state.Cluster, "edge", id+"\x00"+target+"\x00"+p.Verb)
-			edges[edge.ID] = edge
+			clauses[clause] = true
+			matcher, err := kube.CompileRules([]kube.ScopedRule{rule})
+			if err != nil {
+				return err
+			}
+			for _, signature := range atomKeys {
+				p := atoms[signature]
+				allowed, cost, err := matcher.Allows(p)
+				work += cost
+				if work > 10_000_000 {
+					return ErrAnalysisLimit
+				}
+				if err != nil {
+					return err
+				}
+				if !allowed {
+					continue
+				}
+				target := KubernetesNodeID(state.Cluster, "permission", signature)
+				edge := Edge{Source: clause, Target: target, Kind: "GRANTS", Action: p.Verb}
+				edge.ID = NativeEdgeID(edge)
+				edges[edge.ID] = edge
+			}
 		}
 		return nil
 	}
@@ -400,6 +427,20 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 		view := views[id]
 		if err := grantView(id, view); err != nil {
 			return nil, err
+		}
+	}
+	// Internal immutable rule clauses use the same comparison basis as permission
+	// witnesses. A narrowing rewires the existing role without fabricating new
+	// assignable authority merely because its concrete rule clause changed.
+	for _, other := range comparison {
+		otherViews, err := kubeViews(other)
+		if err != nil {
+			return nil, err
+		}
+		for _, view := range otherViews {
+			if err := grantView("", view); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for id, p := range principals {
@@ -471,15 +512,25 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 				}
 			}
 			var permissionError error
+			matcher, err := kube.CompileRules(rules)
+			if err != nil {
+				return nil, err
+			}
+			permissionCache := map[kube.Permission]bool{}
 			has := func(permission kube.Permission) bool {
-				work += len(rules)
+				if allowed, exists := permissionCache[permission]; exists {
+					work++
+					return allowed
+				}
+				allowed, cost, err := matcher.Allows(permission)
+				work += cost
 				if work > 10_000_000 {
 					return false
 				}
-				allowed, err := kube.Allows(rules, permission)
 				if err != nil {
 					permissionError = err
 				}
+				permissionCache[permission] = err == nil && allowed
 				return err == nil && allowed
 			}
 			canImpersonateUser := false
@@ -526,11 +577,15 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 						continue
 					}
 					match := false
+					defaultGroup := "system:authenticated"
+					if q.Kind == "User" && q.Name == "system:anonymous" {
+						defaultGroup = "system:unauthenticated"
+					}
 					for _, sub := range binding.Subjects {
 						if sub.Kind == q.Kind && sub.Name == q.Name && sub.Namespace == q.Namespace {
 							match = true
 						}
-						if sub.Kind == "Group" && (sub.Name == "system:authenticated" || (q.Kind == "ServiceAccount" && slices.Contains(kube.PrincipalGroups(q), sub.Name)) || has(kube.Permission{Resource: "groups", Verb: "impersonate", Name: sub.Name})) {
+						if sub.Kind == "Group" && (sub.Name == defaultGroup || (q.Kind == "ServiceAccount" && slices.Contains(kube.PrincipalGroups(q), sub.Name)) || has(kube.Permission{Resource: "groups", Verb: "impersonate", Name: sub.Name})) {
 							match = true
 						}
 					}
@@ -571,8 +626,11 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 						write = write || has(kube.Permission{APIGroup: kube.RBACGroup, Resource: bindingResource, Verb: "update", Namespace: view.scope, Name: binding.Name}) || has(kube.Permission{APIGroup: kube.RBACGroup, Resource: bindingResource, Verb: "patch", Namespace: view.scope, Name: binding.Name})
 					}
 				}
-				bind := has(kube.Permission{APIGroup: kube.RBACGroup, Resource: resource, Verb: "bind", Namespace: view.scope, Name: view.object.Name})
-				if !bind {
+				bind := false
+				if bound && write {
+					bind = has(kube.Permission{APIGroup: kube.RBACGroup, Resource: resource, Verb: "bind", Namespace: view.scope, Name: view.object.Name})
+				}
+				if bound && write && !bind {
 					work += len(rules) * len(view.rules)
 					if work > 10_000_000 {
 						return nil, ErrAnalysisLimit

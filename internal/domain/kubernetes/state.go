@@ -8,12 +8,14 @@ import (
 )
 
 type Principal struct {
-	ID        string   `json:"identity_id"`
-	UID       string   `json:"uid,omitempty"`
-	Kind      string   `json:"kind"` // User or ServiceAccount
-	Name      string   `json:"name"`
-	Namespace string   `json:"namespace,omitempty"`
-	Groups    []string `json:"groups"`
+	ID           string   `json:"identity_id"`
+	UID          string   `json:"uid,omitempty"`
+	Kind         string   `json:"kind"` // User or ServiceAccount
+	Name         string   `json:"name"`
+	Namespace    string   `json:"namespace,omitempty"`
+	Groups       []string `json:"groups"`
+	CredentialID string   `json:"credential_id,omitempty"`
+	Dormant      bool     `json:"dormant,omitempty"`
 }
 
 type APIResource struct {
@@ -64,13 +66,14 @@ func (s State) Validate() error {
 	}
 	ids, names, keys := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, p := range s.Principals {
-		if !bounded(p.ID, false, 256) || !bounded(p.UID, true, 256) || !identityText(p.Name, false) || !identityValues(p.Groups) || ids[p.ID] || names[PrincipalKey(p.Kind, p.Namespace, p.Name)] {
+		if !bounded(p.ID, false, 256) || !bounded(p.UID, true, 256) || !bounded(p.CredentialID, true, 256) || (p.Dormant && (p.Kind != "ServiceAccount" || p.UID != "")) || !identityText(p.Name, false) || !identityValues(p.Groups) || ids[p.ID] || names[PrincipalKey(p.Kind, p.Namespace, p.Name)] {
 			return ErrInvalid
 		}
 		if p.Kind != "User" && p.Kind != "ServiceAccount" {
 			return ErrUnsupported
 		}
-		if unsupportedPrincipal(p) {
+		anonymous := p.Kind == "User" && p.Name == "system:anonymous" && p.UID == "" && len(p.Groups) == 1 && p.Groups[0] == "system:unauthenticated"
+		if unsupportedPrincipal(p) && !anonymous {
 			return ErrUnsupported
 		}
 		if (p.Kind == "User" && p.Namespace != "") || (p.Kind == "ServiceAccount" && !slices.Contains(s.Namespaces, p.Namespace)) {
@@ -121,7 +124,11 @@ func SubjectKey(s Subject) string { return PrincipalKey(s.Kind, s.Namespace, s.N
 
 func PrincipalGroups(p Principal) []string {
 	groups := append([]string(nil), p.Groups...)
-	groups = append(groups, "system:authenticated")
+	if p.Kind == "User" && p.Name == "system:anonymous" {
+		groups = append(groups, "system:unauthenticated")
+	} else {
+		groups = append(groups, "system:authenticated")
+	}
 	if p.Kind == "ServiceAccount" {
 		groups = append(groups, "system:serviceaccounts", "system:serviceaccounts:"+p.Namespace)
 	}

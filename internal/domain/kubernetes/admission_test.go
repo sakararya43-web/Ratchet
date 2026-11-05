@@ -88,3 +88,27 @@ func TestServiceAccountAdmissionUsesCanonicalUsernameAndObservedUID(t *testing.T
 		}
 	}
 }
+
+func TestAdmissionCredentialFingerprintRequiresExactDirectoryPin(t *testing.T) {
+	s := state()
+	s.Principals[0].CredentialID = "X509SHA256:observed-certificate"
+	a := admission(s)
+	a.User.Extra = map[string][]string{"authentication.kubernetes.io/credential-id": {s.Principals[0].CredentialID}}
+	if _, err := a.PrincipalIn(s); err != nil {
+		t.Fatal("exact observed credential refused", err)
+	}
+	for _, extra := range []map[string][]string{nil, {"authentication.kubernetes.io/credential-id": {"different"}}, {"authentication.kubernetes.io/credential-id": {s.Principals[0].CredentialID}, "unmodeled": {"claim"}}} {
+		a.User.Extra = extra
+		if _, err := a.PrincipalIn(s); err == nil {
+			t.Fatal("missing or mismatched credential accepted")
+		}
+	}
+	s = state()
+	s.Principals[1].Dormant = true
+	s.Principals[1].UID = ""
+	a = admission(s)
+	a.User = kube.UserInfo{Username: "system:serviceaccount:wallet:worker", Groups: []string{"system:authenticated", "system:serviceaccounts", "system:serviceaccounts:wallet"}}
+	if _, err := a.PrincipalIn(s); err == nil {
+		t.Fatal("unobserved dormant account admitted")
+	}
+}

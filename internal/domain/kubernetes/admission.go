@@ -99,6 +99,9 @@ func (a Admission) PrincipalIn(state State) (Principal, error) {
 	if principal == nil || principal.UID != a.User.UID {
 		return Principal{}, ErrInvalid
 	}
+	if unsupportedPrincipal(*principal) || principal.Dormant {
+		return Principal{}, ErrUnsupported
+	}
 	expected := PrincipalGroups(*principal)
 	actual := slices.Clone(a.User.Groups)
 	slices.Sort(actual)
@@ -108,7 +111,12 @@ func (a Admission) PrincipalIn(state State) (Principal, error) {
 	// Extra fields are authenticated and retained, but this v1 has no verified
 	// directory mapping or authorizer semantics for them. Hold instead of
 	// silently treating e.g. external authorization claims as ordinary RBAC.
-	if len(a.User.Extra) > 0 {
+	if principal.CredentialID != "" {
+		values := a.User.Extra["authentication.kubernetes.io/credential-id"]
+		if len(a.User.Extra) != 1 || len(values) != 1 || values[0] != principal.CredentialID {
+			return Principal{}, ErrUnsupported
+		}
+	} else if len(a.User.Extra) > 0 {
 		return Principal{}, ErrUnsupported
 	}
 	if _, err := state.After(a.Mutation); err != nil {

@@ -29,6 +29,12 @@
 - PostgreSQL/TLS regressions cover the real checkpoint API, evidence pagination,
   forged cursors and ordinary-session refusal. Linux integration/race checks and
   Buf compatibility pass; submission remains distinct from signed acceptance.
+- Added an actual peer-executable checkpoint test on the isolated combined tree:
+  create over HTTP, sign with the real member key, restart the Authority, retain
+  signatures on resubmission and accept through a replacement core service.
+  Peer source and branch remain untouched. CI runs this check when integrated.
+- A real registry-rotation regression rejects new acceptance of pending old-epoch
+  candidates while preserving verification/export of previously accepted proofs.
 
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux

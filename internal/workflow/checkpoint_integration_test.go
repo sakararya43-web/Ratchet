@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
+	"github.com/sakararya43-web/Ratchet/internal/policy"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
@@ -31,6 +33,91 @@ func signCheckpoint(t *testing.T, sys system, p workflow.CheckpointProposal) tru
 		t.Fatal(err)
 	}
 	return signed
+}
+
+func TestCheckpointRotationRejectsPendingOldEpochAndRetainsAcceptedEvidence(t *testing.T) {
+	sys := setup(t)
+	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, nil, []string{sys.tenant})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := workflow.Actor{TenantID: sys.tenant, ID: "user:sec1"}
+	first, err := service.PrepareCheckpoint(sys.ctx, actor, workflow.PrepareCheckpointInput{CommandID: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.AcceptCheckpoint(sys.ctx, actor, signCheckpoint(t, sys, first)); err != nil {
+		t.Fatal(err)
+	}
+	pending, err := service.PrepareCheckpoint(sys.ctx, actor, workflow.PrepareCheckpointInput{CommandID: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldSigned := signCheckpoint(t, sys, pending)
+	genesis, err := sys.authority.GetGenesis()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rotation, err := sys.authority.ProposeRegistryChange(sys.tenant, 1, 1, genesis.Members)
+	if err != nil {
+		t.Fatal(err)
+	}
+	challenge := trust.ComputeRegistrySigningDigest(sys.tenant, 1, 2, rotation.ProposalDigest)
+	signature, err := ecdsa.SignASN1(rand.Reader, sys.authorityKey, challenge[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sys.authority.SignRegistryProposal(rotation.ProposalID, trust.MemberSignature{ActorID: "authority-leader", Signature: signature}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sys.authority.ActivateRegistryProposal(rotation.ProposalID); err != nil {
+		t.Fatal(err)
+	}
+	manager := policy.Manager{Store: sys.store, Engine: sys.engine, Authority: sys.authority, Root: sys.root, Tenant: sys.tenant}
+	if err := manager.RefreshRegistry(sys.ctx); err != nil {
+		t.Fatal(err)
+	}
+	modules := map[string]string{}
+	for _, name := range []string{"change.rego", "authz.rego"} {
+		raw, err := os.ReadFile("../../policies/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		modules[name] = string(raw)
+	}
+	bundle, err := sys.authority.ProposeBundle(sys.tenant, "2.0.0", "checkpoint epoch transition", modules, map[string]any{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundleChallenge := trust.ComputePolicySigningDigest(sys.tenant, 2, bundle.BundleDigest)
+	bundleSignature, err := ecdsa.SignASN1(rand.Reader, sys.authorityKey, bundleChallenge[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sys.authority.SignProposal(bundle.ProposalID, trust.MemberSignature{ActorID: "authority-leader", Signature: bundleSignature}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.Activate(sys.ctx, raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.AcceptCheckpoint(sys.ctx, actor, oldSigned); !errors.Is(err, domain.ErrContextChanged) {
+		t.Fatal("old epoch newly accepted after observed rotation", err)
+	}
+	next, err := service.PrepareCheckpoint(sys.ctx, actor, workflow.PrepareCheckpointInput{CommandID: uuid.New()})
+	if err != nil || next.Candidate.Checkpoint.Epoch != 2 {
+		t.Fatal("new checkpoint did not bind rotated registry", err)
+	}
+	if _, err := service.AcceptCheckpoint(sys.ctx, actor, signCheckpoint(t, sys, next)); err != nil {
+		t.Fatal(err)
+	}
+	history, _, err := service.Checkpoints(sys.ctx, actor, 0, 0, 10)
+	if err != nil || len(history) != 2 || history[0].Evidence.Signed.Epoch != 1 || history[1].Evidence.Signed.Epoch != 2 {
+		t.Fatal("historical signatures lost on rotation", err)
+	}
 }
 
 func TestCheckpointsPersistVerifiedContinuityAndExcludeTheirOwnReference(t *testing.T) {

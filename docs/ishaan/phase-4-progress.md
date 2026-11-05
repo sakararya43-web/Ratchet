@@ -67,7 +67,7 @@ the registry context and expiry; do not rebuild approval bytes from display fiel
 ExecuteContainment and RestoreAccess are currently unmounted. No success-returning
 handler or unsafe passkey path stands in for their unfinished orchestration.
 
-## Audit export and checkpoint primitives
+## Audit export and checkpoints
 
 Schema 8 adds tenant-isolated audit projections and actor/time, request, incident
 and resource indexes. Each event updates its display projection in the same
@@ -106,6 +106,39 @@ signature, then checks quorum. The peer VerifyCheckpointSignatures method only
 counts entries and is insufficient by itself. No private signing key exists in
 these core primitives, and an unsigned candidate is never reported as signed.
 
+Schema 9 stores immutable candidate artifacts and accepted references with RLS.
+`AuditService.PrepareCheckpoint` freezes up to 4,096 consecutive events / 16 MiB
+before appending its preparation event. Pass a stable mutation key to retry the
+same frozen range. `checkpoint_manage` is restricted to security leads by the
+demo signed policy. Concurrent acceptances serialize on the tenant head.
+
+An optional per-tenant `checkpoint_authority_url` enables `SubmitCheckpoint`.
+It consumes the actual peer `/api/v1/authority/checkpoint/list` and `/create`
+HTTP contracts; only HTTPS or loopback HTTP URLs are accepted, with redirects
+disabled and a five-second round-trip deadline. A candidate lookup precedes
+creation because peer create overwrites its stored signatures. Submission holds
+the tenant lock during that bounded exchange, so an Authority outage can delay
+other writes for up to that bound. There is no automatic signing or scheduling.
+Authority members sign through the peer service; submit again to retrieve their
+returned object, then call `AcceptCheckpoint` with the complete signed JSON.
+
+Acceptance re-verifies each signature and quorum, the actual source range,
+registry context and the preceding accepted coverage. A newly observed rotation
+invalidates pending old-epoch acceptance. Previously accepted evidence retains
+its frozen historical registry proof. The acceptance event is beyond the range
+it covers; a later checkpoint includes that reference. Restricted artifacts are
+bound by digests in ledger events, avoiding personal registry display fields in
+the public chain. Runtime credentials cannot update or delete these artifacts.
+
+`ListCheckpoints` exports these records with current `audit_export` authorization,
+fixed-tip cursors and bounded pages. Raw chain export identifies only an accepted
+checkpoint whose reference is within that same captured tip. The core API tests
+cover real TLS sessions, pagination and ordinary-user refusal. On an isolated
+overlay of `main` and unmodified `origin/sakar` at `d823a10`, the actual Authority
+executable passed creation, real signing, process restart, signature-preserving
+resubmission and durable core acceptance. This does not close the separate peer
+passkey or connector conformance gates.
+
 ## Evidence and remaining work
 
 Passing focused checks cover surgical two-asset cuts, finance-report preservation,
@@ -123,9 +156,8 @@ remaining Phase 4 tasks complete.
 
 Required Phase 4 work still includes passkey-confirmed responder execution on the
 priority transport, target read-back/recovery and incident projections, restoration
-through a new independently reviewed increase,
-the complete offline evidence package (including historical approval keys), and
-candidate submission/signed-checkpoint acceptance-reference orchestration.
+through a new independently reviewed increase, and
+the complete offline evidence package (including historical approval keys).
 Five-second D6 and actual business-continuity D7 measurements remain unpassed.
 The core planner's simulated report preservation is not that target measurement.
 

@@ -79,6 +79,13 @@ jobs:
         run: sh scripts/core-smoke.sh
       - name: Independent graph and adversarial workflow properties
         run: go test ./internal/graph ./internal/domain ./internal/workflow -count=1 -rapid.seed=20261105 -rapid.checks=300
+      - name: Actual Authority checkpoint HTTP and restart when integrated
+        if: ${{ hashFiles('cmd/ratchet-authority/main.go') != '' }}
+        shell: pwsh
+        run: |
+          . ./scripts/core-env-load.ps1
+          go test -race '-tags=integration,peerintegration' -count=1 -timeout=3m ./internal/workflow -run TestPeerCheckpointHTTPSubmissionSigningAndRestart
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Actual connector conformance when peer code is integrated
         if: ${{ hashFiles('cmd/ratchet-sim/domain/model.go') != '' }}
         run: go test -race -tags=peerintegration -count=1 ./internal/connector/conformance

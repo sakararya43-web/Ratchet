@@ -62,7 +62,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
-          args: --config .golangci-core.yml ./cmd/ratchetd/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./internal/graph/... ./internal/bus/... ./internal/connector/conformance/... ./internal/domain/... ./internal/policy/... ./internal/workflow/... ./internal/evaluation/... ./internal/telemetry/...
+          args: --config .golangci-core.yml ./cmd/ratchetd/... ./cmd/ratchet-k8s-webhook/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./internal/graph/... ./internal/bus/... ./internal/connector/... ./internal/domain/... ./internal/policy/... ./internal/workflow/... ./internal/evaluation/... ./internal/telemetry/...
       - name: Start real local dependencies
         shell: pwsh
         run: ./scripts/core-env.ps1
@@ -102,7 +102,7 @@ jobs:
           go test -race '-tags=integration,peerintegration' -count=1 -timeout=3m ./internal/workflow -run TestPeerCheckpointHTTPSubmissionSigningAndRestart
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Actual connector conformance when peer code is integrated
-        if: ${{ hashFiles('cmd/ratchet-sim/domain/model.go') != '' }}
+        if: ${{ hashFiles('cmd/ratchet-sim/server/server.go') != '' }}
         run: go test -race -tags=peerintegration -count=1 ./internal/connector/conformance
       - name: Dependency diagnostics on failure
         if: failure()

@@ -12,6 +12,18 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Adopted required peer connector types and added actual API inventory and signed
+  native snapshots on main. Replaced name-only admission with exact signed core
+  commands/permits, API-server mutual TLS, encrypted durable pending context,
+  independent target reads and durable signed result publication. The runtime
+  consumes JetStream commands and exposes dependency-aware readiness. Admission
+  rechecks the live source, and reconciliation never writes. All six historical
+  interface/live-inventory assertions pass; the full real snapshot persists and
+  replays after erasure. Unit tests cover command tampering, wrong connector,
+  restart, encrypted context corruption and unauthenticated callers. Connector
+  lint reports zero issues. The real approved-write/outage/latency and drift-watch
+  gates remain open; [runtime contract](phase-6-connector-runtime.md).
+
 - Real kind inventory exposed anonymous bindings, dangling service-account
   subjects and certificate credential IDs. Model anonymous read-only authority
   with unauthenticated groups, dormant accounts without invented observed UIDs,

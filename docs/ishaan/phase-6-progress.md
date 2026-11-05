@@ -2,8 +2,9 @@
 
 Phase 6 is in progress on `main`. Phase 7 has not started. The user confirmed
 that `origin/sakar` at `d823a10` is the peer's final implementation; a newer peer
-delivery is not expected. The branches remain separate, and peer-owned source
-and implementation plans are unchanged.
+delivery is not expected. The user then explicitly authorized fixing the
+Kubernetes connector on `main`. The branches remain separate; Sakar's branch
+and implementation plan are unchanged.
 
 ## Completed core work
 
@@ -49,12 +50,20 @@ and implementation plans are unchanged.
   and drift watch. Native automatic correction/live continuity remain unresolved
   D6/D7 mappings; no unproved inverse or blind rollback is implemented.
 
-The final peer source still uses an in-memory cluster state and local intent
-matching. Its webhook does not call the core DecisionService. Peer completion
-checkboxes therefore do not prove the integrated exit requirements. No runtime
-substitute or trust bypass is authorized to conceal those gaps.
-Actual combined-source tests reproduce five failed acceptance assertions; see
-[final peer gates and D1–D8 scope](phase-6-peer-gates.md).
+The final peer branch uses in-memory cluster state and local intent matching.
+Under the connector-fix authorization, main now has actual Kubernetes API
+inventory, complete signed normalized cuts, exact native admission normalization,
+signed command staging, a TLS DecisionService client, encrypted durable pending
+context and independent API read-back with durable signed results. The native
+runtime requires API-server mutual TLS and has no local intent-registration
+route. No target write occurs in reconciliation.
+
+On 2026-11-06, all six previously reported interface/live-inventory assertions
+pass against these changes. The actual full kind graph also fits a 648,370-byte
+immutable event and replays exactly after private-source deletion. Domain tests
+still match 17 real authorizer queries across 9 configurations. These results
+do not complete real API-server approved-write/outage/latency acceptance or
+native drift watch publication. See [historical peer failures and D1–D8 scope](phase-6-peer-gates.md).
 
 ## Validation
 

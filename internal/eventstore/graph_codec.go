@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
@@ -69,7 +70,7 @@ func encodeCompactGraph(data graph.Data) ([]byte, error) {
 		return nil, err
 	}
 	if len(raw) > maxGraphPlain {
-		return nil, ErrInvalid
+		return nil, fmt.Errorf("%w: native graph plaintext exceeds %d bytes", ErrInvalid, maxGraphPlain)
 	}
 	var buffer bytes.Buffer
 	w := gzip.NewWriter(&buffer)
@@ -80,7 +81,7 @@ func encodeCompactGraph(data graph.Data) ([]byte, error) {
 		return nil, err
 	}
 	if buffer.Len() > maxGraphCompressed {
-		return nil, ErrInvalid
+		return nil, fmt.Errorf("%w: compact graph is %d bytes, limit %d", ErrInvalid, buffer.Len(), maxGraphCompressed)
 	}
 	return buffer.Bytes(), nil
 }

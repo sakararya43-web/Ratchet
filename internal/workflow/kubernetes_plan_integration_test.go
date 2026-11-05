@@ -44,7 +44,6 @@ func nativeWorkflow(t *testing.T, beneficiary string, configure ...func(system, 
 
 func nativeWorkflowOperation(t *testing.T, beneficiary, operation string, configure ...func(system, ports.ApprovalVerifier) *workflow.Service) (system, *workflow.Service, kube.State, kube.Mutation, *ecdsa.PrivateKey, []byte) {
 	t.Helper()
-	sys := setup(t)
 	state := kube.State{Cluster: "phase6-cluster", ResourceVersion: "opaque/source-cut", Complete: true, Namespaces: []string{"finance"}, Principals: []kube.Principal{{ID: "requester", UID: "native-requester-uid", Kind: "User", Name: "Native Private Requester"}, {ID: "owner", UID: "native-owner-uid", Kind: "User", Name: "Native Private Owner"}}, Resources: []kube.APIResource{{Resource: "pods", Namespaced: true}}, Objects: []kube.Object{{Kind: "ClusterRole", Name: "reader", UID: "role-uid", ResourceVersion: "opaque/role-rv", Rules: []kube.Rule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get"}}}}}}
 	name := "Native Private Requester"
 	if beneficiary == "owner" {
@@ -64,12 +63,18 @@ func nativeWorkflowOperation(t *testing.T, beneficiary, operation string, config
 		}
 		state.Objects = append(state.Objects, before)
 	}
+	return nativeWorkflowState(t, state, mutation, 10, configure...)
+}
+
+func nativeWorkflowState(t *testing.T, state kube.State, mutation kube.Mutation, sourceRevision int64, configure ...func(system, ports.ApprovalVerifier) *workflow.Service) (system, *workflow.Service, kube.State, kube.Mutation, *ecdsa.PrivateKey, []byte) {
+	t.Helper()
+	sys := setup(t)
 	projected, err := graph.KubernetesSource(0, state)
 	if err != nil {
 		t.Fatal(err)
 	}
 	data := projected.Data()
-	if _, err := sys.store.IngestGraph(sys.ctx, eventstore.GraphInput{TenantID: sys.tenant, ConnectorID: "native", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{3}).String(), ToRevision: 10, Complete: true, Snapshot: &data}, sys.key); err != nil {
+	if _, err := sys.store.IngestGraph(sys.ctx, eventstore.GraphInput{TenantID: sys.tenant, ConnectorID: "native", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{3}).String(), ToRevision: sourceRevision, Complete: true, Snapshot: &data}, sys.key); err != nil {
 		t.Fatal(err)
 	}
 	impact, err := graph.KubernetesImpact(1, state, mutation)
@@ -93,7 +98,17 @@ func nativeWorkflowOperation(t *testing.T, beneficiary, operation string, config
 		}
 		modules[name] = string(raw)
 	}
-	bindings := map[string]any{graph.KubernetesNodeID(state.Cluster, "identity", "requester"): "user:requester", graph.KubernetesNodeID(state.Cluster, "identity", "owner"): "user:owner"}
+	bindings := map[string]any{}
+	for _, principal := range state.Principals {
+		if principal.Kind != "User" {
+			continue
+		}
+		actor := ""
+		if principal.ID == "requester" || principal.ID == "owner" {
+			actor = "user:" + principal.ID
+		}
+		bindings[graph.KubernetesNodeID(state.Cluster, "identity", principal.ID)] = actor
+	}
 	bundle, err := sys.authority.ProposeBundle(sys.tenant, "1.1.0", "native identity associations and resource ownership", modules, map[string]any{"resource_owners": owners, "kubernetes_identity_bindings": bindings})
 	if err != nil {
 		t.Fatal(err)

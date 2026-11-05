@@ -193,7 +193,7 @@ func (s *Store) IngestGraph(ctx context.Context, input GraphInput, key []byte) (
 	}
 	r, err := s.appendTx(ctx, tx, Command{TenantID: input.TenantID, ID: input.MessageID, ActorReference: uuid.NewSHA1(uuid.NameSpaceOID, []byte(input.TenantID+":"+input.ConnectorID)), StreamID: "graph:" + input.ConnectorID, ExpectedVersion: version, Events: []Event{{Type: typ, Facts: rawFacts, Private: private}}})
 	if err != nil {
-		return GraphReceipt{}, err
+		return GraphReceipt{}, fmt.Errorf("append native/source cut (%d fact bytes): %w", len(rawFacts), err)
 	}
 	if gap {
 		// A pending source is a durable quarantine marker, never a ready empty graph.

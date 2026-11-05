@@ -130,6 +130,22 @@ func (b *Broker) ConsumeResults(ctx context.Context, tenant string, handler func
 func (b *Broker) ConsumeDrift(ctx context.Context, tenant string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
 	return b.consume(ctx, tenant, "DRIFT", "drift.reports", "core-drift-v1", handler, logger)
 }
+
+// ConsumeExecution binds the connector's own durable command stream. Stage must
+// persist authenticated commands before this consumer acknowledges delivery.
+func (b *Broker) ConsumeExecution(ctx context.Context, tenant, connector string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
+	if !tenantToken.MatchString(connector) || connector == "results" {
+		return eventstore.ErrInvalid
+	}
+	return b.consume(ctx, tenant, "EXEC_"+StreamName(connector, "KEY"), "exec."+connector, "native-commands-v1", handler, logger)
+}
+
+func (b *Broker) Ready(ctx context.Context) error {
+	if b == nil || !b.connection.IsConnected() {
+		return errors.New("broker disconnected")
+	}
+	return b.connection.FlushWithContext(ctx)
+}
 func (b *Broker) consume(ctx context.Context, tenant, kind, suffix, durable string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
 	if handler == nil || logger == nil || !tenantToken.MatchString(tenant) {
 		return eventstore.ErrInvalid

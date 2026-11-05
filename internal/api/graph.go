@@ -25,6 +25,7 @@ type Reader struct {
 	ActorID  string `json:"actor_id"`
 }
 type readerContextKey struct{}
+type limitedGraphKey struct{}
 type GraphAPI struct {
 	registry  *graph.Registry
 	cursorKey []byte
@@ -85,7 +86,14 @@ func NewSessionGraphHandler(registry *graph.Registry, key []byte, authorize func
 			http.Error(w, "graph authorization unavailable", http.StatusForbidden)
 			return
 		}
-		routes.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), readerContextKey{}, Reader(p))))
+		limited := authorize(r.Context(), p, "investigate") != nil
+		if limited && r.URL.Path != ratchetv1connect.GraphServiceGetReachProcedure && r.URL.Path != ratchetv1connect.ImpactServiceSimulateChangeProcedure {
+			http.Error(w, "investigator permission required", http.StatusForbidden)
+			return
+		}
+		ctx := context.WithValue(r.Context(), readerContextKey{}, Reader(p))
+		ctx = context.WithValue(ctx, limitedGraphKey{}, limited)
+		routes.ServeHTTP(w, r.WithContext(ctx))
 	}), nil
 }
 
@@ -238,6 +246,10 @@ func (a *GraphAPI) GetNeighbourhood(ctx context.Context, r *connect.Request[v1.G
 	return connect.NewResponse(result), nil
 }
 func (a *GraphAPI) GetReach(ctx context.Context, r *connect.Request[v1.GetReachRequest]) (*connect.Response[v1.GetReachResponse], error) {
+	limited, _ := ctx.Value(limitedGraphKey{}).(bool)
+	if limited && r.Msg.IdentityId != ctx.Value(readerContextKey{}).(Reader).ActorID {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("own identity required"))
+	}
 	s, err := a.snapshot(ctx, r.Msg.TenantId, r.Msg.MinGraphVersion)
 	if err != nil {
 		return nil, err
@@ -245,6 +257,13 @@ func (a *GraphAPI) GetReach(ctx context.Context, r *connect.Request[v1.GetReachR
 	reach, err := s.Reach(r.Msg.IdentityId)
 	if err != nil {
 		return nil, rpcError(err)
+	}
+	if limited {
+		result := &v1.GetReachResponse{GraphVersion: s.Version(), ReachByTier: map[string]int32{}}
+		for tier, count := range reach.ByTier {
+			result.ReachByTier[fmt.Sprint(tier)] = int32(count)
+		}
+		return connect.NewResponse(result), nil
 	}
 	start, end, next, err := a.page(r.Msg.PageToken, r.Msg.TenantId, "reach:"+r.Msg.IdentityId, s.Version(), len(reach.Nodes), r.Msg.PageSize)
 	if err != nil {
@@ -308,6 +327,10 @@ func (a *GraphAPI) SimulateChange(ctx context.Context, r *connect.Request[v1.Sim
 		target, access = intent.TargetIdentity, intent.RequestedAccess
 	}
 	reader := ctx.Value(readerContextKey{}).(Reader)
+	limited, _ := ctx.Value(limitedGraphKey{}).(bool)
+	if limited && target != reader.ActorID {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("own target required"))
+	}
 	if r.Msg.RequestedBy != "" && r.Msg.RequestedBy != reader.ActorID {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("requester identity mismatch"))
 	}
@@ -325,6 +348,9 @@ func (a *GraphAPI) SimulateChange(ctx context.Context, r *connect.Request[v1.Sim
 		return nil, rpcError(err)
 	}
 	result := &v1.ImpactDiff{GraphVersion: impact.Version, MonotonicReduction: impact.MonotonicReduction, BlastRadiusDelta: map[string]int32{}}
+	if limited {
+		return connect.NewResponse(&v1.SimulateChangeResponse{Impact: result}), nil
+	}
 	resources, controlled := map[string]bool{}, map[string]bool{}
 	for _, n := range impact.Weakened {
 		result.SafeguardsWeakened = append(result.SafeguardsWeakened, safeguard(n))

@@ -243,7 +243,15 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 			time.Sleep(20 * time.Millisecond)
 		}
 	}
-	assessed := wait()
+	requesterView := wait()
+	if requesterView.ChangeDigest != "" || len(requesterView.CanonicalApprovalEnvelopeJson) != 0 || requesterView.PolicyBundleHash != "" || len(requesterView.RequiredApproverGroups) != 0 || requesterView.Justification != input.Justification {
+		t.Fatal("requester response exposed investigator evidence")
+	}
+	approvalView, err := reviews.GetChange(ctx, connect.NewRequest(&v1.GetChangeRequest{TenantId: tenant, RequestId: id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assessed := approvalView.Msg.Request
 	investigatorClient := login("user:investigator")
 	investigations := ratchetv1connect.NewChangeServiceClient(investigatorClient, base+"/api")
 	containment := ratchetv1connect.NewContainmentServiceClient(investigatorClient, base+"/api")
@@ -494,7 +502,12 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reassessed := wait()
+	_ = wait()
+	reviewAgain, err := reviews.GetChange(ctx, connect.NewRequest(&v1.GetChangeRequest{TenantId: tenant, RequestId: id}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reassessed := reviewAgain.Msg.Request
 	if reassessed.ChangeDigest == assessed.ChangeDigest {
 		t.Fatal("stale approval digest reused")
 	}

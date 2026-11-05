@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,7 +13,15 @@ import (
 func (s *Service) Position(ctx context.Context, actor Actor, request string) (int64, error) {
 	var position int64
 	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, _ time.Time) error {
-		if _, _, err := s.context(ctx, tx, actor, "view", nil); err != nil {
+		snapshot, active, err := s.context(ctx, tx, actor, "view", nil)
+		if err != nil {
+			return err
+		}
+		c, err := s.Store.ChangeWithin(ctx, tx, actor.TenantID, request)
+		if err != nil {
+			return err
+		}
+		if _, err := visibility(ctx, actor, c, snapshot, active); err != nil {
 			return err
 		}
 		return tx.QueryRow(ctx, `SELECT event_position FROM ratchet.change_projection WHERE tenant_id=$1 AND request_id=$2::uuid`, actor.TenantID, request).Scan(&position)
@@ -24,7 +33,8 @@ func (s *Service) Attention(ctx context.Context, actor Actor) ([]domain.Change, 
 	result := []domain.Change{}
 	truncated := false
 	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, _ time.Time) error {
-		if _, _, err := s.context(ctx, tx, actor, "view", nil); err != nil {
+		snapshot, active, err := s.context(ctx, tx, actor, "view", nil)
+		if err != nil {
 			return err
 		}
 		// Filter before the limit so historical executions cannot hide pending work.
@@ -55,6 +65,11 @@ func (s *Service) Attention(ctx context.Context, actor Actor) ([]domain.Change, 
 		for _, id := range ids {
 			c, err := s.Store.ChangeWithin(ctx, tx, actor.TenantID, id)
 			if err != nil {
+				return err
+			}
+			if _, err := visibility(ctx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
+				continue
+			} else if err != nil {
 				return err
 			}
 			result = append(result, c)

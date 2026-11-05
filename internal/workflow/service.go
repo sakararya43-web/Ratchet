@@ -660,7 +660,12 @@ func (s *Service) View(ctx context.Context, actor Actor, request string) (domain
 	if err := s.Authorize(ctx, actor, "view"); err != nil {
 		return domain.Change{}, err
 	}
-	return s.Store.ReadChange(ctx, actor.TenantID, request)
+	c, err := s.Store.ReadChange(ctx, actor.TenantID, request)
+	if err != nil {
+		return c, err
+	}
+	_, err = s.ResponseDetail(ctx, actor, c)
+	return c, err
 }
 func (s *Service) PrivateContext(ctx context.Context, c domain.Change) (string, error) {
 	raw, err := s.Store.ReadPrivate(ctx, c.TenantID, c.PrivateReference, s.key)
@@ -721,7 +726,8 @@ func (s *Service) List(ctx context.Context, actor Actor, after int64, limit int,
 		if expectedPosition != 0 && expectedPosition != position {
 			return domain.ErrContextChanged
 		}
-		if _, _, err := s.context(ctx, tx, actor, "view", nil); err != nil {
+		snapshot, active, err := s.context(ctx, tx, actor, "view", nil)
+		if err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT request_id::text,event_position FROM ratchet.change_projection WHERE tenant_id=$1 AND event_position>$2 AND ($3='' OR state=$3) ORDER BY event_position,request_id LIMIT $4`, actor.TenantID, after, status, limit)
@@ -751,8 +757,13 @@ func (s *Service) List(ctx context.Context, actor Actor, after int64, limit int,
 			if err != nil {
 				return err
 			}
-			result = append(result, c)
 			last = r.position
+			if _, err := visibility(ctx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
+				continue
+			} else if err != nil {
+				return err
+			}
+			result = append(result, c)
 		}
 		return nil
 	})

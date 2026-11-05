@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 3 core implementation and owned acceptance delivered; Phase 4 core work is in progress on `main` under the user's sequential continuation authorization. Earlier joint peer acceptance remains pending. See [Ishaan changelog](docs/ishaan/changelog.md). No Phase 5 work has started.
+**Status:** Phase 5 is in progress on `main` under the user's explicit authorization to advance while leaving Sakar's work untouched. Phase 4's unfinished own work and joint gates remain recorded in its handoff and are not marked complete. See [Ishaan changelog](docs/ishaan/changelog.md). No other phase runs alongside Phase 5.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -226,7 +226,7 @@ on 2026-11-05 while these peer gates remain open.
 
 ### Ishaan's work
 
-- [ ] Add requester-safe response redaction at the API boundary. Keep investigator detail policy-restricted; do not rely on the frontend to hide sensitive fields.
+- [x] Add requester-safe response redaction at the API boundary. Keep investigator detail policy-restricted; do not rely on the frontend to hide sensitive fields.
 - [ ] Implement configurable approval expiry and durable emergency-grant expiry using database time. Schedule revocation atomically when the grant is committed, preserve it across restart, and reconcile missed/late jobs. Never record Revoked until the target confirms revocation.
 - [ ] Route emergency requests to the existing eligible independent approver policy and enforce fixed duration/minimum necessary access. An emergency flag must not disable quorum, passkeys or impact analysis.
 - [ ] Add temporary-grant review read models, including failed expiry/revocation requiring attention. Flag over-broad access from explicit requested resources/permissions; do not infer business intent through AI or invented scores.

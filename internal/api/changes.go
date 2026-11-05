@@ -111,6 +111,14 @@ func typedIntent(r *v1.SubmitChangeRequest) (domain.Intent, error) {
 	return i, i.Validate()
 }
 func (a *ChangeAPI) request(ctx context.Context, c domain.Change) (*v1.ChangeRequest, error) {
+	p, err := actor(ctx, c.TenantID, "")
+	if err != nil {
+		return nil, err
+	}
+	detail, err := a.service.ResponseDetail(ctx, p, c)
+	if err != nil {
+		return nil, err
+	}
 	text, err := a.service.PrivateContext(ctx, c)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
@@ -120,18 +128,23 @@ func (a *ChangeAPI) request(ctx context.Context, c domain.Change) (*v1.ChangeReq
 	}
 	r := &v1.ChangeRequest{RequestId: c.ID, TenantId: c.TenantID, Kind: c.Intent.Kind, TargetIdentity: c.Intent.Target, RequestedAccess: c.Intent.Access, Justification: text, RequestedBy: c.Requester, Emergency: c.Intent.Emergency, TimeLimitSeconds: c.Intent.DurationSeconds, Status: string(c.State), ChangeDigest: c.Digest.String(), Revision: c.Revision, RequiredApproverGroups: c.Decision.Groups, RequiredQuorum: int32(c.Decision.Quorum), DecisionReasons: c.Decision.Reasons, CreatedAt: c.CreatedAt.Format("2006-01-02T15:04:05.999999999Z07:00"), UpdatedAt: c.UpdatedAt.Format("2006-01-02T15:04:05.999999999Z07:00")}
 	r.TypedKind = v1.ChangeKind(v1.ChangeKind_value["CHANGE_KIND_"+c.Intent.Kind])
-	if c.ReviewReference != "" {
+	var requesterQuestion string
+	if (detail || c.ReviewKind == "MORE_INFO") && c.ReviewReference != "" {
 		review := c
 		review.PrivateReference = c.ReviewReference
 		note, err := a.service.PrivateContext(ctx, review)
 		if err == nil {
-			r.DecisionReasons = append(append([]string(nil), r.DecisionReasons...), note)
+			if detail {
+				r.DecisionReasons = append(append([]string(nil), r.DecisionReasons...), note)
+			} else {
+				requesterQuestion = note
+			}
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return nil, err
 		}
 	}
 	r.State = v1.ChangeState(v1.ChangeState_value["CHANGE_STATE_"+string(c.State)])
-	if c.Envelope != nil {
+	if detail && c.Envelope != nil {
 		r.GraphVersion = c.Envelope.GraphVersion
 		r.PolicyBundleHash = c.Envelope.PolicyDigest.String()
 		raw, err := canon.New().Canonicalize(c.Envelope)
@@ -139,6 +152,14 @@ func (a *ChangeAPI) request(ctx context.Context, c domain.Change) (*v1.ChangeReq
 			return nil, err
 		}
 		r.CanonicalApprovalEnvelopeJson = raw
+	}
+	if !detail {
+		r.ChangeDigest = ""
+		r.RequiredApproverGroups = nil
+		r.DecisionReasons = []string{"Request status: " + string(c.State)}
+		if requesterQuestion != "" {
+			r.DecisionReasons = append(r.DecisionReasons, requesterQuestion)
+		}
 	}
 	return r, nil
 }
@@ -329,7 +350,7 @@ func (a *ChangeAPI) GetAttentionItems(ctx context.Context, r *connect.Request[v1
 			return nil, changeError(err)
 		}
 		response.PendingRequests = append(response.PendingRequests, view)
-		response.AttentionItems = append(response.AttentionItems, &v1.AttentionItem{ItemId: c.ID, ItemType: "PENDING_CHANGE", Title: string(c.State) + ": " + c.Intent.Kind, Description: strings.Join(c.Decision.Reasons, "; "), Severity: "review", EntityId: c.ID, CreatedAt: view.CreatedAt})
+		response.AttentionItems = append(response.AttentionItems, &v1.AttentionItem{ItemId: c.ID, ItemType: "PENDING_CHANGE", Title: string(c.State) + ": " + c.Intent.Kind, Description: strings.Join(view.DecisionReasons, "; "), Severity: "review", EntityId: c.ID, CreatedAt: view.CreatedAt})
 	}
 	incidentPage, err := a.service.ListIncidents(ctx, p, "", 0, 0, 20)
 	if err != nil && !errors.Is(err, workflow.ErrPermission) {

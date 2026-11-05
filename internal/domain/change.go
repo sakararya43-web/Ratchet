@@ -138,6 +138,7 @@ type Change struct {
 	PrivateDigest    ports.Digest    `json:"private_content_digest"`
 	ExecutionID      string          `json:"execution_id,omitempty"`
 	ReviewReference  string          `json:"review_private_reference,omitempty"`
+	ReviewKind       string          `json:"review_kind,omitempty"`
 }
 type Event struct {
 	Type   string `json:"type"`
@@ -218,6 +219,8 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 			return nil, ErrTransition
 		}
 		next.PrivateReference = cmd.PrivateReference
+		next.ReviewReference = ""
+		next.ReviewKind = ""
 		next.PrivateDigest = cmd.PrivateDigest
 		next.Approvals = nil
 		next.Envelope = nil
@@ -281,6 +284,7 @@ func Decide(current Change, cmd Command) ([]Event, error) {
 		next.Decision = Decision{Outcome: "HOLD", Reasons: []string{cmd.Reason}}
 		if cmd.PrivateReference != "" {
 			next.ReviewReference = cmd.PrivateReference
+			next.ReviewKind = cmd.Kind
 		}
 		if cmd.Kind == "REJECT" {
 			next.Decision.Outcome = "REJECT"

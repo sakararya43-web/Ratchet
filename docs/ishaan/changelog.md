@@ -9,7 +9,23 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Phase 4 — in progress (2026-11-05)
+## Phase 5 — in progress (2026-11-05)
+
+The user explicitly authorized advancing while leaving Sakar's dependencies alone.
+Phase 4's unfinished work remains in its handoff; it is not marked complete.
+Only Phase 5 is active.
+
+- Added current-policy response visibility for requesters, independent reviewers
+  and investigators. Requester responses omit approval envelopes/digests, registry/
+  policy context, approver groups and detailed policy/reviewer reasons; explicitly
+  directed more-information questions remain available. Unrelated requests are
+  excluded from Get/List/overview. Mutation receipts use the same boundary.
+- Session graph APIs restrict ordinary callers to their own aggregate reach and
+  coarse impact result; investigator graph paths/details remain policy restricted.
+  Real PostgreSQL/TLS regressions cover requester redaction, independent reviewer
+  access, unrelated-user refusal and review after changed requester context.
+
+## Phase 4 — unfinished, advancement authorized (2026-11-05)
 
 - Schema 9 persists immutable checkpoint candidates and accepted references with
   tenant RLS. Preparation freezes a verified bounded range; acceptance verifies

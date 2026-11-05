@@ -12,6 +12,8 @@ and implementation plans are unchanged.
 - Resource/subresource, wildcard, resource-name and non-resource URL matching;
   namespace restrictions, service-account groups and bounded rule-coverage proof.
 - Proposal isolation, missing-role binding behavior and aggregation-cycle tests.
+- Live kind RBAC oracle: 17 SubjectAccessReview queries across 9 actual
+  configurations pass. See [reproduction and scope](phase-6-kind.md).
 
 ## Remaining work and gates
 
@@ -29,6 +31,6 @@ substitute or trust bypass is authorized to conceal those gaps.
 
 ## Validation
 
-The pure domain suite passes. Actual kind authorizer comparison and graph tests
-are recorded in subsequent commits after repeatable validation. Phase 6 is not
+The pure domain suite and Linux race tests for domain/graph pass. The real kind
+authorizer comparison passes independently of the peer adapter. Phase 6 is not
 signed off and no claim of 100% integrated success is made.

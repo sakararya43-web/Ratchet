@@ -11,6 +11,9 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Added an explicitly isolated kind oracle using real SubjectAccessReview calls;
+  all 17 queries across 9 live RBAC configurations pass. Reproduction is in
+  [phase-6-kind.md](phase-6-kind.md); this is not peer admission acceptance.
 - The user confirmed `d823a10` is Sakar's final source. Both branches remain
   separate; no peer source or implementation-plan changes are made.
 - Added pure normalized Kubernetes authority and exact mutation models,

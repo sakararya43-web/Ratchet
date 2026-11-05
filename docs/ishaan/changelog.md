@@ -15,6 +15,18 @@ The user explicitly authorized advancing while leaving Sakar's dependencies alon
 Phase 4's unfinished work remains in its handoff; it is not marked complete.
 Only Phase 5 is active.
 
+- Added reproducible core measurement/replay harnesses without changing peer
+  e2e scripts. Published hardware, exact demo/100k-edge compositions, samples,
+  warmups, latency tails and native/Linux results in `phase-5-measurements.md`.
+  Actual PostgreSQL benign assessment replay reports 0/100 unexpected outcomes,
+  explicitly excluding ceremony, user waiting and target execution. Earlier
+  performance misses remain retained; the ImpactDiff tail is still above target.
+- Optimized immutable edge overlays, reused traversal results and conservatively
+  bounded affected-principal analysis, including non-requester controllers.
+  CPU profiling removed an unnecessary full structural-proof map after an
+  increase was already proved. A 300-seed full-analysis comparison and existing
+  graph/safety/golden regressions pass. The shared 100k-edge single-CPU average
+  fell from about 163 ms to 45 ms after the profiled allocation was removed.
 - Mounted authenticated DecisionService using the same verified graph, policy,
   registry and independence checks as the normal guard. Inline decisions commit
   immutable evidence before returning. An allow requires the exact staged command,

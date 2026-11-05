@@ -25,12 +25,21 @@ type Impact struct {
 	Weakened           []Node           `json:"safeguards_weakened"`
 }
 
-// ImpactDiff assesses every principal, including beneficiaries other than the
-// requester. Analysis limits are errors, never an incomplete safe assessment.
+// ImpactDiff assesses the conservative closure of affected principals, including
+// controllers and other beneficiaries. Unchanged principals are proved outside
+// that closure. Analysis limits are errors, never an incomplete safe assessment.
 func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
+	return s.impactDiff(delta, true)
+}
+
+func (s *Snapshot) impactDiff(delta Delta, bounded bool) (Impact, error) {
 	after, err := s.Overlay(s.version, delta)
 	if err != nil {
 		return Impact{}, err
+	}
+	var candidates map[string]bool
+	if bounded {
+		candidates = s.impactCandidates(after, delta)
 	}
 	out := Impact{Version: s.version, MonotonicReduction: true, Affected: []IdentityImpact{}, Weakened: []Node{}}
 	weakened := map[string]Node{}
@@ -62,26 +71,23 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 		if !Identity(n.Type) {
 			continue
 		}
+		if bounded && !candidates[n.ID] {
+			continue
+		}
 		old := Reach{ByTier: map[int]int{}}
 		oldA := analysis{weakened: map[string]bool{}}
 		if _, exists := s.index[n.ID]; exists {
-			old, err = s.Reach(n.ID)
-			if err != nil {
-				return Impact{}, err
-			}
 			oldA, err = s.analyze(n.ID)
 			if err != nil {
 				return Impact{}, err
 			}
-		}
-		current, err := after.Reach(n.ID)
-		if err != nil {
-			return Impact{}, err
+			old = s.reachFromAnalysis(oldA)
 		}
 		newA, err := after.analyze(n.ID)
 		if err != nil {
 			return Impact{}, err
 		}
+		current := after.reachFromAnalysis(newA)
 		item := IdentityImpact{IdentityID: n.ID, NewResources: []Node{}, NewControlled: []string{}, NewPowers: []Power{}, NewRoutes: []Route{}, Weakened: []Node{}, BlastDelta: map[int]int{}}
 		oldP := map[Power]bool{}
 		for _, p := range old.Powers {
@@ -172,6 +178,12 @@ func (s *Snapshot) ImpactDiff(delta Delta) (Impact, error) {
 	slices.SortFunc(out.Weakened, func(a, b Node) int { return strings.Compare(a.ID, b.ID) })
 	if len(weakened) > 0 {
 		out.MonotonicReduction = false
+	}
+	// Once an increase or safeguard weakening is proved, no structural check
+	// can make this a reduction. Avoid allocating an all-edge proof map merely
+	// to combine its answer with false. Overlay already validated the proposal.
+	if !out.MonotonicReduction {
+		return out, nil
 	}
 	structure, err := s.reductionStructure(after, delta)
 	if err != nil {

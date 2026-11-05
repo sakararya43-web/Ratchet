@@ -102,8 +102,8 @@ func (s *Snapshot) analyze(identity string) (analysis, error) {
 			delete(a.powers, p)
 		}
 	}
-	for _, i := range s.index {
-		if s.nodes[i].Type == "Resource" {
+	for i, n := range s.nodes {
+		if n.Type == "Resource" {
 			a.seen[i] = false
 		}
 	}
@@ -118,6 +118,10 @@ func (s *Snapshot) Reach(identity string) (Reach, error) {
 	if err != nil {
 		return Reach{}, err
 	}
+	return s.reachFromAnalysis(a), nil
+}
+
+func (s *Snapshot) reachFromAnalysis(a analysis) Reach {
 	r := Reach{Version: s.version, Nodes: []Node{}, Controlled: []string{}, Powers: []Power{}, ByTier: map[int]int{0: 0, 1: 0, 2: 0, 3: 0}}
 	for i, seen := range a.seen {
 		if seen {
@@ -136,7 +140,7 @@ func (s *Snapshot) Reach(identity string) (Reach, error) {
 		r.Powers = append(r.Powers, p)
 	}
 	sortPowers(r.Powers)
-	return r, nil
+	return r
 }
 
 func (s *Snapshot) ControlSet(identity string) ([]string, error) {

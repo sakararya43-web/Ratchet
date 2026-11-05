@@ -244,6 +244,9 @@ func (s *Snapshot) IncidentEdges(id string) ([]Edge, []Edge, error) {
 // Node deletion cannot silently discard incoming grants: all incident edges
 // must be explicitly removed in the same delta.
 func (s *Snapshot) Overlay(version int64, d Delta) (*Snapshot, error) {
+	if len(d.NodesAdded) == 0 && len(d.NodesRemoved) == 0 {
+		return s.overlayEdges(version, d)
+	}
 	nodes := make(map[string]Node, len(s.nodes))
 	edges := make(map[string]Edge, len(s.edges))
 	for _, n := range s.nodes {

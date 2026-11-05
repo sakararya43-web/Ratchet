@@ -1,0 +1,70 @@
+{
+  "at": "2026-11-05T08:32:49.305518736Z",
+  "os": "linux",
+  "arch": "amd64",
+  "go": "go1.27.3",
+  "logical_cpus": 16,
+  "gomaxprocs": 2,
+  "demo": {
+    "nodes": 26,
+    "edges": 41,
+    "node_types": {
+      "Human": 6,
+      "Permission": 3,
+      "Resource": 5,
+      "Role": 5,
+      "Safeguard": 2,
+      "ServiceAccount": 2,
+      "Session": 3
+    },
+    "edge_kinds": {
+      "ASSIGNED": 4,
+      "CAN_ADMINISTER": 9,
+      "CAN_ASSUME": 3,
+      "CAN_MODIFY": 5,
+      "GRANTS": 17,
+      "PROTECTED_BY": 3
+    }
+  },
+  "large": {
+    "nodes": 22000,
+    "edges": 100000,
+    "node_types": {
+      "Human": 800,
+      "Resource": 20000,
+      "Role": 1000,
+      "ServiceAccount": 200
+    },
+    "edge_kinds": {
+      "ASSIGNED": 10000,
+      "CAN_ASSUME": 40,
+      "GRANTS": 89960
+    }
+  },
+  "measurements": [
+    {
+      "name": "durable inline core; demo unapproved tier-0 intent; excludes network",
+      "samples": 100,
+      "warmups": 5,
+      "p50_ms": 19.598213,
+      "p95_ms": 27.813191,
+      "p99_ms": 33.64789,
+      "max_ms": 38.349211,
+      "mean_ms": 19.752924820000004,
+      "target_ms": 50,
+      "within_target": true
+    },
+    {
+      "name": "ImpactDiff; 100k edges; includes overlay and controlled beneficiary",
+      "samples": 50,
+      "warmups": 3,
+      "p50_ms": 29.688778,
+      "p95_ms": 44.898368,
+      "p99_ms": 104.056086,
+      "max_ms": 104.056086,
+      "mean_ms": 32.01260756,
+      "target_ms": 100,
+      "within_target": false
+    }
+  ]
+}

@@ -20,12 +20,17 @@ and implementation plans are unchanged.
   roles; common permission witnesses distinguish wildcard expansion/reduction.
   Tests include name collisions, immutable binding roleRefs, aggregation labels
   and nonrequester beneficiaries. Analysis limits return errors, never safe results.
+- Exact native admission context, observed actor/UID/group/preimage checks and
+  connector-pinned Ed25519 authentication with bounded lifetime and detached
+  verified evidence. [Contract and remaining adoption](phase-6-admission-contract.md).
 
 ## Remaining work and gates
 
 - Adopt normalized graph projection in authenticated ingestion and policy/workflow.
 - Authenticate native admission identity and exact context; correlate approved
-  commands, independently observed target state and durable execution records.
+  commands through DecisionService, independently observed target state and
+  durable execution records. Pure context/authentication checks are implemented;
+  they do not constitute an execution permit or complete this task.
 - Native drift/read-model evidence and explicit supported/unsupported D1–D8 scope.
 - Real peer adapter admission, outage, approved execution/read-back and latency
   acceptance on kind. Matcher tests alone do not satisfy this gate.

@@ -20,9 +20,6 @@ func Covers(have []ScopedRule, want []ScopedRule) (bool, error) {
 	work := 0
 	for _, w := range want {
 		if len(w.Rule.NonResourceURLs) > 0 {
-			if w.Namespace != "" {
-				continue
-			}
 			for _, verb := range w.Rule.Verbs {
 				for _, url := range w.Rule.NonResourceURLs {
 					covered := false
@@ -31,7 +28,7 @@ func Covers(have []ScopedRule, want []ScopedRule) (bool, error) {
 						if work > 2_000_000 {
 							return false, ErrUnsupported
 						}
-						if h.Namespace != "" || !coversToken(h.Rule.Verbs, verb) {
+						if (h.Namespace != "" && h.Namespace != w.Namespace) || !coversToken(h.Rule.Verbs, verb) {
 							continue
 						}
 						for _, pattern := range h.Rule.NonResourceURLs {
@@ -59,10 +56,9 @@ func Covers(have []ScopedRule, want []ScopedRule) (bool, error) {
 			for _, resource := range w.Rule.Resources {
 				for _, verb := range w.Rule.Verbs {
 					for _, name := range names {
-						// A named top-level create/deletecollection rule grants no authority.
-						if name != "" && ((verb == "create" && !strings.Contains(resource, "/")) || verb == "deletecollection") {
-							continue
-						}
+						// The API's no-escalation rule comparator is structural:
+						// even named top-level create rules must be covered here.
+						// This differs deliberately from matching a concrete request.
 						covered := false
 						for _, h := range have {
 							work++

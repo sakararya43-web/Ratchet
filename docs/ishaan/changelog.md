@@ -11,6 +11,12 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Added exact native admission context/preimage/actor checks and connector-pinned
+  signatures with strict lifetime and detached verified evidence. Tamper, stale
+  revision, namespace, group, UID and expiry tests pass. This boundary grants no
+  execution authority; actual DecisionService adoption remains open. Corrected
+  implicit rule coverage to use Kubernetes' structural no-escalation comparison,
+  including named create rules, rather than concrete-request matching semantics.
 - Added real-peer admission/snapshot and live-kind observation conformance tests.
   Five required assertions fail against unchanged final `d823a10`; the known
   cluster-admin refusal passes. Failures stay open in

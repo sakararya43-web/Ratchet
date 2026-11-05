@@ -8,6 +8,7 @@ import (
 
 type Principal struct {
 	ID        string   `json:"identity_id"`
+	UID       string   `json:"uid,omitempty"`
 	Kind      string   `json:"kind"` // User or ServiceAccount
 	Name      string   `json:"name"`
 	Namespace string   `json:"namespace,omitempty"`
@@ -42,10 +43,13 @@ func (s State) Validate() error {
 	}
 	ids, names, keys := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, p := range s.Principals {
-		if !bounded(p.ID, false, 256) || !identityText(p.Name, false) || !identityValues(p.Groups) || ids[p.ID] || names[PrincipalKey(p.Kind, p.Namespace, p.Name)] {
+		if !bounded(p.ID, false, 256) || !bounded(p.UID, true, 256) || !identityText(p.Name, false) || !identityValues(p.Groups) || ids[p.ID] || names[PrincipalKey(p.Kind, p.Namespace, p.Name)] {
 			return ErrInvalid
 		}
 		if p.Kind != "User" && p.Kind != "ServiceAccount" {
+			return ErrUnsupported
+		}
+		if unsupportedPrincipal(p) {
 			return ErrUnsupported
 		}
 		if (p.Kind == "User" && p.Namespace != "") || (p.Kind == "ServiceAccount" && !slices.Contains(s.Namespaces, p.Namespace)) {

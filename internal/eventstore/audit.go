@@ -29,6 +29,7 @@ type auditFacts struct {
 	Change   domain.Change `json:"change"`
 	Graph    graph.Data    `json:"graph"`
 	Incident string        `json:"incident_id"`
+	Request  string        `json:"request_id"`
 	PlanID   string        `json:"plan_id"`
 	Identity string        `json:"affected_identity"`
 	Status   string        `json:"status"`
@@ -51,8 +52,9 @@ func auditMetadata(content ledger.Content) (auditFacts, auditDisplay, error) {
 	}
 	c := facts.Change
 	display := auditDisplay{EventType: content.EventType, Actor: content.ActorID, Request: c.ID, Incident: c.Intent.IncidentID, Target: c.Intent.Target, Kind: c.Intent.Kind, State: string(c.State), Decision: c.Decision.Outcome, Plan: facts.Body.ID}
-	if content.EventType == "IncidentOpened" {
+	if content.EventType == "IncidentOpened" || content.EventType == "IncidentRestorationRequested" {
 		display.Incident = facts.Incident
+		display.Request = facts.Request
 		display.Plan = facts.PlanID
 		display.Target = facts.Identity
 		display.State = facts.Status

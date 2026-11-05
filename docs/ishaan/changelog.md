@@ -54,6 +54,16 @@
   checks cover concurrent retry, cross-tenant and ordinary-user denial, source
   reconstruction and a later graph observation. Records remain OPEN until actual
   verified execution supports a containment transition; lifecycle work remains.
+- Added real incident-linked role restoration through normal durable Submit and
+  independent assessment. Current signed responder permission, a real incident,
+  exact proposed role-revocation scope and absent direct assignment are required.
+  Ordinary SubmitChange applies the same incident checks. New request, incident
+  link, job, private context and outbox share one transaction.
+- Concurrent/API retries create one restoration request and link. Tier-0 restores
+  require two fresh independent leads with an empty initial approval set; signed
+  policy excludes incident-linked requests from reduction fast paths. The incident
+  retains OPEN status and versioned restoration IDs. Unsupported account/service/
+  session increases remain refused and full restoration acceptance stays open.
 
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux

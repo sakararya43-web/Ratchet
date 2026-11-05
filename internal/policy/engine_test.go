@@ -94,6 +94,7 @@ func TestSignedPreparedPolicyDecisionsAndAuthorization(t *testing.T) {
 		{policy.Facts{}, "HOLD", 0},
 		{policy.Facts{Complete: true, Tier0Weakening: true}, "REJECT", 0},
 		{policy.Facts{Complete: true, Reduction: true, Responder: true}, "ALLOW", 0},
+		{policy.Facts{Complete: true, Reduction: true, Responder: true, Owners: []string{"owner"}, Intent: domain.Intent{IncidentID: "restoration"}}, "REQUIRE_APPROVAL", 1},
 		{policy.Facts{Complete: true, NewTier0: true}, "REQUIRE_APPROVAL", 2},
 		{policy.Facts{Complete: true, Owners: []string{"owner"}}, "REQUIRE_APPROVAL", 1},
 		{policy.Facts{Complete: true, Owners: []string{"owner"}, Intent: domain.Intent{Emergency: true}}, "HOLD", 0},

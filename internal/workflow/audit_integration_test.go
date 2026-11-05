@@ -21,7 +21,7 @@ func TestAuditProjectionRebuildTamperDetectionAndPrivateErasure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := service.Submit(sys.ctx, workflow.Actor{TenantID: sys.tenant, ID: "user:requester"}, workflow.Submit{CommandID: uuid.New(), Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: "user:requester", Access: "role:finance", IncidentID: incident}, Justification: "Private audit retention regression explanation"})
+	c, err := service.Submit(sys.ctx, workflow.Actor{TenantID: sys.tenant, ID: "user:requester"}, workflow.Submit{CommandID: uuid.New(), Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: "user:requester", Access: "role:finance"}, Justification: "Private audit retention regression explanation"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestAuditProjectionRebuildTamperDetectionAndPrivateErasure(t *testing.T) {
 		t.Fatal("actor/time filters", err)
 	}
 	byIncident, _, err := service.QueryAudit(sys.ctx, actor, eventstore.AuditFilter{Incident: incident}, 0, 0, 100)
-	if err != nil || len(byIncident) != 3 {
+	if err != nil || len(byIncident) != 0 {
 		t.Fatal("incident filter", err)
 	}
 	filter := eventstore.AuditFilter{Request: c.ID, Resource: "reports"}

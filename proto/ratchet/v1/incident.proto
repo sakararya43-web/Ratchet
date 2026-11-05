@@ -35,6 +35,7 @@ message Incident {
   string observed_at = 17;
   repeated string restoration_prerequisites = 18;
   int64 revision = 19;
+  repeated string restoration_request_ids = 20;
 }
 
 message ListIncidentsRequest {

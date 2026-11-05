@@ -24,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sakararya43-web/Ratchet/internal/api"
 	"github.com/sakararya43-web/Ratchet/internal/canon"
+	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ledger"
@@ -526,5 +527,51 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	_ = response.Body.Close()
 	if response.StatusCode != http.StatusNotFound {
 		t.Fatal("simulated assertion route exposed")
+	}
+	observedEdges := []graph.Edge{}
+	for _, edge := range data.Edges {
+		if edge.Source == "user:compromised" && edge.Target == "role:admin" && edge.Kind == "ASSIGNED" {
+			continue
+		}
+		observedEdges = append(observedEdges, edge)
+	}
+	data.Edges = observedEdges
+	if _, err := store.IngestGraph(ctx, eventstore.GraphInput{TenantID: tenant, ConnectorID: "source", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{9}).String(), FromRevision: 10, ToRevision: 11, Snapshot: &data, Complete: true}, key); err != nil {
+		t.Fatal(err)
+	}
+	restoreInput := &v1.RestoreAccessRequest{TenantId: tenant, IncidentId: opened.Msg.Incident.IncidentId, TargetIdentity: "user:compromised", AccessToRestore: "role:admin", RequestedBy: "user:investigator", Justification: "Restore access through a new independent review after investigation", Mutation: mutation(0)}
+	restored, err := containment.RestoreAccess(ctx, connect.NewRequest(restoreInput))
+	if err != nil || restored.Msg.ChangeRequestId == "" {
+		t.Fatal("real restoration request", err)
+	}
+	retriedRestore, err := containment.RestoreAccess(ctx, connect.NewRequest(restoreInput))
+	if err != nil || retriedRestore.Msg.ChangeRequestId != restored.Msg.ChangeRequestId {
+		t.Fatal("HTTP restoration retry duplicated request", err)
+	}
+	var restoreChange domain.Change
+	for deadline := time.Now().Add(5 * time.Second); ; {
+		restoreChange, err = store.ReadChange(ctx, tenant, restored.Msg.ChangeRequestId)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if restoreChange.State == domain.AwaitingApproval {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("restoration assessment did not require review", restoreChange.State)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if restoreChange.Decision.Quorum != 2 || len(restoreChange.Approvals) != 0 || restoreChange.Envelope.Intent.IncidentID != opened.Msg.Incident.IncidentId {
+		t.Fatal("restoration bypassed fresh independent approvals")
+	}
+	linkedIncident, err := incidents.GetIncident(ctx, connect.NewRequest(&v1.GetIncidentRequest{TenantId: tenant, IncidentId: opened.Msg.Incident.IncidentId}))
+	if err != nil || linkedIncident.Msg.Incident.Revision != 2 || len(linkedIncident.Msg.Incident.RestorationRequestIds) != 1 || linkedIncident.Msg.Incident.RestorationRequestIds[0] != restored.Msg.ChangeRequestId || len(linkedIncident.Msg.Incident.ActionsTaken) != 0 {
+		t.Fatal("restoration was not durably linked", err)
+	}
+	restoreInput.RequestedBy = "user:requester"
+	restoreInput.Mutation = mutation(0)
+	if _, err := ordinaryContainment.RestoreAccess(ctx, connect.NewRequest(restoreInput)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary session bypassed restoration authorization", err)
 	}
 }

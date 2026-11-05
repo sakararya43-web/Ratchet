@@ -198,6 +198,10 @@ func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain
 	if err := input.Intent.Validate(); err != nil {
 		return domain.Change{}, err
 	}
+	if input.Intent.IncidentID != "" {
+		id, _ := uuid.Parse(input.Intent.IncidentID)
+		input.Intent.IncidentID = id.String()
+	}
 	if len(strings.TrimSpace(input.Justification)) < 10 || len(input.Justification) > 4000 || input.CommandID == uuid.Nil {
 		return domain.Change{}, domain.ErrInvalid
 	}
@@ -232,13 +236,22 @@ func (s *Service) Submit(ctx context.Context, actor Actor, input Submit) (domain
 	if err != nil {
 		return domain.Change{}, err
 	}
-	return s.Store.MutateChange(ctx, eventstore.ChangeMutation{TenantID: actor.TenantID, ActorID: actor.ID, RequestID: requestID, ID: input.CommandID, InputDigest: digest, Private: &private}, func(tx pgx.Tx, now time.Time, current domain.Change) ([]domain.Event, error) {
+	mutation := eventstore.ChangeMutation{TenantID: actor.TenantID, ActorID: actor.ID, RequestID: requestID, ID: input.CommandID, InputDigest: digest, Private: &private}
+	if input.Intent.IncidentID != "" {
+		mutation.Additional = func(tx pgx.Tx, _ eventstore.Receipt) error { return s.recordRestoration(ctx, tx, actor, requestID) }
+	}
+	return s.Store.MutateChange(ctx, mutation, func(tx pgx.Tx, now time.Time, current domain.Change) ([]domain.Event, error) {
 		snapshot, _, err := s.context(ctx, tx, actor, "submit", nil)
 		if err != nil {
 			return nil, err
 		}
 		if input.MinGraphVersion < 0 || snapshot.Version() < input.MinGraphVersion {
 			return nil, graph.ErrUnavailable
+		}
+		if input.Intent.IncidentID != "" {
+			if err := s.validateRestoration(ctx, tx, actor, input.Intent); err != nil {
+				return nil, err
+			}
 		}
 		if _, err := snapshot.Draft(input.Intent.Kind, input.Intent.Target, input.Intent.Access); err != nil && input.Intent.Kind != "MODIFY_SAFEGUARD" {
 			return nil, err

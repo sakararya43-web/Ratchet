@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
@@ -116,6 +117,67 @@ func TestIncidentInvestigationReplaysProposalAndCurrentResidualPaths(t *testing.
 	events, err := sys.store.LoadStream(sys.ctx, sys.tenant, "incident:"+opened.Incident.ID)
 	if err != nil || len(events) != 1 {
 		t.Fatal("incident retry duplicated source evidence", err)
+	}
+	restoration := workflow.Submit{CommandID: uuid.New(), CorrelationID: uuid.NewString(), Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: ordinary.ID, Access: "role:admin", IncidentID: opened.Incident.ID}, Justification: "Restore access only after a new independent security review"}
+	if _, err := replacement.Submit(sys.ctx, ordinary, restoration); !errors.Is(err, workflow.ErrPermission) {
+		t.Fatal("incident ID bypassed responder authorization", err)
+	}
+	outside := restoration
+	outside.CommandID = uuid.New()
+	outside.Intent.Access = "role:finance"
+	if _, err := replacement.Submit(sys.ctx, actor, outside); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatal("restoration exceeded linked proposal scope", err)
+	}
+	unknown := restoration
+	unknown.CommandID = uuid.New()
+	unknown.Intent.IncidentID = uuid.NewString()
+	if _, err := replacement.Submit(sys.ctx, actor, unknown); err == nil {
+		t.Fatal("invented incident link admitted")
+	}
+	requests := make(chan domain.Change, 8)
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			change, err := replacement.Submit(sys.ctx, actor, restoration)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			requests <- change
+		}()
+	}
+	wg.Wait()
+	close(requests)
+	var requested domain.Change
+	for change := range requests {
+		if requested.ID != "" && requested.ID != change.ID {
+			t.Fatal("restoration retry forked")
+		}
+		requested = change
+	}
+	if requested.ID == "" || requested.State != domain.Submitted || len(requested.Approvals) != 0 || requested.Intent.IncidentID != opened.Incident.ID {
+		t.Fatal("restoration reused approval or bypassed normal submission")
+	}
+	if err := replacement.Assess(sys.ctx, workflow.JobArgs{Tenant: sys.tenant, Request: requested.ID, Revision: 1, Operation: "assess"}); err != nil {
+		t.Fatal(err)
+	}
+	assessed, err := sys.store.ReadChange(sys.ctx, sys.tenant, requested.ID)
+	if err != nil || assessed.State != domain.AwaitingApproval || assessed.Decision.Quorum != 2 || len(assessed.Approvals) != 0 || assessed.Envelope == nil || assessed.Envelope.Intent.IncidentID != opened.Incident.ID {
+		t.Fatal("restoration did not require fresh independent review", err)
+	}
+	linked, err := replacement.GetIncident(sys.ctx, actor, opened.Incident.ID)
+	if err != nil || linked.Incident.Revision != 2 || len(linked.Incident.RestorationRequests) != 1 || linked.Incident.RestorationRequests[0] != requested.ID || len(linked.Observed.Routes) != 0 || linked.Incident.Status != "OPEN" {
+		t.Fatal("incident restoration correlation or current state lost", err)
+	}
+	linkedAudit, _, err := replacement.QueryAudit(sys.ctx, actor, eventstore.AuditFilter{Incident: opened.Incident.ID}, 0, 0, 100)
+	if err != nil || len(linkedAudit) != 5 {
+		t.Fatal("restoration lifecycle absent from incident audit", len(linkedAudit), err)
+	}
+	// The earlier fixed cohort also retains its historical restoration state.
+	oldPage, err := replacement.ListIncidents(sys.ctx, actor, "OPEN", 0, first.End, 10)
+	if err != nil || len(oldPage.Incidents) != 2 || oldPage.Incidents[0].Incident.Revision != 1 {
+		t.Fatal("future restoration entered captured incident prefix", err)
 	}
 	if _, _, err := sys.store.VerifyTenant(sys.ctx, sys.tenant); err != nil {
 		t.Fatal(err)

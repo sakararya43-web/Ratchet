@@ -11,6 +11,7 @@ decision := {"outcome": "HOLD", "reasons": ["complete replayable context require
 } else := {"outcome": "ALLOW", "reasons": ["authorized verified reduction"], "approver_groups": [], "quorum": 0} if {
  input.reduction
  input.authorized_responder
+ input.intent.incident_id == ""
 } else := {"outcome": "REQUIRE_APPROVAL", "reasons": ["new tier-0 authority requires two independent security leads"], "approver_groups": ["role:security-lead"], "quorum": 2} if {
  input.new_tier0
 } else := {"outcome": "REQUIRE_APPROVAL", "reasons": ["independent resource owner approval required"], "approver_groups": ["resource-owner"], "quorum": 1} if {

@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,16 +17,24 @@ import (
 )
 
 type Incident struct {
-	ID              string       `json:"incident_id"`
-	Tenant          string       `json:"tenant_id"`
-	CorrelationID   string       `json:"correlation_id"`
-	Identity        string       `json:"affected_identity"`
-	PlanID          string       `json:"plan_id"`
-	PlanDigest      ports.Digest `json:"plan_digest"`
-	Status          string       `json:"status"`
-	OpenedAt        time.Time    `json:"opened_at"`
-	Revision        int64        `json:"revision"`
-	OpenFingerprint ports.Digest `json:"open_fingerprint"`
+	ID                  string       `json:"incident_id"`
+	Tenant              string       `json:"tenant_id"`
+	CorrelationID       string       `json:"correlation_id"`
+	Identity            string       `json:"affected_identity"`
+	PlanID              string       `json:"plan_id"`
+	PlanDigest          ports.Digest `json:"plan_digest"`
+	Status              string       `json:"status"`
+	OpenedAt            time.Time    `json:"opened_at"`
+	Revision            int64        `json:"revision"`
+	OpenFingerprint     ports.Digest `json:"open_fingerprint"`
+	RestorationRequests []string     `json:"restoration_request_ids"`
+}
+type incidentRestoration struct {
+	ID            string    `json:"incident_id"`
+	Tenant        string    `json:"tenant_id"`
+	Request       string    `json:"request_id"`
+	CorrelationID string    `json:"correlation_id"`
+	At            time.Time `json:"requested_at"`
 }
 type IncidentView struct {
 	Incident   Incident
@@ -94,20 +103,36 @@ func (s *Service) incidentWithin(ctx context.Context, tx pgx.Tx, tenant, id stri
 		if end != 0 && event.Sequence > end {
 			break
 		}
-		// Only evidence-backed transitions implemented by this phase are accepted.
-		// Unknown future events cannot silently manufacture a contained state.
-		if event.Type != "IncidentOpened" || incident.Revision != 0 || event.StreamVersion != 1 {
-			return incident, eventstore.ErrIntegrity
-		}
 		var content ledger.Content
 		var payload struct {
-			Facts Incident `json:"facts"`
+			Facts json.RawMessage `json:"facts"`
 		}
 		if json.Unmarshal(event.Entry.Canonical, &content) != nil || json.Unmarshal(content.Payload, &payload) != nil {
 			return incident, eventstore.ErrIntegrity
 		}
-		incident = payload.Facts
-		if incident.ID != id || incident.Tenant != tenant || incident.Status != "OPEN" || incident.Revision != 1 || incident.Identity == "" || incident.OpenFingerprint.IsZero() || incident.PlanDigest.IsZero() || incident.OpenedAt.After(event.RecordedAt) {
+		switch event.Type {
+		case "IncidentOpened":
+			if incident.Revision != 0 || event.StreamVersion != 1 || json.Unmarshal(payload.Facts, &incident) != nil {
+				return incident, eventstore.ErrIntegrity
+			}
+			if incident.ID != id || incident.Tenant != tenant || incident.Status != "OPEN" || incident.Revision != 1 || incident.Identity == "" || incident.OpenFingerprint.IsZero() || incident.PlanDigest.IsZero() || incident.OpenedAt.After(event.RecordedAt) || len(incident.RestorationRequests) != 0 {
+				return incident, eventstore.ErrIntegrity
+			}
+		case "IncidentRestorationRequested":
+			var restoration incidentRestoration
+			if incident.Revision == 0 || event.StreamVersion != incident.Revision+1 || json.Unmarshal(payload.Facts, &restoration) != nil || restoration.ID != id || restoration.Tenant != tenant || restoration.At.Before(incident.OpenedAt) || restoration.At.After(event.RecordedAt) || slices.Contains(incident.RestorationRequests, restoration.Request) {
+				return incident, eventstore.ErrIntegrity
+			}
+			change, err := s.Store.ChangeWithin(ctx, tx, tenant, restoration.Request)
+			if err != nil {
+				return incident, err
+			}
+			if change.ID == "" || change.Intent.IncidentID != id || change.Intent.Kind != "ROLE_ASSIGN" || change.CorrelationID != restoration.CorrelationID {
+				return incident, eventstore.ErrIntegrity
+			}
+			incident.RestorationRequests = append(incident.RestorationRequests, restoration.Request)
+			incident.Revision++
+		default:
 			return incident, eventstore.ErrIntegrity
 		}
 	}
@@ -115,6 +140,56 @@ func (s *Service) incidentWithin(ctx context.Context, tx pgx.Tx, tenant, id stri
 		return incident, pgx.ErrNoRows
 	}
 	return incident, nil
+}
+
+func (s *Service) validateRestoration(ctx context.Context, tx pgx.Tx, actor Actor, intent domain.Intent) error {
+	snapshot, _, err := s.context(ctx, tx, actor, "restore", nil)
+	if err != nil {
+		return err
+	}
+	incident, err := s.incidentWithin(ctx, tx, actor.TenantID, intent.IncidentID, 0)
+	if err != nil {
+		return err
+	}
+	proposal, err := s.containmentProposal(ctx, tx, actor.TenantID, incident.PlanID)
+	if err != nil {
+		return err
+	}
+	if proposal.Digest != incident.PlanDigest || intent.Kind != "ROLE_ASSIGN" {
+		return domain.ErrInvalid
+	}
+	permitted := false
+	for _, action := range proposal.Body.Plan.Actions {
+		if action.Kind == "ROLE_REVOKE" && action.Target == intent.Target && action.Access == intent.Access {
+			permitted = true
+		}
+	}
+	if !permitted {
+		return domain.ErrInvalid
+	}
+	for _, edge := range snapshot.Data().Edges {
+		if edge.Kind == "ASSIGNED" && edge.Source == intent.Target && edge.Target == intent.Access {
+			return domain.ErrTransition
+		}
+	}
+	return nil
+}
+
+func (s *Service) recordRestoration(ctx context.Context, tx pgx.Tx, actor Actor, request string) error {
+	change, err := s.Store.ChangeWithin(ctx, tx, actor.TenantID, request)
+	if err != nil {
+		return err
+	}
+	incident, err := s.incidentWithin(ctx, tx, actor.TenantID, change.Intent.IncidentID, 0)
+	if err != nil {
+		return err
+	}
+	facts, err := json.Marshal(incidentRestoration{ID: incident.ID, Tenant: actor.TenantID, Request: request, CorrelationID: change.CorrelationID, At: change.CreatedAt})
+	if err != nil {
+		return err
+	}
+	_, err = s.Store.AppendWithin(ctx, tx, eventstore.Command{TenantID: actor.TenantID, ID: uuid.NewSHA1(uuid.NameSpaceOID, []byte(actor.TenantID+":restoration:"+request)), StreamID: "incident:" + incident.ID, ExpectedVersion: incident.Revision, ActorReference: uuid.NewSHA1(uuid.NameSpaceOID, []byte(actor.TenantID+":"+actor.ID)), Events: []eventstore.Event{{Type: "IncidentRestorationRequested", Facts: facts}}})
+	return err
 }
 
 func (s *Service) incidentView(ctx context.Context, tx pgx.Tx, incident Incident, snapshot *graph.Snapshot, now time.Time) (IncidentView, error) {

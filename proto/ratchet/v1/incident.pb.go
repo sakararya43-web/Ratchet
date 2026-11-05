@@ -42,6 +42,7 @@ type Incident struct {
 	ObservedAt               string                 `protobuf:"bytes,17,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	RestorationPrerequisites []string               `protobuf:"bytes,18,rep,name=restoration_prerequisites,json=restorationPrerequisites,proto3" json:"restoration_prerequisites,omitempty"`
 	Revision                 int64                  `protobuf:"varint,19,opt,name=revision,proto3" json:"revision,omitempty"`
+	RestorationRequestIds    []string               `protobuf:"bytes,20,rep,name=restoration_request_ids,json=restorationRequestIds,proto3" json:"restoration_request_ids,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -207,6 +208,13 @@ func (x *Incident) GetRevision() int64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *Incident) GetRestorationRequestIds() []string {
+	if x != nil {
+		return x.RestorationRequestIds
+	}
+	return nil
 }
 
 type ListIncidentsRequest struct {
@@ -654,7 +662,7 @@ var File_ratchet_v1_incident_proto protoreflect.FileDescriptor
 const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"\n" +
 	"\x19ratchet/v1/incident.proto\x12\n" +
-	"ratchet.v1\x1a\x17ratchet/v1/common.proto\x1a\x1cratchet/v1/containment.proto\x1a\x17ratchet/v1/impact.proto\"\x87\x06\n" +
+	"ratchet.v1\x1a\x17ratchet/v1/common.proto\x1a\x1cratchet/v1/containment.proto\x1a\x17ratchet/v1/impact.proto\"\xbf\x06\n" +
 	"\bIncident\x12\x1f\n" +
 	"\vincident_id\x18\x01 \x01(\tR\n" +
 	"incidentId\x12\x1b\n" +
@@ -678,7 +686,8 @@ const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"\vobserved_at\x18\x11 \x01(\tR\n" +
 	"observedAt\x12;\n" +
 	"\x19restoration_prerequisites\x18\x12 \x03(\tR\x18restorationPrerequisites\x12\x1a\n" +
-	"\brevision\x18\x13 \x01(\x03R\brevision\"\x94\x01\n" +
+	"\brevision\x18\x13 \x01(\x03R\brevision\x126\n" +
+	"\x17restoration_request_ids\x18\x14 \x03(\tR\x15restorationRequestIds\"\x94\x01\n" +
 	"\x14ListIncidentsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
 	"\rstatus_filter\x18\x02 \x01(\tR\fstatusFilter\x12\x1b\n" +

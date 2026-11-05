@@ -31,7 +31,27 @@ func NewContainmentHandler(service *workflow.Service, costs map[string]int64) (h
 	a := &containmentAPI{service, maps.Clone(costs)}
 	mux := http.NewServeMux()
 	mux.Handle(ratchetv1connect.ContainmentServicePlanContainmentProcedure, connect.NewUnaryHandler(ratchetv1connect.ContainmentServicePlanContainmentProcedure, a.PlanContainment, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
+	mux.Handle(ratchetv1connect.ContainmentServiceRestoreAccessProcedure, connect.NewUnaryHandler(ratchetv1connect.ContainmentServiceRestoreAccessProcedure, a.RestoreAccess, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(1<<20)))
 	return mux, nil
+}
+
+func (a *containmentAPI) RestoreAccess(ctx context.Context, r *connect.Request[v1.RestoreAccessRequest]) (*connect.Response[v1.RestoreAccessResponse], error) {
+	p, err := actor(ctx, r.Msg.TenantId, r.Msg.RequestedBy)
+	if err != nil {
+		return nil, err
+	}
+	id, revision, err := mutation(r.Msg.Mutation)
+	if err != nil {
+		return nil, err
+	}
+	if revision != 0 || r.Msg.IncidentId == "" {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	change, err := a.service.Submit(ctx, p, workflow.Submit{CommandID: id, CorrelationID: r.Msg.Mutation.CorrelationId, MinGraphVersion: r.Msg.Mutation.MinGraphVersion, Justification: r.Msg.Justification, Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: r.Msg.TargetIdentity, Access: r.Msg.AccessToRestore, IncidentID: r.Msg.IncidentId}})
+	if err != nil {
+		return nil, changeError(err)
+	}
+	return connect.NewResponse(&v1.RestoreAccessResponse{ChangeRequestId: change.ID}), nil
 }
 func (a *containmentAPI) PlanContainment(ctx context.Context, r *connect.Request[v1.PlanContainmentRequest]) (*connect.Response[v1.PlanContainmentResponse], error) {
 	p, err := actor(ctx, r.Msg.TenantId, "")

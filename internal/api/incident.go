@@ -50,6 +50,7 @@ func incidentView(view workflow.IncidentView) (*v1.Incident, error) {
 	for _, r := range view.Observed.Routes {
 		result.ResidualRoutes = append(result.ResidualRoutes, route(r))
 	}
+	result.RestorationRequestIds = append([]string(nil), view.Incident.RestorationRequests...)
 	return result, nil
 }
 

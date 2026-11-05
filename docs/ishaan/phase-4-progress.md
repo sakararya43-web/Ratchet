@@ -179,10 +179,32 @@ These manual records remain `OPEN`. Their planned actions are suggestions and
 their `actions_taken` list is empty. Even a later zero-reach graph observation
 does not establish verified command execution or mark the incident contained.
 The execution/failure lifecycle remains required with the gated transport work.
-Restoration prerequisites are visible, with restoration submission still pending.
+Restoration prerequisites are visible; the role-restoration request path is
+implemented below. Other restoration kinds still require increase contracts.
 Real PostgreSQL/TLS tests cover concurrent retry, altered input, authorization,
 cross-tenant refusal, audit incident filters, fixed-boundary pagination, overview,
 replacement-process reconstruction and changed live residual paths.
+
+`ContainmentService.RestoreAccess` creates a new `ROLE_ASSIGN` change through
+normal submission, durable assessment and independent review. It requires current
+signed `restore` authorization, a real incident and an exact target/role from
+that incident's proposed role revocations. The direct assignment must currently
+be absent. The ordinary SubmitChange path applies the same checks when an intent
+supplies an incident ID, so a forged link cannot bypass this boundary.
+
+The new request and `IncidentRestorationRequested` link commit atomically with
+the assessment job, encrypted justification and outbox. Retries retain one request
+and one link. Its intent/envelope binds the incident ID and its approval set starts
+empty. The signed demo rule excludes incident-linked requests from the reduction
+fast path: restored tier-0 authority requires two fresh independent security leads.
+No containment assertion is accepted by this operation. List/Get expose the
+restoration request IDs and retain prefix-consistent incident revisions.
+
+Role restoration does not claim that the earlier proposal was applied or that an
+open incident is resolved. Account enable, service-permission recreation and new
+session issuance need explicit supported increase/target contracts and remain
+unimplemented; ambiguous access strings are refused. Full restoration acceptance
+also retains the ordinary passkey/transport/target integration gates.
 
 ## Evidence and remaining work
 
@@ -201,7 +223,7 @@ remaining Phase 4 tasks complete.
 
 Required Phase 4 work still includes passkey-confirmed responder execution on the
 priority transport, target read-back/recovery and incident projections, restoration
-through a new independently reviewed increase, and
+for the remaining supported increase kinds, and
 the complete offline evidence package (including historical approval keys).
 Five-second D6 and actual business-continuity D7 measurements remain unpassed.
 The core planner's simulated report preservation is not that target measurement.

@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// IncidentServiceOpenIncidentProcedure is the fully-qualified name of the IncidentService's
+	// OpenIncident RPC.
+	IncidentServiceOpenIncidentProcedure = "/ratchet.v1.IncidentService/OpenIncident"
 	// IncidentServiceListIncidentsProcedure is the fully-qualified name of the IncidentService's
 	// ListIncidents RPC.
 	IncidentServiceListIncidentsProcedure = "/ratchet.v1.IncidentService/ListIncidents"
@@ -46,6 +49,7 @@ const (
 
 // IncidentServiceClient is a client for the ratchet.v1.IncidentService service.
 type IncidentServiceClient interface {
+	OpenIncident(context.Context, *connect.Request[v1.OpenIncidentRequest]) (*connect.Response[v1.OpenIncidentResponse], error)
 	ListIncidents(context.Context, *connect.Request[v1.ListIncidentsRequest]) (*connect.Response[v1.ListIncidentsResponse], error)
 	GetIncident(context.Context, *connect.Request[v1.GetIncidentRequest]) (*connect.Response[v1.GetIncidentResponse], error)
 	WatchIncidents(context.Context, *connect.Request[v1.WatchIncidentsRequest]) (*connect.ServerStreamForClient[v1.WatchIncidentsResponse], error)
@@ -62,6 +66,12 @@ func NewIncidentServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	incidentServiceMethods := v1.File_ratchet_v1_incident_proto.Services().ByName("IncidentService").Methods()
 	return &incidentServiceClient{
+		openIncident: connect.NewClient[v1.OpenIncidentRequest, v1.OpenIncidentResponse](
+			httpClient,
+			baseURL+IncidentServiceOpenIncidentProcedure,
+			connect.WithSchema(incidentServiceMethods.ByName("OpenIncident")),
+			connect.WithClientOptions(opts...),
+		),
 		listIncidents: connect.NewClient[v1.ListIncidentsRequest, v1.ListIncidentsResponse](
 			httpClient,
 			baseURL+IncidentServiceListIncidentsProcedure,
@@ -85,9 +95,15 @@ func NewIncidentServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // incidentServiceClient implements IncidentServiceClient.
 type incidentServiceClient struct {
+	openIncident   *connect.Client[v1.OpenIncidentRequest, v1.OpenIncidentResponse]
 	listIncidents  *connect.Client[v1.ListIncidentsRequest, v1.ListIncidentsResponse]
 	getIncident    *connect.Client[v1.GetIncidentRequest, v1.GetIncidentResponse]
 	watchIncidents *connect.Client[v1.WatchIncidentsRequest, v1.WatchIncidentsResponse]
+}
+
+// OpenIncident calls ratchet.v1.IncidentService.OpenIncident.
+func (c *incidentServiceClient) OpenIncident(ctx context.Context, req *connect.Request[v1.OpenIncidentRequest]) (*connect.Response[v1.OpenIncidentResponse], error) {
+	return c.openIncident.CallUnary(ctx, req)
 }
 
 // ListIncidents calls ratchet.v1.IncidentService.ListIncidents.
@@ -107,6 +123,7 @@ func (c *incidentServiceClient) WatchIncidents(ctx context.Context, req *connect
 
 // IncidentServiceHandler is an implementation of the ratchet.v1.IncidentService service.
 type IncidentServiceHandler interface {
+	OpenIncident(context.Context, *connect.Request[v1.OpenIncidentRequest]) (*connect.Response[v1.OpenIncidentResponse], error)
 	ListIncidents(context.Context, *connect.Request[v1.ListIncidentsRequest]) (*connect.Response[v1.ListIncidentsResponse], error)
 	GetIncident(context.Context, *connect.Request[v1.GetIncidentRequest]) (*connect.Response[v1.GetIncidentResponse], error)
 	WatchIncidents(context.Context, *connect.Request[v1.WatchIncidentsRequest], *connect.ServerStream[v1.WatchIncidentsResponse]) error
@@ -119,6 +136,12 @@ type IncidentServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewIncidentServiceHandler(svc IncidentServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	incidentServiceMethods := v1.File_ratchet_v1_incident_proto.Services().ByName("IncidentService").Methods()
+	incidentServiceOpenIncidentHandler := connect.NewUnaryHandler(
+		IncidentServiceOpenIncidentProcedure,
+		svc.OpenIncident,
+		connect.WithSchema(incidentServiceMethods.ByName("OpenIncident")),
+		connect.WithHandlerOptions(opts...),
+	)
 	incidentServiceListIncidentsHandler := connect.NewUnaryHandler(
 		IncidentServiceListIncidentsProcedure,
 		svc.ListIncidents,
@@ -139,6 +162,8 @@ func NewIncidentServiceHandler(svc IncidentServiceHandler, opts ...connect.Handl
 	)
 	return "/ratchet.v1.IncidentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case IncidentServiceOpenIncidentProcedure:
+			incidentServiceOpenIncidentHandler.ServeHTTP(w, r)
 		case IncidentServiceListIncidentsProcedure:
 			incidentServiceListIncidentsHandler.ServeHTTP(w, r)
 		case IncidentServiceGetIncidentProcedure:
@@ -153,6 +178,10 @@ func NewIncidentServiceHandler(svc IncidentServiceHandler, opts ...connect.Handl
 
 // UnimplementedIncidentServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedIncidentServiceHandler struct{}
+
+func (UnimplementedIncidentServiceHandler) OpenIncident(context.Context, *connect.Request[v1.OpenIncidentRequest]) (*connect.Response[v1.OpenIncidentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.IncidentService.OpenIncident is not implemented"))
+}
 
 func (UnimplementedIncidentServiceHandler) ListIncidents(context.Context, *connect.Request[v1.ListIncidentsRequest]) (*connect.Response[v1.ListIncidentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ratchet.v1.IncidentService.ListIncidents is not implemented"))

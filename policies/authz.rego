@@ -3,7 +3,7 @@ package ratchet.authz
 default allow := false
 
 allow if {
- input.operation in {"investigate", "policy_history", "containment_plan", "audit_export", "audit_query", "checkpoint_manage"}
+ input.operation in {"investigate", "policy_history", "containment_plan", "audit_export", "audit_query", "checkpoint_manage", "incident_manage", "incident_view"}
  "role:security-lead" in input.actor_groups
 }
 

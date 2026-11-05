@@ -45,6 +45,15 @@
 - Actual peer offline-verifier conformance exposes an additional unresolved gate:
   altered `prior_checkpoint_digest` is accepted because metadata digest/continuity
   is not rechecked. The failing test is retained; peer code remains untouched.
+- Added real manual incident opening from a digest-verified stored proposal and
+  signed security-lead authorization. IncidentService List/Get replay immutable
+  opening evidence, verify the original plan and report current residual routes
+  with observation time/version and bounded completeness. Opening is idempotent.
+- Incident pagination uses a fixed cohort and authenticated tenant/status cursors;
+  authorized overview and audit search expose the real records. PostgreSQL/TLS
+  checks cover concurrent retry, cross-tenant and ordinary-user denial, source
+  reconstruction and a later graph observation. Records remain OPEN until actual
+  verified execution supports a containment transition; lifecycle work remains.
 
 See [the Phase 4 checkpoint](phase-4-progress.md) for operation/configuration,
 proof limits, delivered APIs and remaining tasks. The complete core Linux

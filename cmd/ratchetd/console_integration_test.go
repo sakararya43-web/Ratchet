@@ -270,6 +270,54 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 		t.Fatal("planning API executed an unconfirmed containment")
 	}
 	audits := ratchetv1connect.NewAuditServiceClient(investigatorClient, base+"/api")
+	incidents := ratchetv1connect.NewIncidentServiceClient(investigatorClient, base+"/api")
+	openInput := &v1.OpenIncidentRequest{TenantId: tenant, PlanId: planned.Msg.Plan.PlanId, PlanDigest: planned.Msg.Plan.PlanDigest, Mutation: mutation(0)}
+	opened, err := incidents.OpenIncident(ctx, connect.NewRequest(openInput))
+	if err != nil || opened.Msg.Incident.Status != "OPEN" || len(opened.Msg.Incident.ActionsTaken) != 0 || len(opened.Msg.Incident.ResidualRoutes) == 0 || len(opened.Msg.Incident.RestorationPrerequisites) == 0 {
+		t.Fatal("real incident investigation", err)
+	}
+	duplicateIncident, err := incidents.OpenIncident(ctx, connect.NewRequest(openInput))
+	if err != nil || duplicateIncident.Msg.Incident.IncidentId != opened.Msg.Incident.IncidentId {
+		t.Fatal("HTTP incident retry duplicated opening", err)
+	}
+	openInput.Mutation = mutation(0)
+	if _, err := incidents.OpenIncident(ctx, connect.NewRequest(openInput)); err != nil {
+		t.Fatal(err)
+	}
+	incidentFirst, err := incidents.ListIncidents(ctx, connect.NewRequest(&v1.ListIncidentsRequest{TenantId: tenant, StatusFilter: "OPEN", PageSize: 1}))
+	if err != nil || len(incidentFirst.Msg.Incidents) != 1 || incidentFirst.Msg.NextPageToken == "" {
+		t.Fatal("incident pagination", err)
+	}
+	openInput.Mutation = mutation(0)
+	if _, err := incidents.OpenIncident(ctx, connect.NewRequest(openInput)); err != nil {
+		t.Fatal(err)
+	}
+	incidentTail, err := incidents.ListIncidents(ctx, connect.NewRequest(&v1.ListIncidentsRequest{TenantId: tenant, StatusFilter: "OPEN", PageSize: 1, PageToken: incidentFirst.Msg.NextPageToken}))
+	if err != nil || len(incidentTail.Msg.Incidents) != 1 || incidentTail.Msg.SnapshotEndSequence != incidentFirst.Msg.SnapshotEndSequence || incidentTail.Msg.NextPageToken != "" {
+		t.Fatal("incident pagination admitted later opening", err)
+	}
+	if _, err := incidents.ListIncidents(ctx, connect.NewRequest(&v1.ListIncidentsRequest{TenantId: tenant, StatusFilter: "CONTAINED", PageToken: incidentFirst.Msg.NextPageToken})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatal("incident cursor changed filter", err)
+	}
+	incidentRead, err := incidents.GetIncident(ctx, connect.NewRequest(&v1.GetIncidentRequest{TenantId: tenant, IncidentId: opened.Msg.Incident.IncidentId}))
+	if err != nil || incidentRead.Msg.Incident.ContainmentPlan.PlanDigest != planned.Msg.Plan.PlanDigest || incidentRead.Msg.Incident.ObservedGraphVersion == 0 {
+		t.Fatal("incident source replay", err)
+	}
+	ordinaryIncidents := ratchetv1connect.NewIncidentServiceClient(requester, base+"/api")
+	if _, err := ordinaryIncidents.GetIncident(ctx, connect.NewRequest(&v1.GetIncidentRequest{TenantId: tenant, IncidentId: opened.Msg.Incident.IncidentId})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary user obtained investigator incident", err)
+	}
+	if _, err := ordinaryIncidents.OpenIncident(ctx, connect.NewRequest(openInput)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("ordinary user opened incident", err)
+	}
+	if _, err := incidents.GetIncident(ctx, connect.NewRequest(&v1.GetIncidentRequest{TenantId: "other", IncidentId: opened.Msg.Incident.IncidentId})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("cross tenant incident access", err)
+	}
+	investigatorOverview := ratchetv1connect.NewOverviewServiceClient(investigatorClient, base+"/api")
+	incidentAttention, err := investigatorOverview.GetAttentionItems(ctx, connect.NewRequest(&v1.GetAttentionItemsRequest{TenantId: tenant}))
+	if err != nil || len(incidentAttention.Msg.ActiveIncidents) != 3 {
+		t.Fatal("active investigations missing from authorized overview", err)
+	}
 	page, err := audits.ExportHashChain(ctx, connect.NewRequest(&v1.ExportHashChainRequest{TenantId: tenant, PageSize: 2}))
 	if err != nil {
 		t.Fatal("real audit export", err)

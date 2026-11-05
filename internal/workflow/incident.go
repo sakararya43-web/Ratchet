@@ -1,0 +1,288 @@
+package workflow
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/sakararya43-web/Ratchet/internal/canon"
+	"github.com/sakararya43-web/Ratchet/internal/domain"
+	"github.com/sakararya43-web/Ratchet/internal/eventstore"
+	"github.com/sakararya43-web/Ratchet/internal/graph"
+	"github.com/sakararya43-web/Ratchet/internal/ledger"
+	"github.com/sakararya43-web/Ratchet/internal/ports"
+)
+
+type Incident struct {
+	ID              string       `json:"incident_id"`
+	Tenant          string       `json:"tenant_id"`
+	CorrelationID   string       `json:"correlation_id"`
+	Identity        string       `json:"affected_identity"`
+	PlanID          string       `json:"plan_id"`
+	PlanDigest      ports.Digest `json:"plan_digest"`
+	Status          string       `json:"status"`
+	OpenedAt        time.Time    `json:"opened_at"`
+	Revision        int64        `json:"revision"`
+	OpenFingerprint ports.Digest `json:"open_fingerprint"`
+}
+type IncidentView struct {
+	Incident   Incident
+	Proposal   ContainmentProposal
+	Observed   graph.Paths
+	ObservedAt time.Time
+}
+type OpenIncidentInput struct {
+	CommandID             uuid.UUID
+	CorrelationID, PlanID string
+	PlanDigest            ports.Digest
+	MinGraphVersion       int64
+}
+type IncidentPage struct {
+	Incidents  []IncidentView
+	After, End int64
+	More       bool
+}
+
+func (s *Service) containmentProposal(ctx context.Context, tx pgx.Tx, tenant, id string) (ContainmentProposal, error) {
+	var proposal ContainmentProposal
+	var raw, digest []byte
+	var position int64
+	if err := tx.QueryRow(ctx, `SELECT document,plan_digest,event_position FROM ratchet.containment_plans WHERE tenant_id=$1 AND plan_id=$2`, tenant, id).Scan(&raw, &digest, &position); err != nil {
+		return proposal, err
+	}
+	if json.Unmarshal(raw, &proposal) != nil || proposal.Body.ID != id || proposal.Body.Tenant != tenant || len(proposal.Body.Plan.Origins) != 1 {
+		return proposal, eventstore.ErrIntegrity
+	}
+	expected, err := canon.New().Digest(proposal.Body)
+	if err != nil || expected != proposal.Digest || string(expected[:]) != string(digest) {
+		return proposal, eventstore.ErrIntegrity
+	}
+	events, err := s.Store.StreamWithin(ctx, tx, tenant, "containment:"+id)
+	if err != nil {
+		return proposal, err
+	}
+	if len(events) != 1 || events[0].Sequence != position || events[0].Type != "ContainmentPlanned" {
+		return proposal, eventstore.ErrIntegrity
+	}
+	var content ledger.Content
+	var payload struct {
+		Facts json.RawMessage `json:"facts"`
+	}
+	if json.Unmarshal(events[0].Entry.Canonical, &content) != nil || json.Unmarshal(content.Payload, &payload) != nil {
+		return proposal, eventstore.ErrIntegrity
+	}
+	actual, err := canon.New().Digest(payload.Facts)
+	if err != nil {
+		return proposal, err
+	}
+	want, err := canon.New().Digest(proposal)
+	if err != nil || actual != want {
+		return proposal, eventstore.ErrIntegrity
+	}
+	return proposal, nil
+}
+
+func (s *Service) incidentWithin(ctx context.Context, tx pgx.Tx, tenant, id string, end int64) (Incident, error) {
+	var incident Incident
+	events, err := s.Store.StreamWithin(ctx, tx, tenant, "incident:"+id)
+	if err != nil {
+		return incident, err
+	}
+	for _, event := range events {
+		if end != 0 && event.Sequence > end {
+			break
+		}
+		// Only evidence-backed transitions implemented by this phase are accepted.
+		// Unknown future events cannot silently manufacture a contained state.
+		if event.Type != "IncidentOpened" || incident.Revision != 0 || event.StreamVersion != 1 {
+			return incident, eventstore.ErrIntegrity
+		}
+		var content ledger.Content
+		var payload struct {
+			Facts Incident `json:"facts"`
+		}
+		if json.Unmarshal(event.Entry.Canonical, &content) != nil || json.Unmarshal(content.Payload, &payload) != nil {
+			return incident, eventstore.ErrIntegrity
+		}
+		incident = payload.Facts
+		if incident.ID != id || incident.Tenant != tenant || incident.Status != "OPEN" || incident.Revision != 1 || incident.Identity == "" || incident.OpenFingerprint.IsZero() || incident.PlanDigest.IsZero() || incident.OpenedAt.After(event.RecordedAt) {
+			return incident, eventstore.ErrIntegrity
+		}
+	}
+	if incident.ID == "" {
+		return incident, pgx.ErrNoRows
+	}
+	return incident, nil
+}
+
+func (s *Service) incidentView(ctx context.Context, tx pgx.Tx, incident Incident, snapshot *graph.Snapshot, now time.Time) (IncidentView, error) {
+	view := IncidentView{Incident: incident, ObservedAt: now}
+	proposal, err := s.containmentProposal(ctx, tx, incident.Tenant, incident.PlanID)
+	if err != nil {
+		return view, err
+	}
+	if proposal.Digest != incident.PlanDigest || proposal.Body.Plan.Origins[0] != incident.Identity {
+		return view, eventstore.ErrIntegrity
+	}
+	view.Proposal = proposal
+	view.Observed, err = snapshot.PathsTo(incident.Identity, 1000, 1_000_000)
+	return view, err
+}
+
+// OpenIncident opens an investigation of an actual stored proposal. It creates
+// no target command and grants no authority to execute the proposal.
+func (s *Service) OpenIncident(ctx context.Context, actor Actor, input OpenIncidentInput) (IncidentView, error) {
+	var view IncidentView
+	if input.CommandID == uuid.Nil || input.PlanDigest.IsZero() || input.MinGraphVersion < 0 || input.MinGraphVersion > ledger.MaxSafeInteger {
+		return view, domain.ErrInvalid
+	}
+	for _, raw := range []*string{&input.PlanID, &input.CorrelationID} {
+		if id, err := uuid.Parse(*raw); err != nil || id == uuid.Nil {
+			return view, domain.ErrInvalid
+		} else {
+			*raw = id.String()
+		}
+	}
+	fingerprint, err := canon.New().Digest(struct {
+		Actor Actor
+		Input OpenIncidentInput
+	}{actor, input})
+	if err != nil {
+		return view, err
+	}
+	id := uuid.NewSHA1(uuid.NameSpaceOID, []byte(actor.TenantID+":incident:"+input.CommandID.String())).String()
+	err = s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, now time.Time) error {
+		snapshot, _, err := s.context(ctx, tx, actor, "incident_manage", nil)
+		if err != nil {
+			return err
+		}
+		if snapshot.Version() < input.MinGraphVersion {
+			return graph.ErrUnavailable
+		}
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM ratchet.events WHERE tenant_id=$1 AND stream_id=$2)`, actor.TenantID, "incident:"+id).Scan(&exists); err != nil {
+			return err
+		}
+		if exists {
+			incident, err := s.incidentWithin(ctx, tx, actor.TenantID, id, 0)
+			if err != nil {
+				return err
+			}
+			if incident.OpenFingerprint != fingerprint {
+				return eventstore.ErrIdempotencyConflict
+			}
+			view, err = s.incidentView(ctx, tx, incident, snapshot, now)
+			return err
+		}
+		proposal, err := s.containmentProposal(ctx, tx, actor.TenantID, input.PlanID)
+		if err != nil {
+			return err
+		}
+		if proposal.Digest != input.PlanDigest {
+			return domain.ErrContextChanged
+		}
+		incident := Incident{ID: id, Tenant: actor.TenantID, CorrelationID: input.CorrelationID, Identity: proposal.Body.Plan.Origins[0], PlanID: input.PlanID, PlanDigest: proposal.Digest, Status: "OPEN", OpenedAt: now, Revision: 1, OpenFingerprint: fingerprint}
+		raw, err := json.Marshal(incident)
+		if err != nil {
+			return err
+		}
+		if _, err := s.Store.AppendWithin(ctx, tx, eventstore.Command{TenantID: actor.TenantID, ID: input.CommandID, StreamID: "incident:" + id, ActorReference: uuid.NewSHA1(uuid.NameSpaceOID, []byte(actor.TenantID+":"+actor.ID)), Events: []eventstore.Event{{Type: "IncidentOpened", Facts: raw}}}); err != nil {
+			return err
+		}
+		view, err = s.incidentView(ctx, tx, incident, snapshot, now)
+		return err
+	})
+	return view, err
+}
+
+func (s *Service) GetIncident(ctx context.Context, actor Actor, id string) (IncidentView, error) {
+	var view IncidentView
+	if parsed, err := uuid.Parse(id); err != nil || parsed == uuid.Nil {
+		return view, domain.ErrInvalid
+	} else {
+		id = parsed.String()
+	}
+	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, now time.Time) error {
+		snapshot, _, err := s.context(ctx, tx, actor, "incident_view", nil)
+		if err != nil {
+			return err
+		}
+		incident, err := s.incidentWithin(ctx, tx, actor.TenantID, id, 0)
+		if err != nil {
+			return err
+		}
+		view, err = s.incidentView(ctx, tx, incident, snapshot, now)
+		return err
+	})
+	return view, err
+}
+
+func (s *Service) ListIncidents(ctx context.Context, actor Actor, status string, after, end int64, limit int) (IncidentPage, error) {
+	page := IncidentPage{Incidents: []IncidentView{}, After: after, End: end}
+	if after < 0 || end < 0 || end > ledger.MaxSafeInteger || limit < 1 || limit > 20 {
+		return page, domain.ErrInvalid
+	}
+	if status != "" && status != "OPEN" && status != "CONTAINING" && status != "CONTAINED" && status != "RESOLVED" {
+		return page, domain.ErrInvalid
+	}
+	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, now time.Time) error {
+		snapshot, _, err := s.context(ctx, tx, actor, "incident_view", nil)
+		if err != nil {
+			return err
+		}
+		var head int64
+		if err := tx.QueryRow(ctx, `SELECT sequence FROM ratchet.tenant_heads WHERE tenant_id=$1`, actor.TenantID).Scan(&head); err != nil {
+			return err
+		}
+		if page.End == 0 {
+			page.End = head
+		}
+		if after > page.End || page.End > head {
+			return domain.ErrInvalid
+		}
+		rows, err := tx.Query(ctx, `SELECT stream_id,min(sequence) FROM ratchet.events WHERE tenant_id=$1 AND stream_id LIKE 'incident:%' AND sequence<=$2 GROUP BY stream_id HAVING min(sequence)>$3 ORDER BY min(sequence) LIMIT 201`, actor.TenantID, page.End, after)
+		if err != nil {
+			return err
+		}
+		type ref struct {
+			stream   string
+			position int64
+		}
+		refs := []ref{}
+		for rows.Next() {
+			var r ref
+			if err := rows.Scan(&r.stream, &r.position); err != nil {
+				rows.Close()
+				return err
+			}
+			refs = append(refs, r)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for i, r := range refs {
+			if i == 200 || len(page.Incidents) == limit {
+				page.More = true
+				break
+			}
+			incident, err := s.incidentWithin(ctx, tx, actor.TenantID, r.stream[len("incident:"):], page.End)
+			if err != nil {
+				return err
+			}
+			page.After = r.position
+			if status != "" && incident.Status != status {
+				continue
+			}
+			view, err := s.incidentView(ctx, tx, incident, snapshot, now)
+			if err != nil {
+				return err
+			}
+			page.Incidents = append(page.Incidents, view)
+		}
+		return nil
+	})
+	return page, err
+}

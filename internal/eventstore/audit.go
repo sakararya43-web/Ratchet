@@ -26,9 +26,13 @@ type auditDisplay struct {
 	Plan      string `json:"plan_id,omitempty"`
 }
 type auditFacts struct {
-	Change domain.Change `json:"change"`
-	Graph  graph.Data    `json:"graph"`
-	Body   struct {
+	Change   domain.Change `json:"change"`
+	Graph    graph.Data    `json:"graph"`
+	Incident string        `json:"incident_id"`
+	PlanID   string        `json:"plan_id"`
+	Identity string        `json:"affected_identity"`
+	Status   string        `json:"status"`
+	Body     struct {
 		ID   string            `json:"plan_id"`
 		Plan graph.Containment `json:"plan"`
 	} `json:"body"`
@@ -46,7 +50,14 @@ func auditMetadata(content ledger.Content) (auditFacts, auditDisplay, error) {
 		facts = auditFacts{}
 	}
 	c := facts.Change
-	return facts, auditDisplay{EventType: content.EventType, Actor: content.ActorID, Request: c.ID, Incident: c.Intent.IncidentID, Target: c.Intent.Target, Kind: c.Intent.Kind, State: string(c.State), Decision: c.Decision.Outcome, Plan: facts.Body.ID}, nil
+	display := auditDisplay{EventType: content.EventType, Actor: content.ActorID, Request: c.ID, Incident: c.Intent.IncidentID, Target: c.Intent.Target, Kind: c.Intent.Kind, State: string(c.State), Decision: c.Decision.Outcome, Plan: facts.Body.ID}
+	if content.EventType == "IncidentOpened" {
+		display.Incident = facts.Incident
+		display.Plan = facts.PlanID
+		display.Target = facts.Identity
+		display.State = facts.Status
+	}
+	return facts, display, nil
 }
 
 func (s *Store) projectAudit(ctx context.Context, tx pgx.Tx, content ledger.Content) error {
@@ -63,6 +74,7 @@ func (s *Store) projectAudit(ctx context.Context, tx pgx.Tx, content ledger.Cont
 	}
 	add(c.Intent.Target)
 	add(c.Intent.Access)
+	add(display.Target)
 	refs = append(refs, c.Intent.Resources...)
 	for _, node := range facts.Graph.Nodes {
 		if node.Type == "Resource" || node.Type == "Safeguard" {
@@ -116,7 +128,7 @@ func (s *Store) projectAudit(ctx context.Context, tx pgx.Tx, content ledger.Cont
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO ratchet.audit_projection(tenant_id,sequence,actor_reference,request_id,incident_id,resource_refs,recorded_at,display) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, content.TenantID, content.Sequence, content.ActorID, c.ID, c.Intent.IncidentID, refs, stamp, raw)
+	_, err = tx.Exec(ctx, `INSERT INTO ratchet.audit_projection(tenant_id,sequence,actor_reference,request_id,incident_id,resource_refs,recorded_at,display) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, content.TenantID, content.Sequence, content.ActorID, display.Request, display.Incident, refs, stamp, raw)
 	return err
 }
 func (s *Store) ensureAudit(ctx context.Context, tx pgx.Tx, tenant string) error {

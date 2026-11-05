@@ -331,6 +331,21 @@ func (a *ChangeAPI) GetAttentionItems(ctx context.Context, r *connect.Request[v1
 		response.PendingRequests = append(response.PendingRequests, view)
 		response.AttentionItems = append(response.AttentionItems, &v1.AttentionItem{ItemId: c.ID, ItemType: "PENDING_CHANGE", Title: string(c.State) + ": " + c.Intent.Kind, Description: strings.Join(c.Decision.Reasons, "; "), Severity: "review", EntityId: c.ID, CreatedAt: view.CreatedAt})
 	}
+	incidentPage, err := a.service.ListIncidents(ctx, p, "", 0, 0, 20)
+	if err != nil && !errors.Is(err, workflow.ErrPermission) {
+		return nil, changeError(err)
+	}
+	if err == nil {
+		truncated = truncated || incidentPage.More
+		for _, incident := range incidentPage.Incidents {
+			view, err := incidentView(incident)
+			if err != nil {
+				return nil, changeError(err)
+			}
+			response.ActiveIncidents = append(response.ActiveIncidents, view)
+			response.AttentionItems = append(response.AttentionItems, &v1.AttentionItem{ItemId: view.IncidentId, ItemType: "ACTIVE_INCIDENT", Title: view.Title, Severity: view.Severity, EntityId: view.IncidentId, CreatedAt: view.OpenedAt})
+		}
+	}
 	res := connect.NewResponse(response)
 	if truncated {
 		res.Header().Set("X-Ratchet-Truncated", "true")

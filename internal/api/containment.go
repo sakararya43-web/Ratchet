@@ -49,13 +49,24 @@ func (a *containmentAPI) PlanContainment(ctx context.Context, r *connect.Request
 	if err != nil {
 		return nil, changeError(err)
 	}
+	view, err := containmentView(proposal)
+	if err != nil {
+		return nil, changeError(err)
+	}
+	return connect.NewResponse(&v1.PlanContainmentResponse{Plan: view}), nil
+}
+
+func containmentView(proposal workflow.ContainmentProposal) (*v1.ContainmentPlan, error) {
 	body := proposal.Body
 	plan := body.Plan
+	if len(plan.Origins) != 1 {
+		return nil, domain.ErrInvalid
+	}
 	raw, err := canon.New().Canonicalize(body)
 	if err != nil {
 		return nil, changeError(err)
 	}
-	view := &v1.ContainmentPlan{PlanId: body.ID, TenantId: body.Tenant, CompromisedIdentity: r.Msg.CompromisedIdentity, PlanDigest: proposal.Digest.String(), GraphVersion: plan.GraphVersion, CreatedAt: body.CreatedAt.Format(time.RFC3339Nano), MinimumProved: plan.MinimumProved, OptimalityScope: plan.OptimalityScope, ProposedZeroTier0Proved: true, DisruptionCost: plan.Cost, CanonicalPlanJson: raw, PolicyBundleHash: body.PolicyDigest.String(), ExpiresAt: body.ExpiresAt.Format(time.RFC3339Nano), Algorithm: plan.Algorithm, RouteCountComplete: body.RoutesComplete, SeveredTier0RoutesCount: int32(body.RoutesCount)}
+	view := &v1.ContainmentPlan{PlanId: body.ID, TenantId: body.Tenant, CompromisedIdentity: plan.Origins[0], PlanDigest: proposal.Digest.String(), GraphVersion: plan.GraphVersion, CreatedAt: body.CreatedAt.Format(time.RFC3339Nano), MinimumProved: plan.MinimumProved, OptimalityScope: plan.OptimalityScope, ProposedZeroTier0Proved: true, DisruptionCost: plan.Cost, CanonicalPlanJson: raw, PolicyBundleHash: body.PolicyDigest.String(), ExpiresAt: body.ExpiresAt.Format(time.RFC3339Nano), Algorithm: plan.Algorithm, RouteCountComplete: body.RoutesComplete, SeveredTier0RoutesCount: int32(body.RoutesCount)}
 	planID, err := uuid.Parse(body.ID)
 	if err != nil {
 		return nil, changeError(domain.ErrInvalid)
@@ -88,5 +99,5 @@ func (a *containmentAPI) PlanContainment(ctx context.Context, r *connect.Request
 	for _, activity := range plan.Removed {
 		view.DisruptedActivities = append(view.DisruptedActivities, convert(activity))
 	}
-	return connect.NewResponse(&v1.PlanContainmentResponse{Plan: view}), nil
+	return view, nil
 }

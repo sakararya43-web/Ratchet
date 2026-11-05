@@ -22,21 +22,28 @@ const (
 )
 
 type Incident struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	IncidentId       string                 `protobuf:"bytes,1,opt,name=incident_id,json=incidentId,proto3" json:"incident_id,omitempty"`
-	TenantId         string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
-	Title            string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Severity         string                 `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"` // LOW, MEDIUM, HIGH, CRITICAL
-	Status           string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`     // OPEN, CONTAINING, CONTAINED, RESOLVED
-	AffectedIdentity string                 `protobuf:"bytes,6,opt,name=affected_identity,json=affectedIdentity,proto3" json:"affected_identity,omitempty"`
-	RootCauseType    string                 `protobuf:"bytes,7,opt,name=root_cause_type,json=rootCauseType,proto3" json:"root_cause_type,omitempty"` // DRIFT, SUSPICIOUS_ESCALATION, MANUAL_CONTAINMENT
-	ContainmentPlan  *ContainmentPlan       `protobuf:"bytes,8,opt,name=containment_plan,json=containmentPlan,proto3" json:"containment_plan,omitempty"`
-	ActionsTaken     []string               `protobuf:"bytes,9,rep,name=actions_taken,json=actionsTaken,proto3" json:"actions_taken,omitempty"`
-	OpenedAt         string                 `protobuf:"bytes,10,opt,name=opened_at,json=openedAt,proto3" json:"opened_at,omitempty"`
-	ContainedAt      string                 `protobuf:"bytes,11,opt,name=contained_at,json=containedAt,proto3" json:"contained_at,omitempty"`
-	ResolvedAt       string                 `protobuf:"bytes,12,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	IncidentId               string                 `protobuf:"bytes,1,opt,name=incident_id,json=incidentId,proto3" json:"incident_id,omitempty"`
+	TenantId                 string                 `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Title                    string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Severity                 string                 `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"` // LOW, MEDIUM, HIGH, CRITICAL
+	Status                   string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`     // OPEN, CONTAINING, CONTAINED, RESOLVED
+	AffectedIdentity         string                 `protobuf:"bytes,6,opt,name=affected_identity,json=affectedIdentity,proto3" json:"affected_identity,omitempty"`
+	RootCauseType            string                 `protobuf:"bytes,7,opt,name=root_cause_type,json=rootCauseType,proto3" json:"root_cause_type,omitempty"` // DRIFT, SUSPICIOUS_ESCALATION, MANUAL_CONTAINMENT
+	ContainmentPlan          *ContainmentPlan       `protobuf:"bytes,8,opt,name=containment_plan,json=containmentPlan,proto3" json:"containment_plan,omitempty"`
+	ActionsTaken             []string               `protobuf:"bytes,9,rep,name=actions_taken,json=actionsTaken,proto3" json:"actions_taken,omitempty"`
+	OpenedAt                 string                 `protobuf:"bytes,10,opt,name=opened_at,json=openedAt,proto3" json:"opened_at,omitempty"`
+	ContainedAt              string                 `protobuf:"bytes,11,opt,name=contained_at,json=containedAt,proto3" json:"contained_at,omitempty"`
+	ResolvedAt               string                 `protobuf:"bytes,12,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
+	CorrelationId            string                 `protobuf:"bytes,13,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	ResidualRoutes           []*GraphRoute          `protobuf:"bytes,14,rep,name=residual_routes,json=residualRoutes,proto3" json:"residual_routes,omitempty"`
+	ResidualRoutesComplete   bool                   `protobuf:"varint,15,opt,name=residual_routes_complete,json=residualRoutesComplete,proto3" json:"residual_routes_complete,omitempty"`
+	ObservedGraphVersion     int64                  `protobuf:"varint,16,opt,name=observed_graph_version,json=observedGraphVersion,proto3" json:"observed_graph_version,omitempty"`
+	ObservedAt               string                 `protobuf:"bytes,17,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	RestorationPrerequisites []string               `protobuf:"bytes,18,rep,name=restoration_prerequisites,json=restorationPrerequisites,proto3" json:"restoration_prerequisites,omitempty"`
+	Revision                 int64                  `protobuf:"varint,19,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Incident) Reset() {
@@ -153,6 +160,55 @@ func (x *Incident) GetResolvedAt() string {
 	return ""
 }
 
+func (x *Incident) GetCorrelationId() string {
+	if x != nil {
+		return x.CorrelationId
+	}
+	return ""
+}
+
+func (x *Incident) GetResidualRoutes() []*GraphRoute {
+	if x != nil {
+		return x.ResidualRoutes
+	}
+	return nil
+}
+
+func (x *Incident) GetResidualRoutesComplete() bool {
+	if x != nil {
+		return x.ResidualRoutesComplete
+	}
+	return false
+}
+
+func (x *Incident) GetObservedGraphVersion() int64 {
+	if x != nil {
+		return x.ObservedGraphVersion
+	}
+	return 0
+}
+
+func (x *Incident) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *Incident) GetRestorationPrerequisites() []string {
+	if x != nil {
+		return x.RestorationPrerequisites
+	}
+	return nil
+}
+
+func (x *Incident) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 type ListIncidentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -222,11 +278,12 @@ func (x *ListIncidentsRequest) GetPageToken() string {
 }
 
 type ListIncidentsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Incidents     []*Incident            `protobuf:"bytes,1,rep,name=incidents,proto3" json:"incidents,omitempty"`
-	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Incidents           []*Incident            `protobuf:"bytes,1,rep,name=incidents,proto3" json:"incidents,omitempty"`
+	NextPageToken       string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	SnapshotEndSequence int64                  `protobuf:"varint,3,opt,name=snapshot_end_sequence,json=snapshotEndSequence,proto3" json:"snapshot_end_sequence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ListIncidentsResponse) Reset() {
@@ -273,6 +330,125 @@ func (x *ListIncidentsResponse) GetNextPageToken() string {
 	return ""
 }
 
+func (x *ListIncidentsResponse) GetSnapshotEndSequence() int64 {
+	if x != nil {
+		return x.SnapshotEndSequence
+	}
+	return 0
+}
+
+type OpenIncidentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PlanId        string                 `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	PlanDigest    string                 `protobuf:"bytes,3,opt,name=plan_digest,json=planDigest,proto3" json:"plan_digest,omitempty"`
+	Mutation      *MutationContext       `protobuf:"bytes,4,opt,name=mutation,proto3" json:"mutation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenIncidentRequest) Reset() {
+	*x = OpenIncidentRequest{}
+	mi := &file_ratchet_v1_incident_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenIncidentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenIncidentRequest) ProtoMessage() {}
+
+func (x *OpenIncidentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_incident_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenIncidentRequest.ProtoReflect.Descriptor instead.
+func (*OpenIncidentRequest) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *OpenIncidentRequest) GetTenantId() string {
+	if x != nil {
+		return x.TenantId
+	}
+	return ""
+}
+
+func (x *OpenIncidentRequest) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+func (x *OpenIncidentRequest) GetPlanDigest() string {
+	if x != nil {
+		return x.PlanDigest
+	}
+	return ""
+}
+
+func (x *OpenIncidentRequest) GetMutation() *MutationContext {
+	if x != nil {
+		return x.Mutation
+	}
+	return nil
+}
+
+type OpenIncidentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Incident      *Incident              `protobuf:"bytes,1,opt,name=incident,proto3" json:"incident,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenIncidentResponse) Reset() {
+	*x = OpenIncidentResponse{}
+	mi := &file_ratchet_v1_incident_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenIncidentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenIncidentResponse) ProtoMessage() {}
+
+func (x *OpenIncidentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ratchet_v1_incident_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenIncidentResponse.ProtoReflect.Descriptor instead.
+func (*OpenIncidentResponse) Descriptor() ([]byte, []int) {
+	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *OpenIncidentResponse) GetIncident() *Incident {
+	if x != nil {
+		return x.Incident
+	}
+	return nil
+}
+
 type GetIncidentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -283,7 +459,7 @@ type GetIncidentRequest struct {
 
 func (x *GetIncidentRequest) Reset() {
 	*x = GetIncidentRequest{}
-	mi := &file_ratchet_v1_incident_proto_msgTypes[3]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +471,7 @@ func (x *GetIncidentRequest) String() string {
 func (*GetIncidentRequest) ProtoMessage() {}
 
 func (x *GetIncidentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_incident_proto_msgTypes[3]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +484,7 @@ func (x *GetIncidentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIncidentRequest.ProtoReflect.Descriptor instead.
 func (*GetIncidentRequest) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{3}
+	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetIncidentRequest) GetTenantId() string {
@@ -334,7 +510,7 @@ type GetIncidentResponse struct {
 
 func (x *GetIncidentResponse) Reset() {
 	*x = GetIncidentResponse{}
-	mi := &file_ratchet_v1_incident_proto_msgTypes[4]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +522,7 @@ func (x *GetIncidentResponse) String() string {
 func (*GetIncidentResponse) ProtoMessage() {}
 
 func (x *GetIncidentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_incident_proto_msgTypes[4]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +535,7 @@ func (x *GetIncidentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIncidentResponse.ProtoReflect.Descriptor instead.
 func (*GetIncidentResponse) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{4}
+	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetIncidentResponse) GetIncident() *Incident {
@@ -379,7 +555,7 @@ type WatchIncidentsRequest struct {
 
 func (x *WatchIncidentsRequest) Reset() {
 	*x = WatchIncidentsRequest{}
-	mi := &file_ratchet_v1_incident_proto_msgTypes[5]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +567,7 @@ func (x *WatchIncidentsRequest) String() string {
 func (*WatchIncidentsRequest) ProtoMessage() {}
 
 func (x *WatchIncidentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_incident_proto_msgTypes[5]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +580,7 @@ func (x *WatchIncidentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchIncidentsRequest.ProtoReflect.Descriptor instead.
 func (*WatchIncidentsRequest) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{5}
+	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WatchIncidentsRequest) GetTenantId() string {
@@ -431,7 +607,7 @@ type WatchIncidentsResponse struct {
 
 func (x *WatchIncidentsResponse) Reset() {
 	*x = WatchIncidentsResponse{}
-	mi := &file_ratchet_v1_incident_proto_msgTypes[6]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -443,7 +619,7 @@ func (x *WatchIncidentsResponse) String() string {
 func (*WatchIncidentsResponse) ProtoMessage() {}
 
 func (x *WatchIncidentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ratchet_v1_incident_proto_msgTypes[6]
+	mi := &file_ratchet_v1_incident_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -456,7 +632,7 @@ func (x *WatchIncidentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchIncidentsResponse.ProtoReflect.Descriptor instead.
 func (*WatchIncidentsResponse) Descriptor() ([]byte, []int) {
-	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{6}
+	return file_ratchet_v1_incident_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WatchIncidentsResponse) GetIncident() *Incident {
@@ -478,7 +654,7 @@ var File_ratchet_v1_incident_proto protoreflect.FileDescriptor
 const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"\n" +
 	"\x19ratchet/v1/incident.proto\x12\n" +
-	"ratchet.v1\x1a\x17ratchet/v1/common.proto\x1a\x1cratchet/v1/containment.proto\"\xb5\x03\n" +
+	"ratchet.v1\x1a\x17ratchet/v1/common.proto\x1a\x1cratchet/v1/containment.proto\x1a\x17ratchet/v1/impact.proto\"\x87\x06\n" +
 	"\bIncident\x12\x1f\n" +
 	"\vincident_id\x18\x01 \x01(\tR\n" +
 	"incidentId\x12\x1b\n" +
@@ -494,16 +670,33 @@ const file_ratchet_v1_incident_proto_rawDesc = "" +
 	" \x01(\tR\bopenedAt\x12!\n" +
 	"\fcontained_at\x18\v \x01(\tR\vcontainedAt\x12\x1f\n" +
 	"\vresolved_at\x18\f \x01(\tR\n" +
-	"resolvedAt\"\x94\x01\n" +
+	"resolvedAt\x12%\n" +
+	"\x0ecorrelation_id\x18\r \x01(\tR\rcorrelationId\x12?\n" +
+	"\x0fresidual_routes\x18\x0e \x03(\v2\x16.ratchet.v1.GraphRouteR\x0eresidualRoutes\x128\n" +
+	"\x18residual_routes_complete\x18\x0f \x01(\bR\x16residualRoutesComplete\x124\n" +
+	"\x16observed_graph_version\x18\x10 \x01(\x03R\x14observedGraphVersion\x12\x1f\n" +
+	"\vobserved_at\x18\x11 \x01(\tR\n" +
+	"observedAt\x12;\n" +
+	"\x19restoration_prerequisites\x18\x12 \x03(\tR\x18restorationPrerequisites\x12\x1a\n" +
+	"\brevision\x18\x13 \x01(\x03R\brevision\"\x94\x01\n" +
 	"\x14ListIncidentsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
 	"\rstatus_filter\x18\x02 \x01(\tR\fstatusFilter\x12\x1b\n" +
 	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x04 \x01(\tR\tpageToken\"s\n" +
+	"page_token\x18\x04 \x01(\tR\tpageToken\"\xa7\x01\n" +
 	"\x15ListIncidentsResponse\x122\n" +
 	"\tincidents\x18\x01 \x03(\v2\x14.ratchet.v1.IncidentR\tincidents\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"R\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x122\n" +
+	"\x15snapshot_end_sequence\x18\x03 \x01(\x03R\x13snapshotEndSequence\"\xa5\x01\n" +
+	"\x13OpenIncidentRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
+	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x1f\n" +
+	"\vplan_digest\x18\x03 \x01(\tR\n" +
+	"planDigest\x127\n" +
+	"\bmutation\x18\x04 \x01(\v2\x1b.ratchet.v1.MutationContextR\bmutation\"H\n" +
+	"\x14OpenIncidentResponse\x120\n" +
+	"\bincident\x18\x01 \x01(\v2\x14.ratchet.v1.IncidentR\bincident\"R\n" +
 	"\x12GetIncidentRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1f\n" +
 	"\vincident_id\x18\x02 \x01(\tR\n" +
@@ -515,8 +708,9 @@ const file_ratchet_v1_incident_proto_rawDesc = "" +
 	"\x06cursor\x18\x02 \x01(\v2\x17.ratchet.v1.WatchCursorR\x06cursor\"b\n" +
 	"\x16WatchIncidentsResponse\x120\n" +
 	"\bincident\x18\x01 \x01(\v2\x14.ratchet.v1.IncidentR\bincident\x12\x16\n" +
-	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\x92\x02\n" +
-	"\x0fIncidentService\x12T\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor2\xe5\x02\n" +
+	"\x0fIncidentService\x12Q\n" +
+	"\fOpenIncident\x12\x1f.ratchet.v1.OpenIncidentRequest\x1a .ratchet.v1.OpenIncidentResponse\x12T\n" +
 	"\rListIncidents\x12 .ratchet.v1.ListIncidentsRequest\x1a!.ratchet.v1.ListIncidentsResponse\x12N\n" +
 	"\vGetIncident\x12\x1e.ratchet.v1.GetIncidentRequest\x1a\x1f.ratchet.v1.GetIncidentResponse\x12Y\n" +
 	"\x0eWatchIncidents\x12!.ratchet.v1.WatchIncidentsRequest\x1a\".ratchet.v1.WatchIncidentsResponse0\x01B?Z=github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1b\x06proto3"
@@ -533,35 +727,44 @@ func file_ratchet_v1_incident_proto_rawDescGZIP() []byte {
 	return file_ratchet_v1_incident_proto_rawDescData
 }
 
-var file_ratchet_v1_incident_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_ratchet_v1_incident_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_ratchet_v1_incident_proto_goTypes = []any{
 	(*Incident)(nil),               // 0: ratchet.v1.Incident
 	(*ListIncidentsRequest)(nil),   // 1: ratchet.v1.ListIncidentsRequest
 	(*ListIncidentsResponse)(nil),  // 2: ratchet.v1.ListIncidentsResponse
-	(*GetIncidentRequest)(nil),     // 3: ratchet.v1.GetIncidentRequest
-	(*GetIncidentResponse)(nil),    // 4: ratchet.v1.GetIncidentResponse
-	(*WatchIncidentsRequest)(nil),  // 5: ratchet.v1.WatchIncidentsRequest
-	(*WatchIncidentsResponse)(nil), // 6: ratchet.v1.WatchIncidentsResponse
-	(*ContainmentPlan)(nil),        // 7: ratchet.v1.ContainmentPlan
-	(*WatchCursor)(nil),            // 8: ratchet.v1.WatchCursor
+	(*OpenIncidentRequest)(nil),    // 3: ratchet.v1.OpenIncidentRequest
+	(*OpenIncidentResponse)(nil),   // 4: ratchet.v1.OpenIncidentResponse
+	(*GetIncidentRequest)(nil),     // 5: ratchet.v1.GetIncidentRequest
+	(*GetIncidentResponse)(nil),    // 6: ratchet.v1.GetIncidentResponse
+	(*WatchIncidentsRequest)(nil),  // 7: ratchet.v1.WatchIncidentsRequest
+	(*WatchIncidentsResponse)(nil), // 8: ratchet.v1.WatchIncidentsResponse
+	(*ContainmentPlan)(nil),        // 9: ratchet.v1.ContainmentPlan
+	(*GraphRoute)(nil),             // 10: ratchet.v1.GraphRoute
+	(*MutationContext)(nil),        // 11: ratchet.v1.MutationContext
+	(*WatchCursor)(nil),            // 12: ratchet.v1.WatchCursor
 }
 var file_ratchet_v1_incident_proto_depIdxs = []int32{
-	7, // 0: ratchet.v1.Incident.containment_plan:type_name -> ratchet.v1.ContainmentPlan
-	0, // 1: ratchet.v1.ListIncidentsResponse.incidents:type_name -> ratchet.v1.Incident
-	0, // 2: ratchet.v1.GetIncidentResponse.incident:type_name -> ratchet.v1.Incident
-	8, // 3: ratchet.v1.WatchIncidentsRequest.cursor:type_name -> ratchet.v1.WatchCursor
-	0, // 4: ratchet.v1.WatchIncidentsResponse.incident:type_name -> ratchet.v1.Incident
-	1, // 5: ratchet.v1.IncidentService.ListIncidents:input_type -> ratchet.v1.ListIncidentsRequest
-	3, // 6: ratchet.v1.IncidentService.GetIncident:input_type -> ratchet.v1.GetIncidentRequest
-	5, // 7: ratchet.v1.IncidentService.WatchIncidents:input_type -> ratchet.v1.WatchIncidentsRequest
-	2, // 8: ratchet.v1.IncidentService.ListIncidents:output_type -> ratchet.v1.ListIncidentsResponse
-	4, // 9: ratchet.v1.IncidentService.GetIncident:output_type -> ratchet.v1.GetIncidentResponse
-	6, // 10: ratchet.v1.IncidentService.WatchIncidents:output_type -> ratchet.v1.WatchIncidentsResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9,  // 0: ratchet.v1.Incident.containment_plan:type_name -> ratchet.v1.ContainmentPlan
+	10, // 1: ratchet.v1.Incident.residual_routes:type_name -> ratchet.v1.GraphRoute
+	0,  // 2: ratchet.v1.ListIncidentsResponse.incidents:type_name -> ratchet.v1.Incident
+	11, // 3: ratchet.v1.OpenIncidentRequest.mutation:type_name -> ratchet.v1.MutationContext
+	0,  // 4: ratchet.v1.OpenIncidentResponse.incident:type_name -> ratchet.v1.Incident
+	0,  // 5: ratchet.v1.GetIncidentResponse.incident:type_name -> ratchet.v1.Incident
+	12, // 6: ratchet.v1.WatchIncidentsRequest.cursor:type_name -> ratchet.v1.WatchCursor
+	0,  // 7: ratchet.v1.WatchIncidentsResponse.incident:type_name -> ratchet.v1.Incident
+	3,  // 8: ratchet.v1.IncidentService.OpenIncident:input_type -> ratchet.v1.OpenIncidentRequest
+	1,  // 9: ratchet.v1.IncidentService.ListIncidents:input_type -> ratchet.v1.ListIncidentsRequest
+	5,  // 10: ratchet.v1.IncidentService.GetIncident:input_type -> ratchet.v1.GetIncidentRequest
+	7,  // 11: ratchet.v1.IncidentService.WatchIncidents:input_type -> ratchet.v1.WatchIncidentsRequest
+	4,  // 12: ratchet.v1.IncidentService.OpenIncident:output_type -> ratchet.v1.OpenIncidentResponse
+	2,  // 13: ratchet.v1.IncidentService.ListIncidents:output_type -> ratchet.v1.ListIncidentsResponse
+	6,  // 14: ratchet.v1.IncidentService.GetIncident:output_type -> ratchet.v1.GetIncidentResponse
+	8,  // 15: ratchet.v1.IncidentService.WatchIncidents:output_type -> ratchet.v1.WatchIncidentsResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_ratchet_v1_incident_proto_init() }
@@ -571,13 +774,14 @@ func file_ratchet_v1_incident_proto_init() {
 	}
 	file_ratchet_v1_common_proto_init()
 	file_ratchet_v1_containment_proto_init()
+	file_ratchet_v1_impact_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ratchet_v1_incident_proto_rawDesc), len(file_ratchet_v1_incident_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

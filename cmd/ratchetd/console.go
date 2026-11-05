@@ -248,6 +248,11 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	apiMux.Handle("/ratchet.v1.AuditService/", audit)
+	incidents, err := api.NewIncidentHandler(service, cursorKey)
+	if err != nil {
+		return err
+	}
+	apiMux.Handle("/ratchet.v1.IncidentService/", incidents)
 	if len(config.ContainmentCosts) > 0 {
 		containment, err := api.NewContainmentHandler(service, config.ContainmentCosts)
 		if err != nil {

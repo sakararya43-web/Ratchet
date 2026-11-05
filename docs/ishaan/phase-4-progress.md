@@ -157,6 +157,33 @@ The new failing gate remains in `internal/connector/conformance/audit_peer_test.
 core verification rejects the fixture. The peer must resolve this before the
 joint D8 verdict. None of these fixtures claims complete browser-approval proof.
 
+## Manual incident investigations
+
+`IncidentService.OpenIncident` opens a durable investigation from an existing,
+digest-verified containment proposal and a stable mutation key. It requires
+current signed `incident_manage` permission; `ListIncidents` and `GetIncident`
+require `incident_view`. The demo rules restrict both to security leads.
+Opening records the tenant, affected identity, proposal digest, correlation,
+database time and revision in an immutable `IncidentOpened` stream.
+
+List/Get reconstruct from those source events and re-verify the linked proposal
+against its original planning event. They report bounded residual critical paths
+from the current graph with the observation time/version and truncation flag.
+Pagination binds tenant/status and a fixed opening-event boundary; later
+investigations do not enter an existing page series. Risk observations explicitly
+carry their current graph version and can advance while paging that fixed cohort.
+The authorized overview includes active investigations, while ordinary sessions
+cannot obtain investigator incident detail. No mutable incident row is authority.
+
+These manual records remain `OPEN`. Their planned actions are suggestions and
+their `actions_taken` list is empty. Even a later zero-reach graph observation
+does not establish verified command execution or mark the incident contained.
+The execution/failure lifecycle remains required with the gated transport work.
+Restoration prerequisites are visible, with restoration submission still pending.
+Real PostgreSQL/TLS tests cover concurrent retry, altered input, authorization,
+cross-tenant refusal, audit incident filters, fixed-boundary pagination, overview,
+replacement-process reconstruction and changed live residual paths.
+
 ## Evidence and remaining work
 
 Passing focused checks cover surgical two-asset cuts, finance-report preservation,

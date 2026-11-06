@@ -1,6 +1,9 @@
 # Phase 6 implementation and acceptance record
 
-Phase 6 is in progress on `main`. Phase 7 has not started. The user confirmed
+Phase 6's five Ishaan core tasks are implemented and the selected real-kind
+acceptance passes on `main` (2026-11-06). Phase 7 has not started. This is not
+whole-project release acceptance or a claim of full Kubernetes D1-D8 parity.
+The user confirmed
 that `origin/sakar` at `d823a10` is the peer's final implementation; a newer peer
 delivery is not expected. The user then explicitly authorized fixing the
 Kubernetes connector on `main`. The branches remain separate; Sakar's branch
@@ -41,44 +44,50 @@ and implementation plan are unchanged.
   list and watch retain anonymous evidence after private report deletion. See
   [the native drift contract](phase-6-native-drift.md).
 
-## Remaining work and gates
+## Actual exit evidence
 
-- Real peer adapter admission, outage, approved execution/read-back and latency
-  acceptance on kind. Matcher tests alone do not satisfy this gate.
-- Actual connector adoption of native normalized input, identity directory facts,
-  signed capability/commands, admission permits, target CAS, independent read-back
-  and drift watch. Native automatic correction/live continuity remain unresolved
-  D6/D7 mappings; no unproved inverse or blind rollback is implemented.
+The authorized connector corrections on main replace in-memory source data and
+local intent grants with real API inventory, complete signed source cuts,
+mutually authenticated API-server admission, guarded signed commands, a TLS core
+RPC, encrypted pending context and independent signed target read-back. Only
+the API server applies the submitted object; reconciliation never writes.
 
-The final peer branch uses in-memory cluster state and local intent matching.
-Under the connector-fix authorization, main now has actual Kubernetes API
-inventory, complete signed normalized cuts, exact native admission normalization,
-signed command staging, a TLS DecisionService client, encrypted durable pending
-context and independent API read-back with durable signed results. The native
-runtime requires API-server mutual TLS and has no local intent-registration
-route. No target write occurs in reconciliation.
+The isolated real-kind acceptance passed in 446.27 seconds. It proves a real
+independent cryptographic approval, durable JetStream command/result transport,
+exact one-use admission, actual API creation, independently observed EXECUTED
+state, refusal of an unapproved binding and refusal/absence of a sensitive
+binding while the core HTTPS service is stopped. The approved sample took
+1,201.2869 ms in the webhook and 1,547.2038 ms for the API write. These are single
+sample measurements, not percentile or load claims; the admission deadline
+remains three seconds. [Machine-readable evidence](evidence/phase-6/actual-kind.json).
 
-On 2026-11-06, all six previously reported interface/live-inventory assertions
-pass against these changes. The actual full kind graph also fits a 648,370-byte
-immutable event and replays exactly after private-source deletion. Domain tests
-still match 17 real authorizer queries across 9 configurations. These results
-do not complete real API-server approved-write/outage/latency acceptance or
-native drift watch publication. See [historical peer failures and D1–D8 scope](phase-6-peer-gates.md).
+The same run ingests actual signed post-write cuts and publishes authenticated
+native observations through the implemented drift boundary. The approved write
+receives CORRELATED_APPROVED_COMMAND. A second actual out-of-band binding receives
+HELD_FOR_REVIEW with complete impact and an incident visible through get, list
+and the paginated contiguous event stream. The test removes only its own webhook
+to inject this bypass; production exposes no exception or second grant route.
+This proves core support for actual RBAC evidence, not an automatic cluster-wide
+watch collector or audit attribution service.
 
-## Validation
+All six historical interface/live-inventory assertions now pass on main. A full
+real source cut (6,736 nodes, 36,752 edges) stores in a 509,422-byte immutable
+event and replays exactly after private-source deletion. The RBAC matcher agrees
+with all 17 actual authorizer queries across 9 live configurations.
 
-Passing local checks include the full serialized Linux race/integration suite
-against actual PostgreSQL/JetStream (workflow: 202.669 seconds), native-source
-privacy/replay/resync tests, 300-case properties at seed `20261105`, integration
-vet, module verification, Buf lint and breaking checks against both the peer
-baseline and preceding `main`, and reproducible protobuf generation. Core lint
-reports zero issues. A final aggregation work bound and detached rule-result
-regression also pass the domain/graph/bus/eventstore integration/race suites.
+## Validation and scope
 
-The real kind authorizer comparison passes independently of the peer adapter.
-The actual peer assertions in the gate report remain failing. Phase 6 is not
-signed off and no claim of 100% integrated success is made. Native core workflow,
-DecisionService, command/read-back and drift/incident implementation now exist;
-the new candidate's full checks are being rerun. Peer adoption and the real kind
-exit evidence remain required, and are not silently deferred or cut. Phase 7
-cannot be called complete while the selected Phase 6 acceptance is failing.
+The full serialized Linux race/integration suite passes against PostgreSQL and
+JetStream (workflow: 311.459 seconds). Focused native ingest/workflow/connector
+regressions, zero-issue core lint, tagged vet including kind acceptance, module
+verification and 300-case properties at seed 20261105 pass. Contract checks,
+generation and process-smoke checks are also enforced by the existing main CI.
+Reproduction commands are in [the kind guide](phase-6-kind.md).
+
+All five Phase 6 tasks retain their original requirements. Native automatic
+rollback, an always-running drift/watch collector, live containment continuity,
+financial safeguards, external authorizers and the real browser passkey ceremony
+are not demonstrated native mappings. The [D1-D8 matrix](phase-6-peer-gates.md)
+records these explicitly; full simulator/release acceptance and earlier joint
+gates remain open. Ambiguous writes remain held for review. No inferred inverse,
+invented timestamp, fake target state or approval bypass completes this phase.

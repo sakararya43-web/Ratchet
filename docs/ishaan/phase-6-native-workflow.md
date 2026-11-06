@@ -39,14 +39,30 @@ context, command and admission UID, valid for at most five seconds. Policy ALLOW
 alone does not authorize execution. Request errors, authentication failures,
 policy refusals and unavailable dependencies remain distinct.
 
+Full impact, current policy and owner independence are proved by submission,
+assessment and Guard before staging. Inline admission preserves that proof only
+if the healthy whole-organization graph position, native source digest/revision,
+policy and registry are unchanged. It verifies the core's staged signature,
+exact envelope and approval set, and re-verifies each passkey assertion. A source
+advance anywhere in the organization invalidates it. This avoids rebuilding a
+large authority graph inside the three-second deadline. A write without a staged
+command is held with `NOT_EVALUATED_NO_GUARDED_COMMAND`; no policy evaluation is
+claimed. Full unsolicited-change assessment belongs to authenticated drift intake.
+
 Native execution results extend the existing signed result with `kubernetes`.
 Independent read-back must match the consumed admission/context, exact approved
 security object and API-assigned UID/resourceVersion, or exact deleted UID.
 Kubernetes resourceVersion is opaque and is never incremented arithmetically.
+CREATE admission can already contain an API-assigned UID. The connector binds
+it separately as `server_assigned_create_uid` while matching the UID-less proposal;
+core read-back also requires that exact UID. This optional field preserves legacy
+signing bytes when absent. UPDATE requires the same UID and a changed opaque
+resourceVersion; DELETE requires the exact old UID and absence after the write.
 Acknowledgements stay EXECUTING with durable verify-only reconciliation probes.
 Raw results are encrypted; retained facts contain hashes and non-personal status.
 
-These are implemented core boundaries, tested with PostgreSQL, real signing and
-passkey cryptography and an HTTPS Connect client. They do not claim that the final
-peer calls the RPC, writes a live object or supplies independent cluster read-back.
-Its unresolved acceptance failures remain in [the gate report](phase-6-peer-gates.md).
+The authorized adapter corrections on main exercise these boundaries against a
+real kind API server using mutual TLS, actual approval cryptography, durable
+JetStream delivery and independent target reads. Approved execution and refusal
+during a real core outage pass. Sakar's branch remains unchanged. See the
+[acceptance and explicit scope](phase-6-progress.md).

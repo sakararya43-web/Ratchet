@@ -10,7 +10,22 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Phase 6 - in progress (2026-11-05)
+## Phase 6 - core complete, selected kind acceptance verified (2026-11-06)
+
+- Closed the five original Phase 6 core tasks with real API-server mutual-TLS
+  acceptance: independent cryptographic approval, durable command/result delivery,
+  one-use allow, actual target write/read-back and refused unapproved/outage
+  writes. Actual signed source cuts and native observation publication also
+  prove approved drift correlation and an out-of-band incident in get/list and
+  the full paginated ledger stream. The initial real stream assertion exposed
+  multiple pages; follow every verified cursor rather than assuming the first
+  page contains the incident. Recorded the 1,201.2869-ms webhook and 1,547.2038-ms
+  single approved sample and reproducible kind commands. All historical adapter
+  assertions and the 17-query authorizer oracle pass; full source persistence is
+  509,422 bytes with exact replay after private erasure. Native automatic rollback,
+  watch collection and containment continuity remain explicitly unsupported
+  D6/D7 mappings. Updated the original task checkboxes without removing tasks.
+  Sakar's branch/plan are unchanged; no merge or Phase 7 implementation was done.
 
 - 2026-11-06: Keep admission inside its three-second deadline by validating the
   original signed Guard proof against the identical healthy whole-organization

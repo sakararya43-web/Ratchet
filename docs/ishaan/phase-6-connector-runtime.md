@@ -57,7 +57,13 @@ snapshot publication, a connected broker and a successful HTTPS core readiness
 probe; the endpoint itself requires the same client TLS authentication. Incoming
 requests, outbound API output and native message sizes are bounded.
 
-Acceptance is still open: real API-server webhook configuration and approved
-write/outage/latency checks, full runtime restart/transport checks, and native
-drift watch publication must pass before Phase 6 sign-off. Core signed drift
-ingestion and incident evidence already have PostgreSQL integration coverage.
+Selected real API-server mutual-TLS admission, approved write/read-back, outage
+refusal and latency acceptance pass on main. Actual signed post-write source
+cuts and `PublishDrift` observations also prove approved correlation and native
+incident get/list/stream evidence. See [results and reproduction](phase-6-kind.md).
+The drift publication method signs and transports a supplied actual observation;
+the runtime does not automatically collect cluster-wide watch/audit reports.
+Automatic native correction and live containment continuity are unsupported
+selected D6/D7 mappings. Full standalone runtime restart/outage hardening belongs
+to Phase 7; encrypted context restart and durable command/result retries already
+have focused tests. No success is inferred for ambiguous application outcomes.

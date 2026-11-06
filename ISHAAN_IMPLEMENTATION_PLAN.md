@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 5's Ishaan-owned implementation and local core validation are complete on `main`; integrated exit acceptance remains open for the actual peer expiry/drift contracts and earlier trust/target gates. No requirement was removed or shortened. See [Phase 5 evidence](docs/ishaan/phase-5-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 4's unfinished own work and joint gates remain required and are not marked complete. Phase 6 has not started.
+**Status:** Phase 6's five core tasks and selected real-kind acceptance are complete on `main`; see [Phase 6 evidence](docs/ishaan/phase-6-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 7 has not started. Phase 5's core implementation is complete, while its joint acceptance and earlier trust/target gates remain open. Phase 4's unfinished own work and joint gates remain required and are not marked complete. No requirement was removed or shortened.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -247,17 +247,28 @@ remain unchecked for actual peer publisher/target acceptance, including signed
 capability adoption and independent read-back. No requirement was removed or
 shortened. See [Phase 5 evidence and remaining gates](docs/ishaan/phase-5-progress.md),
 [expiry contract](docs/ishaan/phase-5-expiry-contract.md) and
-[drift contract](docs/ishaan/phase-5-drift-contract.md). Phase 6 has not started.
+[drift contract](docs/ishaan/phase-5-drift-contract.md). Phase 6 core completion
+and selected native scope are recorded below; earlier joint gates remain open.
 
 ## 11. Phase 6 - Optional Kubernetes core integration
 
 **Requirements:** FR-K5 decision endpoint; this is stretch scope, not a reason to weaken the completed simulator path.
 
-- [ ] Review the shared mapping for Role/ClusterRole, RoleBinding/ClusterRoleBinding, wildcard grants, `bind`, `escalate`, `impersonate` and service-account token creation. Implement their core graph/policy semantics where needed; API parsing and admission integration remain connector-owned.
-- [ ] Support admission request identity, target revision and approved-intent correlation through `DecisionService`. Unsupported or stale sensitive changes must not default to allow.
-- [ ] Ensure the inline allow decision corresponds to the exact admission object/context; reconcile webhook observation and execution state without inventing a second grant path.
-- [ ] Run core fail-closed and latency checks with the real peer adapter on local `kind`. Keep request errors, policy refusals and downstream unavailability distinguishable.
-- [ ] Support drift decisions and incident/read-model evidence for actual RBAC changes. Record any unsupported D1-D8 mapping explicitly; do not claim full Kubernetes parity from one blocked RoleBinding.
+**Execution record (2026-11-06):** All five core tasks below are implemented and
+selected real-kind acceptance passes. The user explicitly authorized required
+connector corrections on main; Sakar's branch and plan remain untouched. Actual
+mutual-TLS admission, independent approval, one-use execution/read-back, outage
+refusal and real RBAC drift/incident evidence are verified. Native automatic
+rollback/watch collection and live containment continuity remain explicit
+unsupported mappings, not inferred parity. See [results and validation](docs/ishaan/phase-6-progress.md),
+[reproduction](docs/ishaan/phase-6-kind.md) and the [D1-D8 matrix](docs/ishaan/phase-6-peer-gates.md).
+Phase 7 and earlier joint release gates are not marked complete.
+
+- [x] Review the shared mapping for Role/ClusterRole, RoleBinding/ClusterRoleBinding, wildcard grants, `bind`, `escalate`, `impersonate` and service-account token creation. Implement their core graph/policy semantics where needed; API parsing and admission integration remain connector-owned.
+- [x] Support admission request identity, target revision and approved-intent correlation through `DecisionService`. Unsupported or stale sensitive changes must not default to allow.
+- [x] Ensure the inline allow decision corresponds to the exact admission object/context; reconcile webhook observation and execution state without inventing a second grant path.
+- [x] Run core fail-closed and latency checks with the real peer adapter on local `kind`. Keep request errors, policy refusals and downstream unavailability distinguishable.
+- [x] Support drift decisions and incident/read-model evidence for actual RBAC changes. Record any unsupported D1-D8 mapping explicitly; do not claim full Kubernetes parity from one blocked RoleBinding.
 
 **Exit evidence:** The real adapter's admission request receives the correct decision, a sensitive grant is blocked during core unavailability, approved changes are correlated and observed, and core metrics remain reproducible. If this stretch is deferred, label it deferred in release scope without changing either person's ownership.
 

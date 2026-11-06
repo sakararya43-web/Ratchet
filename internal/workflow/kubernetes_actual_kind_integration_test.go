@@ -28,10 +28,12 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/connector/k8s"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
+	"github.com/sakararya43-web/Ratchet/internal/eventstore"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/testutil/kindadmission"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestNativeActualKindComparisonCodec(t *testing.T) {
@@ -85,10 +87,11 @@ func TestNativeActualKindComparisonCodec(t *testing.T) {
 
 func TestNativeActualKindAdmissionApprovalReadBackAndOutage(t *testing.T) {
 	cluster := kindadmission.Start(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Minute)
 	defer cancel()
 	cluster.Apply(t, ctx, map[string]any{"apiVersion": "v1", "kind": "Namespace", "metadata": map[string]string{"name": "ratchet-native"}})
 	cluster.Apply(t, ctx, map[string]any{"apiVersion": "v1", "kind": "ServiceAccount", "metadata": map[string]string{"name": "beneficiary", "namespace": "ratchet-native"}})
+	cluster.Apply(t, ctx, map[string]any{"apiVersion": "v1", "kind": "ServiceAccount", "metadata": map[string]string{"name": "drift-beneficiary", "namespace": "ratchet-native"}})
 	cluster.Apply(t, ctx, map[string]any{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "ClusterRole", "metadata": map[string]string{"name": "ratchet-native-reader"}, "rules": []any{map[string]any{"apiGroups": []string{""}, "resources": []string{"pods"}, "verbs": []string{"get"}}}})
 	directory := cluster.Principals(t, ctx)
 	probe, err := k8s.NewConfiguredAdapter(k8s.AdapterConfig{Tenant: "probe", Connector: "native", Cluster: "phase6-actual-admission", Kubeconfig: cluster.Kubeconfig, StateDirectory: t.TempDir(), DirectoryComplete: true, Directory: directory})
@@ -127,7 +130,7 @@ func TestNativeActualKindAdmissionApprovalReadBackAndOutage(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		service, err := workflow.NewConfigured(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, workflow.Config{KubernetesConnectors: []kube.KubernetesConnectorKey{{Tenant: sys.tenant, Connector: "native", Cluster: state.Cluster, PublicKey: public}}}, execution)
+		service, err := workflow.NewConfigured(sys.pool, sys.store, sys.engine, sys.key, verifier, []string{sys.tenant}, workflow.Config{DriftResponders: map[string]string{sys.tenant: "user:sec1"}, KubernetesConnectors: []kube.KubernetesConnectorKey{{Tenant: sys.tenant, Connector: "native", Cluster: state.Cluster, PublicKey: public}}}, execution)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -157,7 +160,16 @@ func TestNativeActualKindAdmissionApprovalReadBackAndOutage(t *testing.T) {
 	if err := broker.EnsureExecution(ctx, sys.tenant, "native"); err != nil {
 		t.Fatal(err)
 	}
-	h, err := k8s.NewNativeAdmissionHandler(k8s.AdmissionConfig{Adapter: adapter, CoreURL: core.URL, CorePublicKey: corePublic, SigningKey: connector, StorageKey: sys.key, HTTPClient: core.Client(), Results: func(ctx context.Context, id string, raw []byte) error {
+	results := make(chan workflow.ExecutionResult, 8)
+	h, err := k8s.NewNativeAdmissionHandler(k8s.AdmissionConfig{Adapter: adapter, CoreURL: core.URL, CorePublicKey: corePublic, SigningKey: connector, StorageKey: sys.key, HTTPClient: core.Client(), DecisionError: func(err error) { t.Logf("actual core decision RPC error: %v", err) }, Results: func(ctx context.Context, id string, raw []byte) error {
+		var result workflow.ExecutionResult
+		if err := json.Unmarshal(raw, &result); err != nil {
+			return err
+		}
+		select {
+		case results <- result:
+		default:
+		}
 		return broker.Publish(ctx, "ratchet."+sys.tenant+".exec.results", id, raw)
 	}})
 	if err != nil {
@@ -364,6 +376,149 @@ delivered:
 	if err != nil || strings.TrimSpace(string(output)) != "" {
 		t.Fatalf("outage grant exists: %v %s", err, output)
 	}
+	// Feed actual source cuts and connector-authenticated observations through
+	// the production ingest/drift boundaries, independently of admission allow.
+	t.Log("actual approved write/read-back and outage gates passed; checking real drift evidence")
+	var readback workflow.ExecutionResult
+	select {
+	case readback = <-results:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	registry, err := graph.NewRegistry(time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ingestor, err := bus.NewIngestor(sys.store, registry, canon.New(), sys.key, []bus.ConnectorKey{{TenantID: sys.tenant, ConnectorID: "native", PublicKey: public}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	syncCut := func() (kube.State, int64, int64) {
+		message, err := adapter.SignedSnapshot(ctx, connector)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := protojson.Marshal(message)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ingestor.Handle(ctx, sys.tenant, raw); err != nil {
+			t.Fatal(err)
+		}
+		var cut kube.State
+		if err := json.Unmarshal(message.GetKubernetes().NormalizedStateJson, &cut); err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := sys.store.CurrentGraph(ctx, sys.tenant, sys.key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cut, message.Envelope.SourceRevision, snapshot.Version()
+	}
+	post, postRevision, postVersion := syncCut()
+	baseVersion := c.Envelope.GraphVersion
+	report := workflow.SignedKubernetesDrift{SchemaVersion: 1, Tenant: sys.tenant, Connector: "native", Cluster: state.Cluster, DriftID: uuid.NewString(), OperationID: uuid.NewString(), CorrelationID: c.CorrelationID, BaselineGraphVersion: baseVersion, SourceRevision: postRevision, Before: state, Mutation: mutation, Observation: *readback.Kubernetes, CommandID: c.ExecutionID, AppliedAt: readback.AppliedAt, ObservedAt: readback.ObservedAt}
+	var receipts []workflow.KubernetesDriftReceipt
+	acceptDrift := func(ctx context.Context, _ string, _ string, raw []byte) error {
+		receipt, err := service.RecordDrift(ctx, sys.tenant, raw)
+		if err != nil {
+			return err
+		}
+		var evidence workflow.KubernetesDriftReceipt
+		if err := sys.store.WithTenantTx(ctx, sys.tenant, func(tx pgx.Tx, _ time.Time) error {
+			var document []byte
+			if err := tx.QueryRow(ctx, `SELECT document FROM ratchet.native_drift_receipts WHERE tenant_id=$1 AND drift_id=$2::uuid`, sys.tenant, report.DriftID).Scan(&document); err != nil {
+				return err
+			}
+			return json.Unmarshal(document, &evidence)
+		}); err != nil {
+			return err
+		}
+		if receipt.Outcome != evidence.Outcome {
+			return eventstore.ErrIntegrity
+		}
+		receipts = append(receipts, evidence)
+		return nil
+	}
+	if err := adapter.PublishDrift(ctx, report, connector, acceptDrift); err != nil {
+		t.Fatal(err)
+	}
+	if receipts[0].Outcome != "CORRELATED_APPROVED_COMMAND" || receipts[0].Impact == nil {
+		t.Fatalf("actual approved drift not correlated: %+v", receipts[0])
+	}
+	t.Log("actual approved drift correlated against committed real source cut")
+	// Remove only this test's webhook, representing an out-of-band control-plane
+	// bypass. No production grant path or rollback exception is introduced.
+	if output, err := cluster.Command(ctx, nil, "delete", "validatingwebhookconfiguration", "ratchet-native"); err != nil {
+		t.Fatalf("owned fault injection: %v %s", err, output)
+	}
+	unapproved := map[string]any{}
+	for key, value := range rawObject {
+		unapproved[key] = value
+	}
+	unapproved["metadata"] = map[string]string{"name": "actual-unapproved-drift", "namespace": "ratchet-native"}
+	unapproved["subjects"] = []any{map[string]string{"kind": "ServiceAccount", "name": "drift-beneficiary", "namespace": "ratchet-native"}}
+	cluster.Apply(t, ctx, unapproved)
+	current, currentRevision, _ := syncCut()
+	var observed *kube.Object
+	for _, object := range current.Objects {
+		if object.Kind == "RoleBinding" && object.Name == "actual-unapproved-drift" {
+			copyObject := object
+			observed = &copyObject
+		}
+	}
+	if observed == nil {
+		t.Fatal("real out-of-band write not observed")
+	}
+	proposal := *observed
+	proposal.UID, proposal.ResourceVersion = "", ""
+	watchDigest, err := canon.New().Digest(*observed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	report = workflow.SignedKubernetesDrift{SchemaVersion: 1, Tenant: sys.tenant, Connector: "native", Cluster: state.Cluster, DriftID: uuid.NewString(), OperationID: uuid.NewString(), CorrelationID: uuid.NewString(), BaselineGraphVersion: postVersion, SourceRevision: currentRevision, Before: post, Mutation: kube.Mutation{Cluster: state.Cluster, Connector: "native", Operation: "CREATE", After: &proposal, ObjectDigest: watchDigest}, Observation: workflow.NativeObservation{Object: observed}, AppliedAt: now, ObservedAt: now}
+	if err := adapter.PublishDrift(ctx, report, connector, acceptDrift); err != nil {
+		t.Fatal(err)
+	}
+	if len(receipts) != 2 || receipts[1].Outcome != "HELD_FOR_REVIEW" || receipts[1].IncidentID == "" || receipts[1].Impact == nil {
+		t.Fatal("actual drift incident missing complete evidence")
+	}
+	actor := workflow.Actor{TenantID: sys.tenant, ID: "user:sec1"}
+	incident, err := service.GetIncident(ctx, actor, receipts[1].IncidentID)
+	if err != nil || incident.Incident.Kubernetes == nil {
+		t.Fatal("actual drift get evidence", err)
+	}
+	page, err := service.ListIncidents(ctx, actor, "OPEN", 0, 0, 10)
+	if err != nil || len(page.Incidents) != 1 {
+		t.Fatal("actual drift list evidence", err)
+	}
+	// The real full-cluster ingest has more than one ledger page. Hidden graph
+	// records still consume cursor positions; follow the complete contiguous feed.
+	var cursor int64
+	updates := 0
+	for {
+		stream, err := service.StreamPage(ctx, actor, "incidents", cursor)
+		if err != nil {
+			t.Fatal("actual drift watch evidence", err)
+		}
+		for _, update := range stream.Incidents {
+			if update.Incident.Incident.ID != receipts[1].IncidentID || update.Incident.Incident.Kubernetes == nil {
+				t.Fatal("stream returned unrelated or incomplete native evidence")
+			}
+			updates++
+		}
+		if stream.After >= stream.End {
+			break
+		}
+		if stream.After <= cursor {
+			t.Fatal("incident stream cursor did not advance")
+		}
+		cursor = stream.After
+	}
+	if updates != 1 {
+		t.Fatalf("actual drift incident stream updates: got %d, want 1", updates)
+	}
 	t.Logf("actual kind acceptance: approved=%d policy_refusals=%d dependency_refusals=%d webhook_ms=%.2f api_write_ms=%.2f", approvedCalls.Load(), refusedCalls.Load(), outageCalls.Load(), float64(approvedNS.Load())/1e6, float64(writeElapsed)/float64(time.Millisecond))
 	if dir := os.Getenv("RATCHET_EVALUATION_DIR"); dir != "" {
 		if !filepath.IsAbs(dir) {
@@ -372,7 +527,7 @@ delivered:
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			t.Fatal(err)
 		}
-		evidence, err := json.Marshal(map[string]any{"actual_api_server": true, "mutual_tls": true, "one_use_admissions": admissionCount, "executed": c.State, "approved": approvedCalls.Load(), "policy_refusals": refusedCalls.Load(), "dependency_refusals": outageCalls.Load(), "webhook_ms": float64(approvedNS.Load()) / 1e6, "api_write_ms": float64(writeElapsed) / float64(time.Millisecond)})
+		evidence, err := json.Marshal(map[string]any{"actual_api_server": true, "mutual_tls": true, "one_use_admissions": admissionCount, "executed": c.State, "approved": approvedCalls.Load(), "policy_refusals": refusedCalls.Load(), "dependency_refusals": outageCalls.Load(), "webhook_ms": float64(approvedNS.Load()) / 1e6, "api_write_ms": float64(writeElapsed) / float64(time.Millisecond), "approved_drift": receipts[0].Outcome, "unapproved_drift": receipts[1].Outcome, "incident_get_list_stream": updates == 1})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -3,19 +3,24 @@
 This is an implemented core validation/authentication boundary and a proposed
 connector handoff, not a frozen joint contract. Core DecisionService enforcement,
 staged commands and signed independent native read-back are implemented in
-[the native workflow](phase-6-native-workflow.md). Actual peer adoption and
-integrated acceptance remain open in [the progress record](phase-6-progress.md).
+[the native workflow](phase-6-native-workflow.md). The user-authorized adapter
+corrections on main pass selected real-kind acceptance; the unchanged peer branch
+and broader release gates are distinguished in [the progress record](phase-6-progress.md).
 
 `kubernetes.Admission` binds tenant, Kubernetes-assigned admission UID, full
 userInfo, GVK/GVR, object name/namespace, dry-run status, source resourceVersion,
 graph floor, core approved request/command IDs and exact normalized mutation.
 Mutation binds before/after, opaque object UID/resourceVersion and both raw
 object digests. Kubernetes admission UID and core command ID are independent.
-CREATE has no assigned target UID/resourceVersion; UPDATE retains the exact
-preimage UID/resourceVersion; DELETE requires the observed preimage. RoleRef is
+The approved CREATE proposal has no assigned target UID/resourceVersion. The
+API server can assign UID before validating admission: the optional signed
+`server_assigned_create_uid` binds it separately, and independent read-back must
+match it. CREATE with a resourceVersion is refused. UPDATE retains the exact
+preimage UID/resourceVersion; DELETE requires the observed preimage and matching
+UID/resource-version DeleteOptions preconditions. RoleRef is
 immutable. Only RBAC v1 Role/ClusterRole/RoleBinding/ClusterRoleBinding is selected.
 
-`bus.SignedKubernetesAdmission` authenticates that entire structure with
+`kubernetes.SignedKubernetesAdmission` authenticates that entire structure with
 Ed25519 and the real shared canonical digester, signature domain
 `RATCHET_KUBERNETES_ADMISSION_V1`. Tenant/connector/cluster/public-key pins come
 from trusted configuration, never from the message. Lifetime is at most 30

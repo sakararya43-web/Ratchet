@@ -40,4 +40,10 @@ as recorded in [the scope matrix](phase-6-peer-gates.md).
 
 PostgreSQL tests exercise committed baselines, real signing, policy/impact,
 incident get/list/watch, deduplication, privacy deletion, source lag and exact
-consumed-command correlation. They do not substitute for a real peer watch.
+consumed-command correlation. Real-kind acceptance now also ingests actual signed
+post-write API cuts and uses the adapter's `PublishDrift` method to authenticate
+actual observations through the production core drift boundary. The approved
+write correlates, and an actual out-of-band write opens an incident visible in
+get/list and the complete paginated stream. This verifies core drift/incident
+support with real RBAC facts. It does not implement or claim an automatic
+connector watch/audit collector; that remains explicit native scope in the matrix.

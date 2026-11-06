@@ -12,6 +12,18 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- Full API-server acceptance exposed two fixture-hidden issues: unrelated
+  existing critical paths exhausted enumeration for a tier-2 change, and the
+  API server assigns object UID before validating CREATE admission. Prove an
+  unchanged critical topology structurally, retain enumeration limits for
+  changed critical paths, and bind server-assigned create UID in signed context
+  and independent read-back. Added mismatch and real cryptographic regressions.
+  Compress native comparison projections once with exact deltas, preserve legacy
+  plan signing bytes, and restore canonical graph order after storage compression.
+  Sorted real API inventories now match exact drift transitions without ignoring
+  concurrent changes. The actual approved-write gate is still being rerun;
+  these changes do not constitute Phase 6 sign-off.
+
 - Adopted required peer connector types and added actual API inventory and signed
   native snapshots on main. Replaced name-only admission with exact signed core
   commands/permits, API-server mutual TLS, encrypted durable pending context,

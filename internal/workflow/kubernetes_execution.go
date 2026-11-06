@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"github.com/google/uuid"
 	"slices"
 	"time"
 
@@ -149,6 +150,22 @@ func (s *Service) nativeExecutionResult(ctx context.Context, tx pgx.Tx, now time
 				return nil, ErrPermission
 			}
 			if observed.AdmissionUID != uid || string(contextDigest) != string(observed.ContextDigest[:]) || string(mutationDigest) != string(command.Kubernetes.MutationDigest[:]) || !applicationTimeValid(command, r) || r.AppliedAt.Before(authorized) || r.AppliedAt.After(expires) {
+				return nil, ErrPermission
+			}
+			id := uuid.NewSHA1(uuid.NameSpaceOID, []byte(c.TenantID+":native-admission:"+command.Connector+":"+uid))
+			private, err := s.Store.PrivateWithin(ctx, tx, c.TenantID, uuid.NewSHA1(id, []byte("native-admission-context")).String(), s.key)
+			if err != nil {
+				return nil, err
+			}
+			var admitted kube.SignedKubernetesAdmission
+			if json.Unmarshal(private, &admitted) != nil {
+				return nil, eventstore.ErrIntegrity
+			}
+			bound, err := canon.New().Digest(admitted.Admission)
+			if err != nil || string(bound[:]) != string(contextDigest) {
+				return nil, eventstore.ErrIntegrity
+			}
+			if admitted.Admission.CreateUID != "" && (observed.Object == nil || observed.Object.UID != admitted.Admission.CreateUID) {
 				return nil, ErrPermission
 			}
 			if mutation.Operation == "DELETE" {

@@ -2,10 +2,12 @@ package eventstore
 
 import (
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 
 	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
@@ -65,6 +67,29 @@ func encodeCompactGraph(data graph.Data) ([]byte, error) {
 		}
 		c.Edges[i] = e
 	}
+	// Storage order follows adjacency rather than hashed edge IDs, improving
+	// compression without changing any edge. Decode restores graph's canonical
+	// ID order before hashing or replaying projections.
+	slices.SortFunc(c.Edges, func(a, b compactEdge) int {
+		if n := cmp.Compare(a.Source, b.Source); n != 0 {
+			return n
+		}
+		if n := cmp.Compare(a.Target, b.Target); n != 0 {
+			return n
+		}
+		if n := cmp.Compare(a.Kind, b.Kind); n != 0 {
+			return n
+		}
+		if n := cmp.Compare(a.Action, b.Action); n != 0 {
+			return n
+		}
+		if n := cmp.Compare(a.ID, b.ID); n != 0 {
+			return n
+		}
+		x, _ := json.Marshal(a)
+		y, _ := json.Marshal(b)
+		return bytes.Compare(x, y)
+	})
 	raw, err := json.Marshal(c)
 	if err != nil {
 		return nil, err
@@ -120,10 +145,11 @@ func decodeCompactGraph(raw []byte) (graph.Data, error) {
 		}
 		out.Edges[i] = edge
 	}
-	if _, err := graph.Build(0, out); err != nil {
+	snapshot, err := graph.Build(0, out)
+	if err != nil {
 		return graph.Data{}, ErrIntegrity
 	}
-	return out, nil
+	return snapshot.Data(), nil
 }
 
 func encodePrivateGraph(data graph.Data) ([]byte, error) {

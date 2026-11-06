@@ -4,6 +4,7 @@ package workflow_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -67,11 +68,18 @@ func nativeWorkflowOperation(t *testing.T, beneficiary, operation string, config
 }
 
 func nativeWorkflowState(t *testing.T, state kube.State, mutation kube.Mutation, sourceRevision int64, configure ...func(system, ports.ApprovalVerifier) *workflow.Service) (system, *workflow.Service, kube.State, kube.Mutation, *ecdsa.PrivateKey, []byte) {
+	return nativeWorkflowStateContext(t, nil, state, mutation, sourceRevision, configure...)
+}
+
+func nativeWorkflowStateContext(t *testing.T, ctx context.Context, state kube.State, mutation kube.Mutation, sourceRevision int64, configure ...func(system, ports.ApprovalVerifier) *workflow.Service) (system, *workflow.Service, kube.State, kube.Mutation, *ecdsa.PrivateKey, []byte) {
 	t.Helper()
 	sys := setup(t)
+	if ctx != nil {
+		sys.ctx = ctx
+	}
 	projected, err := graph.KubernetesSource(0, state)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("compile native baseline", err)
 	}
 	data := projected.Data()
 	if _, err := sys.store.IngestGraph(sys.ctx, eventstore.GraphInput{TenantID: sys.tenant, ConnectorID: "native", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{3}).String(), ToRevision: sourceRevision, Complete: true, Snapshot: &data}, sys.key); err != nil {
@@ -79,7 +87,7 @@ func nativeWorkflowState(t *testing.T, state kube.State, mutation kube.Mutation,
 	}
 	impact, err := graph.KubernetesImpact(1, state, mutation)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("compare native proposal impact", err)
 	}
 	owners := map[string]any{"reports": []string{"user:owner"}}
 	for _, a := range impact.Affected {
@@ -363,6 +371,7 @@ func TestNativeExecutionRequiresConsumedAdmissionAndIndependentExactReadBack(t *
 	sys, service, c, a, connector, _, _ := readyNativeExecution(t)
 	observed := *a.Mutation.After
 	observed.UID, observed.ResourceVersion = "apiserver-assigned-uid", "opaque/assigned-rv"
+	a.CreateUID = observed.UID
 	r := workflow.ExecutionResult{SchemaVersion: 1, Tenant: sys.tenant, Connector: "native", MessageID: uuid.NewString(), CommandID: c.ExecutionID, RequestID: c.ID, CorrelationID: c.CorrelationID, EnvelopeDigest: c.Digest, Success: true, ReadBackVerified: true, ObservedTenant: sys.tenant, ObservedTarget: c.Intent.Target, ObservedRevision: 15, ObservedAt: time.Now().UTC(), AppliedAt: time.Now().UTC(), Kubernetes: &workflow.NativeObservation{AdmissionUID: a.AdmissionUID, Object: &observed}}
 	setDigest := func() {
 		t.Helper()
@@ -405,7 +414,7 @@ func TestNativeExecutionRequiresConsumedAdmissionAndIndependentExactReadBack(t *
 	if json.Unmarshal(probe, &command) != nil || !command.VerifyOnly || command.Kubernetes == nil || command.CommandID != c.ExecutionID {
 		t.Fatal("native recovery dispatched another write")
 	}
-	for _, mismatch := range []string{"context", "admission", "overgrant", "application-time"} {
+	for _, mismatch := range []string{"context", "admission", "overgrant", "application-time", "assigned-uid"} {
 		bad := r
 		observation := *r.Kubernetes
 		object := *r.Kubernetes.Object
@@ -413,6 +422,8 @@ func TestNativeExecutionRequiresConsumedAdmissionAndIndependentExactReadBack(t *
 		bad.Kubernetes = &observation
 		bad.MessageID = uuid.NewString()
 		switch mismatch {
+		case "assigned-uid":
+			bad.Kubernetes.Object.UID = "different-apiserver-object"
 		case "context":
 			observation.ContextDigest = ports.Digest{4}
 		case "admission":

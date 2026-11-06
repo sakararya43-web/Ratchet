@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"maps"
 	"reflect"
 	"slices"
@@ -407,7 +408,7 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 				allowed, cost, err := matcher.Allows(p)
 				work += cost
 				if work > 10_000_000 {
-					return ErrAnalysisLimit
+					return fmt.Errorf("%w: materializing permission clauses", ErrAnalysisLimit)
 				}
 				if err != nil {
 					return err
@@ -492,6 +493,7 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 		}
 		return Build(version, data)
 	}
+	processedReach := map[string]string{}
 	for round := 0; round < 64; round++ {
 		compiled, err := build()
 		if err != nil {
@@ -505,12 +507,33 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 			}
 			rules := []kube.ScopedRule{}
 			reachable := map[string]bool{}
+			seenRules := map[string]bool{}
 			for _, node := range reach.Nodes {
 				if view, ok := views[node.ID]; ok {
-					rules = append(rules, scopedRules(view)...)
+					for _, rule := range scopedRules(view) {
+						work++
+						if work > 10_000_000 {
+							return nil, fmt.Errorf("%w: collecting reachable rules", ErrAnalysisLimit)
+						}
+						key, err := json.Marshal(rule)
+						if err != nil {
+							return nil, err
+						}
+						if !seenRules[string(key)] {
+							rules = append(rules, rule)
+							seenRules[string(key)] = true
+						}
+					}
 					reachable[node.ID] = true
 				}
 			}
+			// All views are immutable. If this actor's reachable view set has not
+			// changed, repeating its complete privilege closure adds no authority.
+			reachKey := strings.Join(slices.Sorted(maps.Keys(reachable)), "\x00")
+			if prior, exists := processedReach[id]; exists && prior == reachKey {
+				continue
+			}
+			processedReach[id] = reachKey
 			var permissionError error
 			matcher, err := kube.CompileRules(rules)
 			if err != nil {
@@ -633,7 +656,7 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 				if bound && write && !bind {
 					work += len(rules) * len(view.rules)
 					if work > 10_000_000 {
-						return nil, ErrAnalysisLimit
+						return nil, fmt.Errorf("%w: structural coverage at closure round %d", ErrAnalysisLimit, round)
 					}
 					covered, err := kube.Covers(rules, scopedRules(view))
 					if err != nil {
@@ -667,7 +690,7 @@ func CompileKubernetes(version int64, state kube.State, comparison ...kube.State
 				return nil, permissionError
 			}
 			if work > 10_000_000 {
-				return nil, ErrAnalysisLimit
+				return nil, fmt.Errorf("%w: native permissions at closure round %d", ErrAnalysisLimit, round)
 			}
 		}
 		if !changed {
@@ -734,4 +757,13 @@ func snapshotDifference(before, after *Snapshot) Delta {
 		}
 	}
 	return d
+}
+
+// Difference retains exact anonymous graph facts, including custom edge IDs.
+// Applying the returned delta to this immutable snapshot reconstructs after.
+func (s *Snapshot) Difference(after *Snapshot) (Delta, error) {
+	if s == nil || after == nil {
+		return Delta{}, ErrInvalid
+	}
+	return snapshotDifference(s, after), nil
 }

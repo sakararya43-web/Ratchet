@@ -41,6 +41,7 @@ func (s *Snapshot) impactDiff(delta Delta, bounded bool) (Impact, error) {
 	if bounded {
 		candidates = s.impactCandidates(after, delta)
 	}
+	criticalChanged := criticalTopologyChanged(s, after, delta)
 	out := Impact{Version: s.version, MonotonicReduction: true, Affected: []IdentityImpact{}, Weakened: []Node{}}
 	weakened := map[string]Node{}
 	for _, n := range after.nodes {
@@ -136,7 +137,7 @@ func (s *Snapshot) impactDiff(delta Delta, bounded bool) (Impact, error) {
 		}
 		// Enumerate only where the identity can reach critical assets in either
 		// state. Comparison includes provenance, so alternate grants are visible.
-		if current.ByTier[0] > 0 || old.ByTier[0] > 0 || len(item.Weakened) > 0 {
+		if criticalChanged && (current.ByTier[0] > 0 || old.ByTier[0] > 0) || len(item.Weakened) > 0 {
 			oldPaths := Paths{}
 			if _, exists := s.index[n.ID]; exists {
 				oldPaths, err = s.PathsTo(n.ID, 1000, 1_000_000)
@@ -191,6 +192,73 @@ func (s *Snapshot) impactDiff(delta Delta, bounded bool) (Impact, error) {
 	}
 	out.MonotonicReduction = out.MonotonicReduction && structure
 	return out, nil
+}
+
+// If changed nodes and relation destinations lie outside the complete backward
+// closure of all critical assets in both states, every critical route is unchanged.
+// Non-transitive/control relations conservatively include their source too. This is a
+// structural proof, not a truncated path sample. It avoids enumerating thousands
+// of unrelated existing administrator routes for an ordinary tier-2 change.
+func criticalTopologyChanged(before, after *Snapshot, delta Delta) bool {
+	toCritical := map[string]bool{}
+	for _, snapshot := range []*Snapshot{before, after} {
+		seen := make([]bool, len(snapshot.nodes))
+		queue := []uint32{}
+		for i, node := range snapshot.nodes {
+			if critical(node) {
+				seen[i] = true
+				queue = append(queue, uint32(i))
+			}
+		}
+		for len(queue) > 0 {
+			n := queue[0]
+			queue = queue[1:]
+			toCritical[snapshot.nodes[n].ID] = true
+			for _, edge := range snapshot.reverse[snapshot.reverseOffsets[n]:snapshot.reverseOffsets[n+1]] {
+				source := snapshot.edgeSources[edge]
+				if !seen[source] {
+					seen[source] = true
+					queue = append(queue, source)
+				}
+			}
+		}
+	}
+	for _, node := range delta.NodesAdded {
+		if toCritical[node.ID] {
+			return true
+		}
+	}
+	for _, id := range delta.NodesRemoved {
+		if toCritical[id] {
+			return true
+		}
+	}
+	changedEdge := func(edge Edge) bool {
+		if toCritical[edge.Target] {
+			return true
+		}
+		switch edge.Kind {
+		case "ASSIGNED", "MEMBER_OF", "GRANTS":
+			return false
+		default:
+			return toCritical[edge.Source]
+		}
+	}
+	for _, edge := range delta.EdgesAdded {
+		if changedEdge(edge) {
+			return true
+		}
+	}
+	removed := map[string]bool{}
+	for _, id := range delta.EdgesRemoved {
+		removed[id] = true
+	}
+	for _, edge := range before.edges {
+		if removed[edge.ID] && changedEdge(edge) {
+			return true
+		}
+	}
+	return false
 }
 
 func routeKey(route Route) string { raw, _ := json.Marshal(route.EdgeIDs); return string(raw) }

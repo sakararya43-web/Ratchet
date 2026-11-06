@@ -21,6 +21,7 @@ type UserInfo struct {
 type Admission struct {
 	Tenant                string   `json:"tenant_id"`
 	AdmissionUID          string   `json:"admission_uid"`
+	CreateUID             string   `json:"server_assigned_create_uid,omitempty"`
 	User                  UserInfo `json:"user_info"`
 	APIGroup              string   `json:"api_group"`
 	APIVersion            string   `json:"api_version"`
@@ -38,6 +39,9 @@ type Admission struct {
 }
 
 func (a Admission) Validate() error {
+	if !bounded(a.CreateUID, true, 256) || a.CreateUID != "" && a.Mutation.Operation != "CREATE" {
+		return ErrInvalid
+	}
 	if !bounded(a.Tenant, false, 128) || !bounded(a.AdmissionUID, false, 128) || !identityText(a.User.Username, false) || !bounded(a.User.UID, true, 256) || !identityValues(a.User.Groups) || len(a.User.Extra) > 32 || !bounded(a.SourceResourceVersion, false, 128) || a.MinGraphVersion < 0 || a.MinGraphVersion > 1<<53-1 || a.Mutation.Validate() != nil {
 		return ErrInvalid
 	}

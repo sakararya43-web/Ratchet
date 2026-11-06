@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -283,6 +284,12 @@ func observedNativeTransition(message SignedKubernetesDrift, current kube.State)
 	if observation.Object != nil {
 		expected.Objects = append(expected.Objects, *observation.Object)
 	}
+	// API inventories sort objects by key; a proposal's appended object need
+	// not be last in that order. Compare exact sets without mutating the caller.
+	current.Objects = slices.Clone(current.Objects)
+	less := func(a, b kube.Object) int { return strings.Compare(kube.ObjectKey(a), kube.ObjectKey(b)) }
+	slices.SortFunc(expected.Objects, less)
+	slices.SortFunc(current.Objects, less)
 	a, err := graph.KubernetesStateDigest(expected)
 	if err != nil {
 		return false

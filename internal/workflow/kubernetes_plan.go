@@ -37,6 +37,7 @@ type nativePrivateContext struct {
 // committed in the ordinary change intent; raw object/identity facts are sealed
 // separately and are not copied into append-only lifecycle events.
 type KubernetesPlan struct {
+	legacyEncoding   bool
 	Version          int          `json:"version"`
 	Tenant           string       `json:"tenant_id"`
 	Request          string       `json:"request_id"`

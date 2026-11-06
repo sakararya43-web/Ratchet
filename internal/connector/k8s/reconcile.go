@@ -102,6 +102,9 @@ func (h *AdmissionWebhookHandler) ReconcileOnce(ctx context.Context, commandID s
 			}
 		} else {
 			applied = observed != nil && sameObject(mutation.After, observed, false) && observed.UID != "" && observed.ResourceVersion != ""
+			if p.Admission.CreateUID != "" {
+				applied = applied && observed.UID == p.Admission.CreateUID
+			}
 			if mutation.Before != nil {
 				applied = applied && observed.UID == mutation.Before.UID && observed.ResourceVersion != mutation.Before.ResourceVersion
 			}

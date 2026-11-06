@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestAdmissionBindsAPIServerAssignedCreateUIDSeparatelyFromApprovedProposal(t *testing.T) {
+	raw := map[string]any{"apiVersion": "rbac.authorization.k8s.io/v1", "kind": "Role", "metadata": map[string]any{"name": "reader", "namespace": "finance"}, "rules": []any{map[string]any{"apiGroups": []string{""}, "resources": []string{"pods"}, "verbs": []string{"get"}}}}
+	_, proposal, err := k8s.NormalizeObject(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw["metadata"].(map[string]any)["uid"] = "apiserver-assigned-object"
+	request := &k8s.AdmissionRequest{UID: "independent-review-uid", Operation: "CREATE", Name: "reader", Namespace: "finance", Kind: map[string]string{"group": "rbac.authorization.k8s.io", "version": "v1", "kind": "Role"}, Resource: map[string]string{"group": "rbac.authorization.k8s.io", "version": "v1", "resource": "roles"}, UserInfo: map[string]any{"username": "actual-user", "groups": []string{"system:authenticated"}}, Object: raw}
+	a, err := k8s.NormalizeAdmission("tenant", "native", "cluster", "cut", request)
+	if err != nil || a.CreateUID != "apiserver-assigned-object" || a.Mutation.After.UID != "" || a.Mutation.ObjectDigest != proposal {
+		t.Fatal("server UID was lost or changed approved create", a, err)
+	}
+	if request.Object["metadata"].(map[string]any)["uid"] != "apiserver-assigned-object" {
+		t.Fatal("normalization mutated raw API evidence")
+	}
+}
+
 func TestUnverifiedLocalIntentAndMissingPreimageNeverAuthorize(t *testing.T) {
 	h := k8s.NewAdmissionWebhookHandler()
 	if h.RegisterIntent(&k8s.ApprovedIntent{IntentID: "local-name-only"}) == nil {

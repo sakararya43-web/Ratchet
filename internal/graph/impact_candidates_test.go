@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"reflect"
@@ -8,6 +9,31 @@ import (
 
 	"pgregory.net/rapid"
 )
+
+func TestUnchangedCriticalRoutesAreProvedWithoutTruncatedEnumeration(t *testing.T) {
+	data := Data{Nodes: []Node{{ID: "admin", Type: "Human"}, {ID: "critical", Type: "Resource", Tier: 0}, {ID: "reader", Type: "Role"}, {ID: "ordinary", Type: "Resource", Tier: 2}}, Edges: []Edge{{Source: "reader", Target: "ordinary", Kind: "GRANTS", Action: "read"}}}
+	for i := 0; i < 1100; i++ {
+		role := fmt.Sprintf("route:%d", i)
+		data.Nodes = append(data.Nodes, Node{ID: role, Type: "Role"})
+		data.Edges = append(data.Edges, Edge{Source: "admin", Target: role, Kind: "ASSIGNED"}, Edge{Source: role, Target: "critical", Kind: "GRANTS", Action: "read"})
+	}
+	snapshot, err := Build(1, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := snapshot.PathsTo("admin", 1000, 1_000_000)
+	if err != nil || !paths.Truncated {
+		t.Fatal("fixture must exceed complete path enumeration", err)
+	}
+	impact, err := snapshot.ImpactDiff(Delta{EdgesAdded: []Edge{{Source: "admin", Target: "reader", Kind: "ASSIGNED"}}})
+	if err != nil || len(impact.Affected) != 1 || len(impact.Affected[0].NewRoutes) != 0 || len(impact.Affected[0].NewPowers) != 1 {
+		t.Fatal("unrelated critical paths prevented complete ordinary impact", impact, err)
+	}
+	_, err = snapshot.ImpactDiff(Delta{EdgesAdded: []Edge{{ID: "alternate-critical-grant", Source: "admin", Target: "route:0", Kind: "ASSIGNED"}}})
+	if !errors.Is(err, ErrAnalysisLimit) {
+		t.Fatal("changed critical routes bypassed enumeration bound", err)
+	}
+}
 
 func TestBoundedImpactMatchesAllPrincipalReference(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {

@@ -99,8 +99,36 @@ func NormalizeAdmission(tenant, connector, cluster, source string, request *Admi
 		return kube.Admission{}, kube.ErrInvalid
 	}
 	mutation := kube.Mutation{Connector: connector, Cluster: cluster, Operation: request.Operation}
+	createUID := ""
 	if request.Object != nil {
-		o, digest, err := NormalizeObject(request.Object)
+		object := request.Object
+		if request.Operation == "CREATE" {
+			// The API server assigns UID before validating admission. Bind it in
+			// the signed context separately from the pre-approved create proposal.
+			raw, err := json.Marshal(object)
+			if err != nil {
+				return kube.Admission{}, err
+			}
+			object = nil
+			if err := json.Unmarshal(raw, &object); err != nil {
+				return kube.Admission{}, err
+			}
+			if metadata, ok := object["metadata"].(map[string]any); ok {
+				if uid, exists := metadata["uid"]; exists {
+					var valid bool
+					createUID, valid = uid.(string)
+					if !valid {
+						return kube.Admission{}, kube.ErrInvalid
+					}
+					delete(metadata, "uid")
+				}
+				if rv, exists := metadata["resourceVersion"]; exists && rv != "" {
+					return kube.Admission{}, kube.ErrInvalid
+				}
+				delete(metadata, "resourceVersion")
+			}
+		}
+		o, digest, err := NormalizeObject(object)
 		if err != nil {
 			return kube.Admission{}, err
 		}
@@ -132,7 +160,7 @@ func NormalizeAdmission(tenant, connector, cluster, source string, request *Admi
 	}
 	// Kubernetes uses camel-case UserInfo keys, while the normalized fields are
 	// username/uid/groups/extra and therefore retain their exact native values.
-	a := kube.Admission{Tenant: tenant, AdmissionUID: request.UID, User: user, APIGroup: request.Kind["group"], APIVersion: request.Kind["version"], Kind: request.Kind["kind"], Resource: request.Resource["resource"], Subresource: request.SubResource, Name: request.Name, Namespace: request.Namespace, DryRun: request.DryRun, SourceResourceVersion: source, Mutation: mutation}
+	a := kube.Admission{Tenant: tenant, AdmissionUID: request.UID, CreateUID: createUID, User: user, APIGroup: request.Kind["group"], APIVersion: request.Kind["version"], Kind: request.Kind["kind"], Resource: request.Resource["resource"], Subresource: request.SubResource, Name: request.Name, Namespace: request.Namespace, DryRun: request.DryRun, SourceResourceVersion: source, Mutation: mutation}
 	if request.Resource["group"] != a.APIGroup || request.Resource["version"] != a.APIVersion {
 		return kube.Admission{}, kube.ErrInvalid
 	}

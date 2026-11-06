@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	kube "github.com/sakararya43-web/Ratchet/internal/domain/kubernetes"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
 )
 
@@ -47,6 +48,48 @@ func TestCompactGraphRoundTripAndLegacy(t *testing.T) {
 	}
 	if _, err := graphFromFacts(data, raw); err == nil {
 		t.Fatal("ambiguous dual graph accepted")
+	}
+}
+
+func TestNativeSourceStateChecksPrivateCommitmentAndLegacyEncoding(t *testing.T) {
+	state := kube.State{Cluster: "cluster", ResourceVersion: "opaque-cut", Complete: true}
+	key := graph.KubernetesSourceKey(state.Cluster)
+	digest, err := graph.KubernetesStateDigest(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := graph.Data{Kubernetes: map[string]kube.State{key: state}, KubernetesDigests: map[string]string{key: digest}}
+	compact, err := encodePrivateGraph(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := json.Marshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range [][]byte{legacy, compact} {
+		got, err := nativeSourceState(raw, key)
+		if err != nil || !reflect.DeepEqual(state, got) {
+			t.Fatal("private source state changed", err)
+		}
+		if _, err := nativeSourceState(raw, graph.KubernetesSourceKey("other")); err == nil {
+			t.Fatal("source state crossed cluster boundary")
+		}
+	}
+	data.KubernetesDigests[key] = "forged"
+	for _, encode := range []func(graph.Data) ([]byte, error){encodePrivateGraph, func(d graph.Data) ([]byte, error) { return json.Marshal(d) }} {
+		raw, err := encode(data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := nativeSourceState(raw, key); err == nil {
+			t.Fatal("forged normalized source commitment accepted")
+		}
+	}
+	for _, raw := range [][]byte{compact[:len(compact)-1], append(bytes.Clone(compact), 1), append(bytes.Clone(compact), compact[4:]...)} {
+		if _, err := nativeSourceState(raw, key); err == nil {
+			t.Fatal("truncated or concatenated private source accepted")
+		}
 	}
 }
 

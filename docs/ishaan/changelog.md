@@ -12,6 +12,18 @@
 
 ## Phase 6 - in progress (2026-11-05)
 
+- 2026-11-06: Keep admission inside its three-second deadline by validating the
+  original signed Guard proof against the identical healthy whole-organization
+  graph position, policy/registry, source commitment, exact approvals and fresh
+  passkey verification. Unstaged writes receive an explicit unassessed HOLD,
+  never a fabricated policy outcome. Read only the authenticated native state
+  instead of rebuilding its full graph inline. Regressions cover another source
+  invalidating Guard, legacy/compact source commitments and corrupt encodings.
+  Distinguish malformed, unauthenticated, changed-context and unavailable RPCs.
+  Propagate successful-read-back state-transition errors. Focused native tests,
+  whole-repository Linux race/integration (workflow 311.459 seconds), zero-issue
+  lint, tagged vet, module verification and 300-case properties pass.
+
 - Full API-server acceptance exposed two fixture-hidden issues: unrelated
   existing critical paths exhausted enumeration for a tier-2 change, and the
   API server assigns object UID before validating CREATE admission. Prove an

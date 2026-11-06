@@ -251,7 +251,10 @@ func (s *Store) CurrentGraph(ctx context.Context, tenant string, key []byte) (*g
 }
 
 func loadSources(ctx context.Context, tx pgx.Tx, tenant string, key []byte) ([]sourceGraph, error) {
-	rows, err := tx.Query(ctx, `SELECT s.connector_id,s.source_revision,s.graph_version,s.public_graph,s.needs_resync,p.record_id,p.key_reference,p.ciphertext FROM ratchet.graph_sources s LEFT JOIN ratchet.private_records p ON p.tenant_id=s.tenant_id AND p.record_id=s.private_record_id WHERE s.tenant_id=$1 ORDER BY s.connector_id`, tenant)
+	// Authenticated private snapshots already contain the complete projection.
+	// Avoid transferring and decoding the large redundant public JSON alongside
+	// them; the public fallback is needed only after private-record erasure.
+	rows, err := tx.Query(ctx, `SELECT s.connector_id,s.source_revision,s.graph_version,CASE WHEN p.record_id IS NULL THEN s.public_graph ELSE NULL::jsonb END,s.needs_resync,p.record_id,p.key_reference,p.ciphertext FROM ratchet.graph_sources s LEFT JOIN ratchet.private_records p ON p.tenant_id=s.tenant_id AND p.record_id=s.private_record_id WHERE s.tenant_id=$1 ORDER BY s.connector_id`, tenant)
 	if err != nil {
 		return nil, err
 	}

@@ -34,6 +34,7 @@ type AdmissionConfig struct {
 	StorageKey    []byte
 	HTTPClient    *http.Client
 	Results       func(context.Context, string, []byte) error
+	DecisionError func(error)
 }
 type AdmissionWebhookHandler struct {
 	mu     sync.Mutex
@@ -279,6 +280,17 @@ func (h *AdmissionWebhookHandler) Admit(ctx context.Context, request *AdmissionR
 	}
 	response, err := h.client.DecideKubernetes(ctx, connect.NewRequest(&v1.KubernetesDecisionRequest{SignedAdmissionJson: raw}))
 	if err != nil {
+		if h.config.DecisionError != nil {
+			h.config.DecisionError(err)
+		}
+		switch connect.CodeOf(err) {
+		case connect.CodeInvalidArgument:
+			return refusal(request.UID, 400, "CoreContextInvalid")
+		case connect.CodeUnauthenticated, connect.CodePermissionDenied:
+			return refusal(request.UID, 403, "CoreAuthenticationRefused")
+		case connect.CodeFailedPrecondition, connect.CodeAborted:
+			return refusal(request.UID, 409, "CoreContextChanged")
+		}
 		return refusal(request.UID, 503, "CoreDecisionUnavailable")
 	}
 	if command == nil || request.DryRun || !response.Msg.ExecutionAuthorized || response.Msg.Outcome != "ALLOW" {

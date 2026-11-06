@@ -73,25 +73,26 @@ func (s *Store) GraphWithin(ctx context.Context, tx pgx.Tx, tenant string, key [
 // KubernetesSourceWithin exposes retained exact source facts only to an already
 // authorized tenant transaction. GraphWithin deliberately returns public facts.
 func (s *Store) KubernetesSourceWithin(ctx context.Context, tx pgx.Tx, tenant, connector, sourceKey string, key []byte) (kube.State, int64, error) {
-	sources, err := loadSources(ctx, tx, tenant, key)
-	if err != nil {
+	var revision int64
+	var resync bool
+	var id *uuid.UUID
+	var reference *string
+	var ciphertext []byte
+	if err := tx.QueryRow(ctx, `SELECT s.source_revision,s.needs_resync,p.record_id,p.key_reference,p.ciphertext FROM ratchet.graph_sources s LEFT JOIN ratchet.private_records p ON p.tenant_id=s.tenant_id AND p.record_id=s.private_record_id WHERE s.tenant_id=$1 AND s.connector_id=$2`, tenant, connector).Scan(&revision, &resync, &id, &reference, &ciphertext); err != nil {
 		return kube.State{}, 0, err
 	}
-	for _, source := range sources {
-		if source.id != connector {
-			continue
-		}
-		if source.resync {
-			return kube.State{}, 0, ErrResyncRequired
-		}
-		state, ok := source.data.Kubernetes[sourceKey]
-		if !ok {
-			return kube.State{}, 0, graph.ErrUnavailable
-		}
-		copyState, err := state.Clone()
-		return copyState, source.revision, err
+	if resync {
+		return kube.State{}, 0, ErrResyncRequired
 	}
-	return kube.State{}, 0, graph.ErrUnavailable
+	if id == nil || reference == nil {
+		return kube.State{}, 0, graph.ErrUnavailable
+	}
+	raw, err := OpenPrivate(key, tenant, PrivateRecord{ID: *id, KeyReference: *reference, Ciphertext: ciphertext})
+	if err != nil {
+		return kube.State{}, 0, ErrIntegrity
+	}
+	state, err := nativeSourceState(raw, sourceKey)
+	return state, revision, err
 }
 
 func (s *Store) PrivateWithin(ctx context.Context, tx pgx.Tx, tenant, reference string, key []byte) ([]byte, error) {

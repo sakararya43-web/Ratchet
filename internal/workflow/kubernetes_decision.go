@@ -131,7 +131,7 @@ func (s *Service) DecideKubernetes(ctx context.Context, message kube.SignedKuber
 }
 
 func (s *Service) evaluateKubernetesAdmission(ctx context.Context, tx pgx.Tx, now time.Time, pin kube.KubernetesConnectorKey, a kube.Admission, expires time.Time, out *KubernetesDecision) error {
-	state, _, err := s.Store.KubernetesSourceWithin(ctx, tx, pin.Tenant, pin.Connector, graph.KubernetesSourceKey(pin.Cluster), s.key)
+	state, sourceRevision, err := s.Store.KubernetesSourceWithin(ctx, tx, pin.Tenant, pin.Connector, graph.KubernetesSourceKey(pin.Cluster), s.key)
 	if err != nil {
 		return ErrDependency
 	}
@@ -153,59 +153,47 @@ func (s *Service) evaluateKubernetesAdmission(ctx context.Context, tx pgx.Tx, no
 		return ErrPermission
 	}
 	actor := Actor{TenantID: pin.Tenant, ID: actorID}
-	snapshot, active, err := s.context(ctx, tx, actor, "simulate", nil)
-	if err != nil {
+	if a.ApprovedRequestID == "" {
+		// No policy result can authorize an unstaged native write. Refuse this
+		// missing prerequisite before rebuilding an unsolicited proposal; full
+		// impact assessment belongs to submission and authenticated drift intake.
+		out.Actor, out.PolicyDigest, out.RegistryDigest, out.RegistryEpoch = actorID, active.Hash, active.RegistryDigest, active.RegistryEpoch
+		out.PolicyOutcome = "NOT_EVALUATED_NO_GUARDED_COMMAND"
+		out.Decision = domain.Decision{Outcome: "HOLD", Reasons: []string{"a guarded independently approved command is required for native execution"}}
+		return nil
+	}
+	// Every source advance receives a new tenant ledger position. Under this
+	// tenant lock, an equal healthy position preserves Guard's complete graph
+	// proof; loading and rebuilding the graph adds no new authorization facts.
+	var graphVersion int64
+	var quarantined bool
+	if err := tx.QueryRow(ctx, `SELECT COALESCE(max(graph_version),0),COALESCE(bool_or(needs_resync),false) FROM ratchet.graph_sources WHERE tenant_id=$1`, pin.Tenant).Scan(&graphVersion, &quarantined); err != nil {
 		return err
 	}
-	out.Actor, out.GraphVersion, out.PolicyDigest, out.RegistryDigest, out.RegistryEpoch = actorID, snapshot.Version(), active.Hash, active.RegistryDigest, active.RegistryEpoch
-	if snapshot.Version() < a.MinGraphVersion {
+	if quarantined || graphVersion < 1 {
+		return ErrDependency
+	}
+	out.Actor, out.GraphVersion, out.PolicyDigest, out.RegistryDigest, out.RegistryEpoch = actorID, graphVersion, active.Hash, active.RegistryDigest, active.RegistryEpoch
+	if graphVersion < a.MinGraphVersion {
 		out.Decision.Reasons = []string{"graph has not reached the requested version"}
 		return nil
 	}
-	var c domain.Change
-	var result graph.Impact
-	var delta graph.Delta
-	if a.ApprovedRequestID != "" {
-		c, err = s.Store.ChangeWithin(ctx, tx, pin.Tenant, a.ApprovedRequestID)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		n := c.Intent.Kubernetes
-		if n == nil || n.MutationDigest != out.MutationDigest || n.Connector != pin.Connector || c.Intent.Target != NativeObjectKey(a.Mutation) || c.Requester != actorID {
-			return nil
-		}
-		snapshot, result, delta, err = s.changeImpactWithin(ctx, tx, snapshot, active, c)
-	} else {
-		var plan KubernetesPlan
-		plan, err = ephemeralKubernetesPlan(state, a.Mutation)
-		if err == nil {
-			snapshot, result, delta, err = nativeProjection(snapshot, active, plan)
-		}
-		c = domain.Change{TenantID: pin.Tenant, Requester: actorID, Intent: domain.Intent{Kind: "K8S_RBAC_CHANGE", Target: NativeObjectKey(a.Mutation), Access: a.Mutation.Operation}}
-	}
-	if err != nil {
-		out.Decision.Reasons = []string{"complete current native impact cannot be proved"}
+	c, err := s.Store.ChangeWithin(ctx, tx, pin.Tenant, a.ApprovedRequestID)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
-	decision, err := s.decidePolicy(ctx, pin.Tenant, a.AdmissionUID, active, factsFor(ctx, snapshot, active, c, result))
 	if err != nil {
-		return ErrDependency
+		return err
 	}
-	out.PolicyOutcome, out.Decision = decision.Outcome, decision
-	if a.ApprovedRequestID == "" {
-		if decision.Outcome == "ALLOW" {
-			out.Decision = domain.Decision{Outcome: "HOLD", Reasons: []string{"a guarded command is required for native execution"}}
-		}
+	n := c.Intent.Kubernetes
+	if n == nil || n.MutationDigest != out.MutationDigest || n.Connector != pin.Connector || c.Intent.Target != NativeObjectKey(a.Mutation) || c.Requester != actorID {
 		return nil
 	}
-	out.Decision = domain.Decision{Outcome: "HOLD", Reasons: []string{"current exact approved execution binding required"}}
-	command, err := s.nativeAuthorization(ctx, tx, now, actor, a, snapshot, active, c, result, delta, decision)
+	command, err := s.nativeAuthorization(ctx, tx, now, actor, a, graphVersion, active, c, state, sourceRevision)
 	if err != nil || command == nil {
 		return err
 	}
+	out.PolicyOutcome = c.Decision.Outcome
 	if a.DryRun {
 		out.Decision.Reasons = []string{"dry-run does not consume an execution permit"}
 		return nil
@@ -259,21 +247,19 @@ func ephemeralKubernetesPlan(state kube.State, mutation kube.Mutation) (Kubernet
 	return KubernetesPlan{SourceKey: graph.KubernetesSourceKey(state.Cluster), SourceDigest: hash, Current: current.Data(), Before: before.Data(), After: next.Data()}, err
 }
 
-func (s *Service) nativeAuthorization(ctx context.Context, tx pgx.Tx, now time.Time, actor Actor, a kube.Admission, snapshot *graph.Snapshot, active *policy.Active, c domain.Change, result graph.Impact, delta graph.Delta, decision domain.Decision) (*PreparedCommand, error) {
-	if c.State != domain.Executing || c.ExecutionID != a.CommandID || c.Envelope == nil || c.Envelope.GraphVersion != snapshot.Version() || c.Envelope.PolicyDigest != active.Hash || c.Envelope.RegistryDigest != active.RegistryDigest || c.Envelope.RegistryEpoch != active.RegistryEpoch || !now.Before(c.Envelope.ExpiresAt) {
+func (s *Service) nativeAuthorization(ctx context.Context, tx pgx.Tx, now time.Time, actor Actor, a kube.Admission, graphVersion int64, active *policy.Active, c domain.Change, state kube.State, sourceRevision int64) (*PreparedCommand, error) {
+	if c.State != domain.Executing || c.ExecutionID != a.CommandID || c.Envelope == nil || c.Envelope.GraphVersion != graphVersion || c.Envelope.PolicyDigest != active.Hash || c.Envelope.RegistryDigest != active.RegistryDigest || c.Envelope.RegistryEpoch != active.RegistryEpoch || !now.Before(c.Envelope.ExpiresAt) {
 		return nil, nil
 	}
-	impactDigest, err := canon.New().Digest(result)
-	if err != nil {
-		return nil, err
-	}
-	if impactDigest != c.Envelope.ImpactDigest || decision.Outcome != c.Decision.Outcome || decision.Outcome == "REJECT" || decision.Outcome == "HOLD" || decision.Quorum != c.Decision.Quorum || !slices.Equal(decision.Groups, c.Decision.Groups) || s.approvals == nil || len(c.Approvals) < max(1, decision.Quorum) {
+	// The signed staged command is issued only by Guard after full policy,
+	// impact and independence proof. Exact unchanged graph/policy/registry and
+	// source commitments preserve that proof; do not rebuild its graph inline.
+	if c.Decision.Outcome != "ALLOW" && c.Decision.Outcome != "REQUIRE_APPROVAL" || s.approvals == nil || len(c.Approvals) < max(1, c.Decision.Quorum) {
 		return nil, nil
 	}
 	seen := map[string]bool{}
 	for _, approval := range c.Approvals {
-		memberships, err := groups(snapshot, approval.ActorID)
-		if err != nil || seen[approval.ActorID] || active.Authorize(ctx, policy.Facts{Actor: approval.ActorID, Operation: "approve", Groups: memberships, Owners: ownersFor(active, result)}) != nil || eligible(snapshot, c, result, delta, approval.ActorID, ownersFor(active, result)) != nil {
+		if approval.ActorID == c.Requester || seen[approval.ActorID] {
 			return nil, nil
 		}
 		verified, err := s.approvals.Verify(ctx, approval.Evidence, c.Digest)
@@ -300,6 +286,25 @@ func (s *Service) nativeAuthorization(ctx context.Context, tx pgx.Tx, now time.T
 	}
 	if a.Mutation.Before != nil && (n.ExpectedUID != a.Mutation.Before.UID || n.ExpectedResourceVersion != a.Mutation.Before.ResourceVersion) {
 		return nil, nil
+	}
+	source, err := graph.KubernetesStateDigest(state)
+	if err != nil || source != n.SourceDigest.String() || command.ExpectedRevision != sourceRevision {
+		return nil, nil
+	}
+	if command.Envelope == nil {
+		return nil, eventstore.ErrIntegrity
+	}
+	envelope, err := canon.New().Digest(command.Envelope)
+	if err != nil || envelope != c.Digest {
+		return nil, eventstore.ErrIntegrity
+	}
+	wantApprovals, err := canon.New().Digest(c.Approvals)
+	if err != nil {
+		return nil, err
+	}
+	stagedApprovals, err := canon.New().Digest(command.Approvals)
+	if err != nil || wantApprovals != stagedApprovals {
+		return nil, eventstore.ErrIntegrity
 	}
 	signature := command.Signature
 	command.Signature = nil

@@ -332,6 +332,9 @@ func TestNativeAdmissionRefusesChangedContextAndAuthenticatesConnector(t *testin
 			if err != nil || result.ExecutionAuthorized || len(result.Signature) != 0 || result.Decision.Outcome == "ALLOW" {
 				t.Fatal("mismatched context authorized", mismatch, result.Decision, err)
 			}
+			if mismatch == "unapproved" && result.PolicyOutcome != "NOT_EVALUATED_NO_GUARDED_COMMAND" {
+				t.Fatal("unsolicited admission implied a policy assessment", result.PolicyOutcome)
+			}
 			var count int
 			if err := sys.store.WithTenantTx(sys.ctx, sys.tenant, func(tx pgx.Tx, _ time.Time) error {
 				return tx.QueryRow(sys.ctx, `SELECT count(*) FROM ratchet.native_admissions WHERE tenant_id=$1`, sys.tenant).Scan(&count)
@@ -364,6 +367,20 @@ func TestNativeSourceAdvanceInvalidatesAnOtherwiseExactApprovedAdmission(t *test
 	result, err := service.DecideKubernetes(sys.ctx, signedNativeAdmission(t, admission, connector))
 	if err != nil || result.ExecutionAuthorized || result.Decision.Outcome != "HOLD" {
 		t.Fatal("old source cut admitted after source advancement", err)
+	}
+}
+
+func TestNativeAdmissionRevalidatesWholeOrganizationGuardPosition(t *testing.T) {
+	sys, service, _, admission, connector, _, _ := readyNativeExecution(t)
+	// The native cut is unchanged, but any other source advance invalidates the
+	// signed whole-organization impact and owner-independence proof from Guard.
+	data := graph.Data{Nodes: []graph.Node{{ID: "external-resource", Type: "Resource", Tier: 2}}}
+	if _, err := sys.store.IngestGraph(sys.ctx, eventstore.GraphInput{TenantID: sys.tenant, ConnectorID: "external", MessageID: uuid.New(), CorrelationID: uuid.NewString(), WireDigest: (ports.Digest{37}).String(), ToRevision: 1, Complete: true, Snapshot: &data}, sys.key); err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.DecideKubernetes(sys.ctx, signedNativeAdmission(t, admission, connector))
+	if err != nil || result.ExecutionAuthorized || result.Decision.Outcome != "HOLD" || len(result.Signature) != 0 {
+		t.Fatal("stale whole-organization Guard proof authorized admission", err)
 	}
 }
 

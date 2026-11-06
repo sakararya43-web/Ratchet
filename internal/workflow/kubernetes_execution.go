@@ -186,6 +186,9 @@ func (s *Service) nativeExecutionResult(ctx context.Context, tx pgx.Tx, now time
 				}
 			}
 			events, err = domain.Decide(c, domain.Command{Kind: "VERIFIED", At: now, ExecutionID: c.ExecutionID, Verified: true})
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			if !r.AppliedAt.IsZero() || observed.DeletedUID != "" || !sameNativeObject(mutation.Before, observed.Object) {
 				return nil, ErrPermission

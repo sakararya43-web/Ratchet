@@ -188,3 +188,47 @@ func graphFromFacts(legacy graph.Data, compact []byte) (graph.Data, error) {
 	}
 	return data, nil
 }
+
+// Native admission needs the authenticated complete source state, not another
+// reconstruction of its already-compiled authority graph. Ignore graph arrays
+// while decoding, but verify the exact normalized state commitment and bounds.
+func nativeSourceState(raw []byte, sourceKey string) (kube.State, error) {
+	compact := bytes.HasPrefix(raw, []byte("RGZ1"))
+	if compact {
+		if len(raw)-4 > maxGraphCompressed {
+			return kube.State{}, ErrIntegrity
+		}
+		input := bytes.NewReader(raw[4:])
+		r, err := gzip.NewReader(input)
+		if err != nil {
+			return kube.State{}, ErrIntegrity
+		}
+		r.Multistream(false)
+		plain, err := io.ReadAll(io.LimitReader(r, maxGraphPlain+1))
+		closeErr := r.Close()
+		if err != nil || closeErr != nil || len(plain) > maxGraphPlain || input.Len() != 0 {
+			return kube.State{}, ErrIntegrity
+		}
+		raw = plain
+	}
+	if len(raw) > maxGraphPlain {
+		return kube.State{}, ErrIntegrity
+	}
+	var wire struct {
+		Version int                   `json:"version"`
+		States  map[string]kube.State `json:"kubernetes"`
+		Digests map[string]string     `json:"kubernetes_digests"`
+	}
+	if json.Unmarshal(raw, &wire) != nil || compact && wire.Version != 1 {
+		return kube.State{}, ErrIntegrity
+	}
+	state, ok := wire.States[sourceKey]
+	if !ok {
+		return kube.State{}, graph.ErrUnavailable
+	}
+	digest, err := graph.KubernetesStateDigest(state)
+	if err != nil || sourceKey != graph.KubernetesSourceKey(state.Cluster) || wire.Digests[sourceKey] != digest {
+		return kube.State{}, ErrIntegrity
+	}
+	return state, nil
+}

@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
 	"net/http"
 	"time"
 
@@ -63,15 +65,25 @@ func (a *Adapter) FetchSnapshot(ctx context.Context) (*connector.GraphSnapshot, 
 	if err := json.NewDecoder(resp.Body).Decode(&org); err != nil {
 		return nil, fmt.Errorf("failed to decode org state: %w", err)
 	}
+	if org.TenantID != a.tenantID {
+		return nil, fmt.Errorf("target tenant mismatch")
+	}
 
 	nodes, edges := connector.BuildGraphElements(&org)
+	message := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("ratchet-simulator-snapshot:%s:%s:%d", a.tenantID, a.connectorID, org.Revision))).String()
+	stamp := ""
+	if len(org.AuditLog) > 0 {
+		stamp = org.AuditLog[len(org.AuditLog)-1].Timestamp.UTC().Format(time.RFC3339Nano)
+	}
 	return &connector.GraphSnapshot{
+		Complete:       true,
+		Envelope:       &v1.ConnectorEnvelope{SchemaVersion: 1, TenantId: a.tenantID, ConnectorId: a.connectorID, MessageId: message, CorrelationId: message, SourceRevision: org.Revision},
 		TenantID:       a.tenantID,
 		ConnectorID:    a.connectorID,
 		SourceRevision: org.Revision,
 		Nodes:          nodes,
 		Edges:          edges,
-		Timestamp:      time.Now().UTC().Format(time.RFC3339),
+		Timestamp:      stamp,
 	}, nil
 }
 

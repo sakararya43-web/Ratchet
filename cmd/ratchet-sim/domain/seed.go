@@ -197,6 +197,7 @@ func NewSeedOrgState() *OrgState {
 					"svc:wallet-signer",
 				},
 				Parameters: map[string]string{
+					"guard_kind":      "withdrawal_threshold_v1",
 					"threshold_usd":   "10000",
 					"required_checks": "2",
 				},
@@ -290,4 +291,3 @@ func NewSeedOrgState() *OrgState {
 		},
 	}
 }
-

@@ -1,7 +1,9 @@
 package sim_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -9,7 +11,10 @@ import (
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
 	simserver "github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/server"
 	"github.com/sakararya43-web/Ratchet/internal/connector"
+	"github.com/sakararya43-web/Ratchet/internal/connector/conformance"
 	"github.com/sakararya43-web/Ratchet/internal/connector/sim"
+	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestSimulatorAdapterExecuteAndVerify(t *testing.T) {
@@ -108,5 +113,62 @@ func TestSimulatorAdapterExecuteAndVerify(t *testing.T) {
 		if r == "role:exchange-admin" {
 			t.Errorf("expected role:exchange-admin to be absent after revocation")
 		}
+	}
+}
+
+func TestCompleteSnapshotStableAndRetainsActualRestriction(t *testing.T) {
+	store, err := domain.NewStore(filepath.Join(t.TempDir(), "target.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(simserver.NewServer(store, "snapshot-test-token").Routes())
+	defer server.Close()
+	adapter := sim.NewAdapter(server.URL, "snapshot-test-token", "tenant-exchange-demo", "snapshot-source")
+	first, err := adapter.FetchSnapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := adapter.FetchSnapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := json.Marshal(first)
+	b, _ := json.Marshal(second)
+	if !bytes.Equal(a, b) {
+		t.Fatal("same target revision changed durable message bytes")
+	}
+	command := &connector.ExecCommand{CommandID: "restrict", TenantID: "tenant-exchange-demo", Action: "RESTRICT_ACCOUNT", TargetIdentity: "user:rahul", ExpectedTargetRevision: first.SourceRevision}
+	result, err := adapter.Execute(context.Background(), command)
+	if err != nil || !result.Success {
+		t.Fatal(result, err)
+	}
+	observed, err := adapter.FetchSnapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(observed)
+	wire := new(v1.GraphSnapshot)
+	if err = protojson.Unmarshal(raw, wire); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := conformance.Snapshot(wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reach, err := snapshot.Reach("user:rahul")
+	if err != nil || len(reach.Powers) != 0 {
+		t.Fatal("restricted target retained access", reach, err)
+	}
+	found := false
+	for _, node := range observed.Nodes {
+		if node.ID == "session:rahul-workstation-1" {
+			found = true
+			if node.Properties["disabled"] != "true" {
+				t.Fatal("actual session revocation lost")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("retained session omitted")
 	}
 }

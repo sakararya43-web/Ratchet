@@ -12,6 +12,14 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Closed all reproduced actual-peer conformance failures: complete stable
+  simulator envelopes now retain explicit safeguard semantics, original grant
+  IDs, session/account state and valid logical-permission endpoints. Actual
+  restriction/read-back and stable-byte retry tests pass. All peer conformance
+  groups pass under race with the final pinned peer overlay. Kept the original
+  simulator component journeys in the peer-only test profile and stopped its
+  serialization test from overwriting the reviewed source fixture.
+
 - Fixed the reproduced simulator stale-write contract on main. Target CAS,
   mutation and durable duplicate receipt share the target lock/atomic file;
   failed persistence rolls back visible IAM state. Competing commands, altered

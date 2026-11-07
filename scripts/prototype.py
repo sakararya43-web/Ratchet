@@ -50,7 +50,7 @@ def main():
         compose('run','--rm','--no-deps','operator','ratchet-prototype','init')
         compose('up','-d','--wait','simulator','graph','core','connector')
         export_credentials()
-        print('Prototype: https://localhost:8444 (execution remains disabled until Phase B).')
+        print('Prototype: https://localhost:8444')
     elif args.action=='renew-tls':
         compose('stop','core','graph')
         compose('run','--rm','--no-deps','operator','ratchet-prototype','renew-tls')

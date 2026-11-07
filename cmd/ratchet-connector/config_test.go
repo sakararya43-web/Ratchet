@@ -33,3 +33,20 @@ func TestSigningIdentityMustBeExplicitAndConsistent(t *testing.T) {
 		t.Fatal("inconsistent key accepted")
 	}
 }
+
+func TestTransportRejectsRemotePlaintextAndInlineCredentials(t *testing.T) {
+	for _, address := range []string{"nats://example.com:4222", "tls://example.com:4222", "tls://user:secret@example.com:4222", "file:///tmp/broker"} {
+		if err := validateTransport(address, "tls", false); err == nil {
+			t.Fatal("unsafe broker", address)
+		}
+	}
+	if err := validateTransport("tls://example.com:4222", "tls", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateTransport("nats://127.0.0.1:4222", "tls", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateTransport("http://example.com", "https", true); err == nil {
+		t.Fatal("unsafe target")
+	}
+}

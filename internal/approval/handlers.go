@@ -18,6 +18,9 @@ import (
 type SessionIdentity interface {
 	PasskeyPrincipal(*http.Request) (string, string, error)
 }
+type CredentialAuthorizer interface {
+	AuthorizePasskeyChange(*http.Request, string, string) error
+}
 type Handler struct {
 	verifier *ApprovalVerifier
 	store    *CredentialStore
@@ -113,6 +116,11 @@ func (h *Handler) registerBegin(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	authorizer, allowed := h.identity.(CredentialAuthorizer)
+	if !allowed || authorizer.AuthorizePasskeyChange(r, "enroll", "") != nil {
+		http.Error(w, "one-use operator enrollment authorization required", http.StatusForbidden)
+		return
+	}
 	user, err := h.store.User(r.Context(), t, a)
 	if err != nil {
 		http.Error(w, "credentials unavailable", http.StatusServiceUnavailable)
@@ -202,6 +210,11 @@ func (h *Handler) revoke(w http.ResponseWriter, r *http.Request) {
 	id, err := hex.DecodeString(in.CredentialID)
 	if err != nil {
 		http.Error(w, "invalid credential", http.StatusBadRequest)
+		return
+	}
+	authorizer, allowed := h.identity.(CredentialAuthorizer)
+	if !allowed || authorizer.AuthorizePasskeyChange(r, "revoke", hex.EncodeToString(id)) != nil {
+		http.Error(w, "one-use operator revocation authorization required", http.StatusForbidden)
 		return
 	}
 	if err := h.store.RevokeCredential(t, a, id); err != nil {

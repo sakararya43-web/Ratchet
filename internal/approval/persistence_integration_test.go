@@ -69,6 +69,7 @@ func TestRealWebAuthnCeremoniesPersistAndBindAuthenticatedOwner(t *testing.T) {
 	mux.Handle("/passkeys/", sessions.Require(http.StripPrefix("/passkeys", factory(ports.PasskeyDeps{SessionAPI: sessions}))))
 	server := httptest.NewTLSServer(mux)
 	defer server.Close()
+	operatorTicket := ""
 	post := func(client *http.Client, path, csrf string, in any, out any) int {
 		t.Helper()
 		raw, err := json.Marshal(in)
@@ -82,6 +83,7 @@ func TestRealWebAuthnCeremoniesPersistAndBindAuthenticatedOwner(t *testing.T) {
 		r.Header.Set("Origin", "https://console.test")
 		r.Header.Set("X-CSRF-Token", csrf)
 		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set(api.CredentialAuthorizationHeader, operatorTicket)
 		response, err := client.Do(r)
 		if err != nil {
 			t.Fatal(err)
@@ -125,9 +127,26 @@ func TestRealWebAuthnCeremoniesPersistAndBindAuthenticatedOwner(t *testing.T) {
 	if status := post(owner, "/passkeys/register/begin", csrf, approval.RegisterBeginRequest{TenantID: tenant, ActorID: "other"}, nil); status != 403 {
 		t.Fatal("forged registration owner", status)
 	}
+	if status := post(owner, "/passkeys/register/begin", csrf, approval.RegisterBeginRequest{}, nil); status != 403 {
+		t.Fatal("session alone enrolled a credential", status)
+	}
+	if _, err := api.ProvisionCredentialAuthorization(ctx, pool, api.Principal{TenantID: tenant, ActorID: "owner"}, "enroll", "", time.Hour); err == nil {
+		t.Fatal("runtime role minted an enrollment ticket")
+	}
+	operatorTicket, err = api.ProvisionCredentialAuthorization(ctx, admin, api.Principal{TenantID: tenant, ActorID: "owner"}, "enroll", "", time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status := post(other, "/passkeys/register/begin", otherCSRF, approval.RegisterBeginRequest{}, nil); status != 403 {
+		t.Fatal("other actor used enrollment ticket", status)
+	}
 	if status := post(owner, "/passkeys/register/begin", csrf, approval.RegisterBeginRequest{}, &begin); status != 200 {
 		t.Fatal("real registration begin", status)
 	}
+	if status := post(owner, "/passkeys/register/begin", csrf, approval.RegisterBeginRequest{}, nil); status != 403 {
+		t.Fatal("enrollment ticket reused", status)
+	}
+	operatorTicket = ""
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -215,9 +234,20 @@ func TestRealWebAuthnCeremoniesPersistAndBindAuthenticatedOwner(t *testing.T) {
 	if _, err := verifier.Verify(ctx, result.Submission, digest); err != nil {
 		t.Fatal("restart lost enrolled credential", err)
 	}
-	if err := restarted.RevokeCredential(tenant, "owner", id); err != nil {
+	if status := post(owner, "/passkeys/revoke", csrf, approval.RevokeRequest{CredentialID: hex.EncodeToString(id)}, nil); status != 403 {
+		t.Fatal("session alone revoked a credential", status)
+	}
+	operatorTicket, err = api.ProvisionCredentialAuthorization(ctx, admin, api.Principal{TenantID: tenant, ActorID: "owner"}, "revoke", hex.EncodeToString(id), time.Hour)
+	if err != nil {
 		t.Fatal(err)
 	}
+	if status := post(owner, "/passkeys/revoke", csrf, approval.RevokeRequest{CredentialID: "1234"}, nil); status != 403 {
+		t.Fatal("ticket changed credential target", status)
+	}
+	if status := post(owner, "/passkeys/revoke", csrf, approval.RevokeRequest{CredentialID: hex.EncodeToString(id)}, nil); status != 200 {
+		t.Fatal("authorized credential revocation", status)
+	}
+	operatorTicket = ""
 	if _, err := verifier.Verify(ctx, result.Submission, digest); err == nil {
 		t.Fatal("revoked credential still verifies")
 	}

@@ -12,6 +12,23 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Prototype A — trusted foundation (2026-11-08, in progress)
+
+- Required explicit persistent connector keys and broker credentials, remote
+  transport authentication and real JetStream delivery. Removed the runtime
+  success-returning log fallback; added a real publish-only mode for ingestion.
+- Switched the prototype executable to complete signed source cuts. Session
+  revocation survives restart; cursor writes are atomic and failed persistence
+  does not advance their in-memory revision. Focused race regressions pass.
+- Added migration 16: operator-issued, actor/operation/credential-bound one-use
+  enrollment/revocation tickets with database-time expiry. Runtime credentials
+  cannot mint tickets. Real HTTPS/WebAuthn/PostgreSQL acceptance proves session-
+  only enrollment refusal, wrong-actor refusal, one-use and persistent ceremony
+  behavior. Local cold-start race login initially exceeded its existing client
+  deadline; the unchanged test passed on retry. No production deadline changed.
+- Original plans remain required; sequential prototype exit gates are tracked
+  in `prototype-progress.md`.
+
 ## Phase 7 - hardening/check/evidence delivered; release exit open (2026-11-07)
 
 - Completed tasks 8 and 9 on source `7ddc8a9`: both hosted jobs pass, including

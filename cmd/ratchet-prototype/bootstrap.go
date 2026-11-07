@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -130,6 +131,7 @@ func initialize(ctx context.Context, pool *pgxpool.Pool, root, policyDir string)
 	if err = writeJSON(filepath.Join(core, "graph.json"), graph); err != nil {
 		return err
 	}
+
 	users := []demoUser{}
 	for _, id := range []string{"user:rahul-assistant", "user:finance-lead", "user:sec-lead-1", "user:sec-lead-2"} {
 		password, err := randomHex()
@@ -163,6 +165,32 @@ func refreshCapability(root string) error {
 	key, err := hex.DecodeString(string(raw))
 	if err != nil || len(key) != ed25519.PrivateKeySize {
 		return errors.New("persistent connector key unavailable")
+	}
+	coreRaw, err := os.ReadFile(filepath.Join(root, "core", "signing.key"))
+	if err != nil {
+		return err
+	}
+	coreKey, err := hex.DecodeString(string(coreRaw))
+	if err != nil || len(coreKey) != ed25519.PrivateKeySize {
+		return errors.New("persistent core key unavailable")
+	}
+	var config struct {
+		Tenants []struct {
+			Genesis string `json:"genesis_digest"`
+		} `json:"tenants"`
+	}
+	configRaw, err := os.ReadFile(filepath.Join(root, "core", "console.json"))
+	if err != nil {
+		return err
+	}
+	if err = json.Unmarshal(configRaw, &config); err != nil {
+		return err
+	}
+	if len(config.Tenants) != 1 || config.Tenants[0].Genesis == "" {
+		return errors.New("pinned genesis unavailable")
+	}
+	if err = writeJSON(filepath.Join(root, "core", "identity.json"), map[string]string{"core_public_key": hex.EncodeToString(ed25519.PrivateKey(coreKey).Public().(ed25519.PublicKey)), "connector_public_key": hex.EncodeToString(ed25519.PrivateKey(key).Public().(ed25519.PublicKey)), "genesis_digest": config.Tenants[0].Genesis}); err != nil {
+		return err
 	}
 	capability := workflow.Capability{Tenant: tenant, Connector: connectorID, Protocol: "RATCHET_EXEC_V1", Expires: time.Now().UTC().Add(23 * time.Hour), BoundCommands: true, AtomicPreconditions: true, DurableDedup: true, IndependentReadBack: true}
 	digest, err := canon.New().Digest(struct {

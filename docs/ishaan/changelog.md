@@ -29,6 +29,17 @@
 - Original plans remain required; sequential prototype exit gates are tracked
   in `prototype-progress.md`.
 
+- Added the isolated nonroot Docker profile and actual operator bootstrap: fresh
+  accounts, 2-of-2 signed policy, stable TLS/core/connector keys, pinned capability
+  and persistent volumes. No serving process holds operator database credentials.
+- Strict X.509 regression exposed a missing issuer key identifier; corrected
+  issuance and added explicit operator TLS renewal. Focused real WebAuthn race
+  acceptance (including authorized/rejected revocation) and certificate tests pass.
+- Real lifecycle acceptance passes: TLS/password login, 25 nodes/45 edges,
+  graph version 1 and identical public identity digest across restart; stopping
+  PostgreSQL returns 503 readiness. Evidence: private foundation-evidence.json;
+  repeat with scripts/prototype-foundation.py. Phase A closes; B starts next.
+
 ## Phase 7 - hardening/check/evidence delivered; release exit open (2026-11-07)
 
 - Completed tasks 8 and 9 on source `7ddc8a9`: both hosted jobs pass, including

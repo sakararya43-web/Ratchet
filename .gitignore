@@ -34,3 +34,7 @@ yarn-error.log*
 Thumbs.db
 .DS_Store
 
+
+# Python lifecycle tooling
+__pycache__/
+*.pyc

@@ -5,11 +5,11 @@ Sakar's branch and plan remain unchanged. No original requirement is removed.
 
 ## A — trusted local foundation (in progress)
 
-- [ ] Persistent signing identities; explicit transport/credentials; no logging fallback.
-- [ ] Reliable signed complete snapshots for the prototype target.
-- [ ] Controlled, one-use operator-authorized credential enrollment/revocation.
-- [ ] Real signed demo policy, independent approvers and persistent local configuration.
-- [ ] Repeatable local startup/shutdown, persistence/restart and honest health checks.
+- [x] Persistent signing identities; explicit transport/credentials; no logging fallback.
+- [x] Reliable signed complete snapshots for the prototype target.
+- [x] Controlled, one-use operator-authorized credential enrollment/revocation.
+- [x] Real signed demo policy, independent approvers and persistent local configuration.
+- [x] Repeatable local startup/shutdown, persistence/restart and honest health checks.
 
 ## B — secure verified execution (not started)
 

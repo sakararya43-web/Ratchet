@@ -39,6 +39,9 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	if args[0] == "graph-serve" {
 		return runGraph(ctx, args[1:], out)
 	}
+	if args[0] == "recover" {
+		return runRecovery(ctx, args[1:], out)
+	}
 	if args[0] == "console-serve" {
 		return runConsole(ctx, args[1:], out)
 	}

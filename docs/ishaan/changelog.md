@@ -12,6 +12,13 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Added real retained-evidence recovery and projection repair through `ratchetd
+  recover`. A new-process regression reconstructs damaged audit display state
+  with unchanged graph/chain commitments. Added and passed a full PostgreSQL
+  custom-format backup/isolated-restore comparison: all 28 core/River table
+  counts and ordered SHA-256 row commitments match. Only generated scratch
+  database/dump names are cleanup targets; active source data is untouched.
+
 - Added real per-client PostgreSQL/NATS network outage and recovery tests, explicit
   broker/Authority-source readiness and expired execution capability refusal.
   The focused Linux race/integration batch passes. Added a source-upload check

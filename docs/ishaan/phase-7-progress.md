@@ -12,7 +12,14 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    retain their existing negative tests. The targeted Linux race/integration
    batch passes. This is local single-instance recovery, not HA. Actual peer
    connector and passkey acceptance must still be checked, not inferred.
-2. Restart/replay, migrations and backup/restore: pending.
+2. Restart/replay, migrations and backup/restore: the real `recover --tenant`
+   command verifies chain/schema, replays public graph facts and reconstructs
+   change/audit projections without privacy keys or execution. A new-process
+   test repairs a damaged audit projection and compares graph/chain commitments.
+   A custom-format PostgreSQL dump restores into an owned scratch database;
+   all 28 core/River table counts and ordered SHA-256 row commitments match.
+   The original database is never a restore/drop target. Historical checkpoint
+   verification retains its existing signed-history tests.
 3. Privacy key deletion and sensitive access: pending.
 4. Resource limits, fuzzing, dependencies and domain boundaries: pending.
 5. Selectable runtime roles: pending.

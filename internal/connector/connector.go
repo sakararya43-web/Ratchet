@@ -22,6 +22,7 @@ type Config struct {
 	CursorPath   string
 	SyncInterval time.Duration
 	SigningKey   ed25519.PrivateKey
+	SnapshotOnly bool // Complete source cuts; used by the small simulator prototype.
 }
 
 // Connector manages communication between an external IAM target and the RATCHET control plane.
@@ -67,7 +68,7 @@ func (c *Connector) SyncOnce(ctx context.Context) error {
 	lastRevision := c.cursorStore.Get()
 
 	// 1. Initial sync: no saved cursor -> Fetch full snapshot
-	if lastRevision == 0 {
+	if lastRevision == 0 || c.cfg.SnapshotOnly {
 		return c.performSnapshotSync(ctx)
 	}
 

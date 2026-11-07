@@ -275,6 +275,7 @@ func main() {
 		CursorPath:   *cursorPath,
 		SyncInterval: *syncInterval,
 		SigningKey:   signingKey,
+		SnapshotOnly: true,
 	}, adapter, publisher)
 	if err != nil {
 		log.Fatalf("Failed to initialize connector: %v", err)

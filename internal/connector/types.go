@@ -3,9 +3,9 @@ package connector
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
@@ -143,9 +143,10 @@ func NewCursorStore(filePath string) (*CursorStore, error) {
 			var cur struct {
 				Cursor int64 `json:"cursor"`
 			}
-			if err := json.Unmarshal(data, &cur); err == nil {
-				cs.cursor = cur.Cursor
+			if err := json.Unmarshal(data, &cur); err != nil || cur.Cursor < 0 {
+				return nil, fmt.Errorf("invalid persistent source cursor")
 			}
+			cs.cursor = cur.Cursor
 		}
 	}
 	return cs, nil
@@ -160,16 +161,15 @@ func (cs *CursorStore) Get() int64 {
 func (cs *CursorStore) Set(cursor int64) error {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
-	cs.cursor = cursor
-
-	if cs.filePath != "" {
-		dir := filepath.Dir(cs.filePath)
-		if dir != "" && dir != "." {
-			_ = os.MkdirAll(dir, 0755)
-		}
-		data, _ := json.Marshal(map[string]int64{"cursor": cursor})
-		return os.WriteFile(cs.filePath, data, 0644)
+	if cursor < 0 {
+		return fmt.Errorf("negative source cursor")
 	}
+	if cs.filePath != "" {
+		if err := WritePrivateJSON(cs.filePath, map[string]int64{"cursor": cursor}); err != nil {
+			return err
+		}
+	}
+	cs.cursor = cursor
 	return nil
 }
 

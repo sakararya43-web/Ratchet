@@ -6,7 +6,8 @@ import (
 	"io/fs"
 )
 
-//go:embed assets
+// Include valid bundler chunks whose filenames begin with underscores.
+//go:embed all:assets
 var built embed.FS
 
 func Files() fs.FS { result, _ := fs.Sub(built, "assets"); return result }

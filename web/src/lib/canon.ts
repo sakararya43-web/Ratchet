@@ -156,8 +156,6 @@ async function digestString(str: string): Promise<string> {
     return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
-  // Fallback to Node.js crypto module if available
-  const nodeCrypto = await import('node:crypto');
-  return nodeCrypto.createHash('sha256').update(utf8Bytes).digest('hex');
+  throw new Error('Secure Web Crypto is required; use the HTTPS console');
 }
 

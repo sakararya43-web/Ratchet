@@ -234,7 +234,7 @@ func runGraph(parent context.Context, args []string, out io.Writer) error {
 			}
 		}
 	})
-	start(func() error { return serveTransport(ctx, *listen, mux, out, security) })
+	start(func() error { return serveTransport(ctx, *listen, api.NewRequestLimits().Wrap(mux), out, security) })
 	select {
 	case <-parent.Done():
 		return nil

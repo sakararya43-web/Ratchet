@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -71,7 +72,11 @@ func authJSON(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 func decodeBody(r *http.Request, value any) error {
-	d := json.NewDecoder(io.LimitReader(r.Body, 16385))
+	raw, err := io.ReadAll(io.LimitReader(r.Body, 16385))
+	if err != nil || len(raw) > 16384 {
+		return errors.New("authentication request too large or unreadable")
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(value); err != nil {
 		return err

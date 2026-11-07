@@ -324,7 +324,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}
 	mux.Handle("/api/ratchet.v1.DecisionService/DecideKubernetes", http.StripPrefix("/api", nativeDecisions))
 	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", sessions.Routes()))
-	mux.Handle("/api/", http.StripPrefix("/api", sessions.Require(apiMux)))
+	mux.Handle("/api/", http.StripPrefix("/api", sessions.Require(api.NewRequestLimits().Wrap(apiMux))))
 	mux.Handle("/", api.Health{Database: store.CheckDatabase, Migrations: store.CheckMigrations, RuntimeRole: store.CheckRuntimeRole, Graph: func(ctx context.Context) error {
 		for tenant := range tenants {
 			if _, err := registry.Get(ctx, tenant, 0); err != nil {
@@ -335,6 +335,9 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}, PolicyBundle: service.PolicyReady, Workflow: service.Ready, Broker: broker.Ready, Authority: func(ctx context.Context) error {
 		for _, source := range policySources {
 			for _, path := range []string{source.AuthorityFile, source.BundleFile} {
+				if path == "" {
+					continue
+				}
 				if err := ctx.Err(); err != nil {
 					return err
 				}
@@ -421,7 +424,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		}
 	})
 	start(func() error {
-		return serveTransport(ctx, *listen, mux, out, &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}})
+		return serveTransport(ctx, *listen, api.NewRequestLimits().Wrap(mux), out, &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}})
 	})
 	select {
 	case <-parent.Done():

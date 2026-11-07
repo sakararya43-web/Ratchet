@@ -28,7 +28,17 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    the new recovery checks. [Procedure and limits](core-recovery.md) explicitly
    require stopping readers and deleting backup/config copies; logical file
    deletion does not promise physical SSD erasure.
-4. Resource limits, fuzzing, dependencies and domain boundaries: pending.
+4. Resource limits, fuzzing, dependencies and domain boundaries: per-instance
+   request limits enforce 1 MiB bodies, 64 concurrent requests, 8 per authenticated
+   actor/tenant (or authenticated certificate/actual peer IP), burst 60/refill 10
+   per second and at most 10,000 hashed buckets. Forwarded headers are not identity.
+   Size, rate, concurrency and tenant-isolation tests pass. Two sequential
+   30-second single-worker fuzz runs pass (authentication and normalized native
+   state/mutation; native run 136,579 executions). Domain direct-I/O/outward
+   dependency checks pass. Updated advisory-bearing compress/crypto versions;
+   govulncheck v1.9.0 now reports no vulnerabilities. CI enforces these checks.
+   Reproduced five real passkey conformance failures in the unchanged final peer
+   overlay; these remain failures, not expected-failure tests or bypassed gates.
 5. Selectable runtime roles: pending.
 6. Actual peer web artifact embedding: pending.
 7. Containers, SBOM, signatures and core runbooks: pending.

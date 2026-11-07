@@ -21,6 +21,9 @@ import (
 )
 
 func TestRecoveryChildProcess(t *testing.T) {
+	if os.Getenv("RATCHET_RECOVERY_CHILD") == "" {
+		t.Skip("invoked only by the new-process recovery test")
+	}
 	if tenant := os.Getenv("RATCHET_RECOVERY_CHILD"); tenant != "" {
 		if err := runRecovery(t.Context(), []string{"--tenant", tenant, "--rebuild"}, os.Stdout); err != nil {
 			t.Fatal(err)

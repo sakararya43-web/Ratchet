@@ -5,6 +5,7 @@ credentials are excluded. Database/broker credentials pass only as environment.
 The uniquely named container is always removed, leaving shared dependencies alone.
 """
 import os
+import io
 from pathlib import Path
 import subprocess
 import sys
@@ -17,6 +18,15 @@ def main():
     if len(sys.argv) < 2:
         raise SystemExit("usage: python scripts/core-check.py COMMAND [ARG ...]")
     root = Path(__file__).resolve().parents[1]
+    arguments = sys.argv[1:]
+    peer = False
+    update_modules = False
+    while arguments and arguments[0] in ("--peer", "--update-modules"):
+        peer |= arguments[0] == "--peer"
+        update_modules |= arguments[0] == "--update-modules"
+        arguments = arguments[1:]
+    if not arguments or peer and update_modules:
+        raise SystemExit("select a check command; peer overlays cannot update main's modules")
     files = subprocess.check_output(
         ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=root
     ).decode().split("\0")
@@ -24,6 +34,13 @@ def main():
     with tempfile.TemporaryDirectory(prefix="ratchet-check-") as directory:
         archive = Path(directory) / "source.tar"
         with tarfile.open(archive, "w") as bundle:
+            if peer:
+                # Read-only pinned source overlay; no checkout, merge or branch mutation.
+                pinned = "d823a106bb4a64b0fe54e366c41029ccbd8dfda8"
+                exported = subprocess.check_output(["git", "archive", "--format=tar", pinned], cwd=root)
+                with tarfile.open(fileobj=io.BytesIO(exported)) as source:
+                    for member in source:
+                        bundle.addfile(member, source.extractfile(member) if member.isfile() else None)
             for relative in sorted(set(files)):
                 path = root / relative
                 if relative and not relative.startswith(".local/") and path.is_file():
@@ -38,12 +55,15 @@ def main():
             if key in os.environ:
                 command += ["--env", key]
         command += ["golang:1.27.3-bookworm", "sh", "-c",
-                    'tar -xf /tmp/ratchet-source.tar -C /src && exec "$@"', "core-check", *sys.argv[1:]]
+                    'tar -xf /tmp/ratchet-source.tar -C /src && exec "$@"', "core-check", *arguments]
         subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
         try:
             subprocess.run(["docker", "cp", str(archive), name + ":/tmp/ratchet-source.tar"], check=True)
             result = subprocess.run(["docker", "start", "--attach", name])
             state = subprocess.check_output(["docker", "inspect", "--format", "{{.State.ExitCode}}", name])
+            if update_modules and not result.returncode and not int(state):
+                for filename in ("go.mod", "go.sum"):
+                    subprocess.run(["docker", "cp", name + ":/src/" + filename, str(root / filename)], check=True)
             return result.returncode or int(state)
         finally:
             subprocess.run(["docker", "rm", "--force", name], check=False, stdout=subprocess.DEVNULL)

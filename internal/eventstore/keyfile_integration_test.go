@@ -35,6 +35,9 @@ func TestExternalPrivacyKeyDeletionRetainsPublicVerification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := store.CurrentGraph(ctx, tenant, key); err != nil {
+		t.Fatal("live external key could not decrypt source", err)
+	}
 	count, tip, err := store.VerifyTenant(ctx, tenant)
 	if err != nil {
 		t.Fatal(err)

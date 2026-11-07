@@ -12,6 +12,15 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Bounded API bodies, concurrent work and hashed actor/tenant rate buckets.
+  Reject authentication payloads that exceed their actual byte limit, including
+  oversized whitespace tails. Race tests cover size, concurrency and tenant
+  isolation. Both 30-second single-worker fuzz targets and domain dependency
+  checks pass. Patched compress/crypto advisories; govulncheck v1.9.0 reports
+  no vulnerabilities. Added CI enforcement. An isolated final-peer conformance
+  run still fails all five recorded WebAuthn/session checks; no integration
+  readiness is inferred and required ownership clarification is pending.
+
 - Added external privacy-key lifecycle commands and file-based core key loading.
   Real key destruction prevents decryption of retained ciphertext while public
   graph/chain commitments survive. Requester/outsider/reviewer access, audit

@@ -12,6 +12,13 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Hosted CI confirmed the contract/generator job and ordinary main race suite,
+  then exposed one lone carriage return from Vite's CRLF input transformation.
+  Normalizing the actual HTML source before building now yields the exact Linux
+  artifact hash on Windows; the full real build/tests/audit passed again. Cleanup
+  only accesses Compose when its generated environment exists. Final CI remains
+  required after this correction.
+
 - Reused the pinned peer's actual priority, expiry and drift helpers on main,
   carrying frozen target revisions into CAS commands instead of silently
   rebasing stale intent. Durable target receipts retain their original applied

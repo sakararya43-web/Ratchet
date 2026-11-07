@@ -8,6 +8,10 @@ import subprocess
 
 root = Path(__file__).resolve().parents[1]
 web = root / 'web'
+# Normalize before Vite computes HTML transformation offsets. Normalizing only
+# its output can leave a lone CR introduced while transforming CRLF input.
+entry = web / 'index.html'
+entry.write_bytes(entry.read_bytes().replace(b'\r\n', b'\n').replace(b'\r', b'\n'))
 npm = [shutil.which('npm')]
 if os.name == 'nt':
     node = Path(shutil.which('node'))

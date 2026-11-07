@@ -144,7 +144,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Dependency diagnostics on failure
         if: failure()
-        run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml logs --no-color --tail=100
+        run: |
+          if test -f .local/core.env; then
+            docker compose --env-file .local/core.env -f deploy/compose/compose.yaml logs --no-color --tail=100
+          fi
       - name: Stop only this job's containers
         if: always()
-        run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml down
+        run: |
+          if test -f .local/core.env; then
+            docker compose --env-file .local/core.env -f deploy/compose/compose.yaml down
+          fi

@@ -18,3 +18,8 @@ foreach ($role in @('MIGRATOR','RUNTIME','PROJECTOR')) {
     $name = switch ($role) { 'MIGRATOR' { 'RATCHET_MIGRATION_DSN' } 'RUNTIME' { 'RATCHET_DATABASE_DSN' } 'PROJECTOR' { 'RATCHET_PROJECTOR_DSN' } }
     [Environment]::SetEnvironmentVariable($name,$dsn,'Process')
 }
+if (-not $env:RATCHET_NATS_URL) {
+    # Match this repository's loopback-only Compose publication, not NATS's
+    # unrelated default port. Preserve an explicitly selected external broker.
+    $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
+}

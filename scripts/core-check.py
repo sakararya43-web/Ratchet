@@ -22,8 +22,14 @@ def main():
     peer = False
     update_modules = False
     update_generated = False
+    test_binary = None
     image = "golang:1.27.3-bookworm"
-    while arguments and arguments[0] in ("--peer", "--update-modules", "--update-generated", "--image"):
+    while arguments and arguments[0] in ("--peer", "--update-modules", "--update-generated", "--image", "--test-binary"):
+        if arguments[0] == "--test-binary":
+            if len(arguments)<2 or arguments[1] not in ('conformance','workflow','kubernetes'):
+                raise SystemExit('test binary must be conformance, workflow or kubernetes')
+            test_binary,arguments=arguments[1],arguments[2:]
+            continue
         if arguments[0] == "--image":
             if len(arguments)<2: raise SystemExit("--image requires a pinned tool image")
             image,arguments=arguments[1],arguments[2:]
@@ -75,6 +81,11 @@ def main():
                 for filename in ("db.go", "models.go", "queries.sql.go"):
                     path = "internal/eventstore/storedb/" + filename
                     subprocess.run(["docker", "cp", name + ":/src/" + path, str(root / path)], check=True)
+            if test_binary and not result.returncode and not int(state):
+                output=root/'.local/phase7-kind-tests'
+                output.mkdir(parents=True,exist_ok=True)
+                filename=test_binary+'.test.exe'
+                subprocess.run(['docker','cp',name+':/src/.local/'+filename,str(output/filename)],check=True)
             return result.returncode or int(state)
         finally:
             subprocess.run(["docker", "rm", "--force", name], check=False, stdout=subprocess.DEVNULL)

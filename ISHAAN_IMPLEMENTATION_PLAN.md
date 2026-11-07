@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 6's five core tasks and selected real-kind acceptance are complete on `main`; see [Phase 6 evidence](docs/ishaan/phase-6-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 7 has not started. Phase 5's core implementation is complete, while its joint acceptance and earlier trust/target gates remain open. Phase 4's unfinished own work and joint gates remain required and are not marked complete. No requirement was removed or shortened.
+**Status:** Phase 6's five core tasks and selected real-kind acceptance are complete on `main`; see [Phase 6 evidence](docs/ishaan/phase-6-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 7 hardening is implemented and its final validation and completion evidence are in progress; see [Phase 7 record](docs/ishaan/phase-7-progress.md). Phase 5's core implementation is complete, while its joint acceptance and earlier trust/target gates remain open. Phase 4's unfinished own work and joint gates remain required and are not marked complete. No requirement was removed or shortened.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 

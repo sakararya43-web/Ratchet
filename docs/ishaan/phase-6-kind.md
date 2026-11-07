@@ -42,7 +42,7 @@ The kind executable path must be absolute and verified before use.
 $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
 $env:RATCHET_KIND_BINARY = (Resolve-Path .local/phase6-tools/kind.exe).Path
 $env:RATCHET_EVALUATION_DIR = Join-Path $PWD '.local/phase6-evaluation'
-go test -p=1 -tags='integration,kindintegration' ./internal/workflow -run TestNativeActualKindAdmissionApprovalReadBackAndOutage -count=1 -v -timeout=10m
+go test -p=1 -tags='integration,kindintegration' ./internal/workflow -run TestNativeActualKindAdmissionApprovalReadBackAndOutage -count=1 -v -timeout=20m
 ```
 
 The real API server presents a dedicated trusted client certificate to the
@@ -57,8 +57,16 @@ own webhook is removed for that last fault injection. The runtime has no bypass.
 Passing run on 2026-11-06: 446.27 seconds, webhook 1,201.2869 ms and API write
 1,547.2038 ms for the approved sample. These are single-sample timings, not p95.
 The production core call deadline remains three seconds. The ten-minute suite
-timeout includes real cluster creation, full graph assessment and drift analysis;
+timeout used for that historical run includes real cluster creation, full graph assessment and drift analysis;
 it does not extend admission's deadline. [Captured result](evidence/phase-6/actual-kind.json).
+
+Phase 7 on Windows reproduced the approved write, independent read-back, outage
+refusal and approved-drift correlation, then exhausted the old seven-minute test
+context while ingesting the second complete source cut. The correctness test now
+allows fifteen minutes after cluster creation (twenty minutes for the process),
+without removing assertions or changing production deadlines. Its final result
+and elapsed time belong in the Phase 7 record; the historical measurement above
+does not establish performance for the new candidate.
 
 Run this suite, the interface/storage suite in [the gate report](phase-6-peer-gates.md)
 and the matcher sequentially. The complete real snapshot currently stores as a

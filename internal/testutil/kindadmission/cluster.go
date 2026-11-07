@@ -119,7 +119,13 @@ func Start(t *testing.T) *Cluster {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	if output, err := exec.CommandContext(ctx, kind, "create", "cluster", "--name", name, "--config", filepath.Join(dir, "kind.json"), "--kubeconfig", c.Kubeconfig, "--wait", "120s").CombinedOutput(); err != nil {
+	if output, err := exec.CommandContext(ctx, kind, "create", "cluster", "--retain", "--name", name, "--config", filepath.Join(dir, "kind.json"), "--kubeconfig", c.Kubeconfig, "--wait", "120s").CombinedOutput(); err != nil {
+		// Retain only until our registered cleanup, so startup failures expose the
+		// actual control-plane error instead of losing it inside kind cleanup.
+		diagnostics, stop := context.WithTimeout(context.Background(), 20*time.Second)
+		defer stop()
+		logs, logErr := exec.CommandContext(diagnostics, "docker", "exec", name+"-control-plane", "sh", "-c", "journalctl -u kubelet --no-pager -n 40; for id in $(crictl ps -a --name kube-apiserver -q | head -n 1); do crictl logs --tail=40 \"$id\"; done").CombinedOutput()
+		t.Logf("owned admission control-plane startup diagnostics (%v):\n%s", logErr, logs)
 		t.Fatalf("create actual admission cluster: %v %s", err, output)
 	}
 	t.Logf("created isolated actual admission cluster %s", name)

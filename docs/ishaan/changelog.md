@@ -12,6 +12,24 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Reused the pinned peer's actual priority, expiry and drift helpers on main,
+  carrying frozen target revisions into CAS commands instead of silently
+  rebasing stale intent. Durable target receipts retain their original applied
+  time. Stale drift/expiry tests and all original peer scenario folders pass
+  under the explicit peer-integration profile. Strengthened read-back status/
+  decoding checks. Obsolete fake-cluster positive tests are replaced with
+  fail-closed regressions; positive native coverage uses actual kind.
+
+- Added 19 passing Rego authorization/decision regressions with a nonempty-test
+  gate, normalized actual embedded HTML/manifest newlines across builders and
+  completed the real frontend build (15 tests, dependency audit clean). The
+  sequential acceptance runner retains per-run logs and earlier failures, and
+  CI checks the pinned combined checkout and scenarios without branch merges.
+  Strict whole-main lint passes with zero issues. Real native admission passed
+  approval/read-back/outage/approved-drift correlation before the old test-only
+  context expired on a second complete ingest; its extended correctness budget
+  and diagnostics are documented, with final acceptance still pending.
+
 - Expanded strict lint to the full main checkout (zero issues), corrected HTTP
   status/close handling and removed an unused simulator adapter helper. The full
   integration run exposed a legacy test that resurrected a revoked credential;

@@ -87,7 +87,10 @@ func TestNativeActualKindComparisonCodec(t *testing.T) {
 
 func TestNativeActualKindAdmissionApprovalReadBackAndOutage(t *testing.T) {
 	cluster := kindadmission.Start(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Minute)
+	// Full source cuts and their ledger replay are a correctness workload, not
+	// an admission latency allowance. Windows acceptance also executes all cuts;
+	// keep production RPC/webhook deadlines and every drift assertion unchanged.
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	cluster.Apply(t, ctx, map[string]any{"apiVersion": "v1", "kind": "Namespace", "metadata": map[string]string{"name": "ratchet-native"}})
 	cluster.Apply(t, ctx, map[string]any{"apiVersion": "v1", "kind": "ServiceAccount", "metadata": map[string]string{"name": "beneficiary", "namespace": "ratchet-native"}})

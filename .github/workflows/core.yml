@@ -47,6 +47,7 @@ jobs:
           test -z "$(git ls-files --others --exclude-standard proto internal/eventstore/storedb)"
 
   core-tests:
+    needs: core-contracts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +58,7 @@ jobs:
         run: |
           go mod verify
           go vet ./...
-          go test -race ./...
+          go test -race -p=1 ./...
       - uses: actions/setup-node@v4
         with:
           node-version: '24.16.0'
@@ -81,6 +82,8 @@ jobs:
         with:
           version: v2.15.0
           args: --config .golangci-core.yml ./...
+      - name: Policy decisions and authorization regressions
+        run: python3 scripts/core-check.py --image openpolicyagent/opa:1.22.0-static test --fail-on-empty -v policies/
       - name: Start real local dependencies
         shell: pwsh
         run: ./scripts/core-env.ps1
@@ -111,7 +114,7 @@ jobs:
           path: .local/phase5-evaluation/*.json
           retention-days: 7
       - name: Independent graph and adversarial workflow properties
-        run: go test ./internal/graph ./internal/domain ./internal/workflow -count=1 -rapid.seed=20261105 -rapid.checks=300
+        run: go test -p=1 ./internal/graph ./internal/domain ./internal/workflow -count=1 -rapid.seed=20261105 -rapid.checks=300
       - name: Domain boundaries, dependencies and malformed payloads
         env:
           GOMAXPROCS: '2'
@@ -130,6 +133,15 @@ jobs:
       - name: Actual connector conformance when peer code is integrated
         if: ${{ hashFiles('cmd/ratchet-sim/server/server.go') != '' }}
         run: go test -race -tags=peerintegration -count=1 ./internal/connector/conformance
+      - name: Pinned peer scenarios and combined checkout compatibility
+        shell: pwsh
+        run: |
+          git fetch --no-tags origin d823a106bb4a64b0fe54e366c41029ccbd8dfda8
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          . ./scripts/core-env-load.ps1
+          $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
+          python3 scripts/core-acceptance.py peer-scenarios combined-ordinary-race actual-authority-checkpoint database-backup-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Dependency diagnostics on failure
         if: failure()
         run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml logs --no-color --tail=100

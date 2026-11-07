@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
 	simserver "github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/server"
@@ -50,6 +51,12 @@ func TestCompleteSignedCutsPreserveSessionChangesAcrossRestart(t *testing.T) {
 	}
 	if err = c.SyncOnce(ctx); err != nil {
 		t.Fatal(err)
+	}
+	if c.Ready(time.Now()) != nil {
+		t.Fatal("confirmed publication unavailable")
+	}
+	if c.Ready(time.Now().Add(time.Minute)) == nil {
+		t.Fatal("stale publication reported ready")
 	}
 	messages := publisher.GetMessages(c.SyncSubject())
 	if len(messages) != 2 {

@@ -103,6 +103,15 @@ type RatchetContainmentPlan struct {
 	EventPosition int64
 }
 
+type RatchetCredentialAuthorization struct {
+	TenantID     string
+	TokenHash    []byte
+	ActorID      string
+	Operation    string
+	CredentialID string
+	ExpiresAt    pgtype.Timestamptz
+}
+
 type RatchetDriftReceipt struct {
 	TenantID      string
 	ConnectorID   string

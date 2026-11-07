@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,6 +32,7 @@ type Connector struct {
 	adapter     TargetAdapter
 	publisher   Publisher
 	cursorStore *CursorStore
+	lastSync    atomic.Int64
 }
 
 // NewConnector creates a new Connector instance.
@@ -64,7 +66,12 @@ func (c *Connector) SyncSubject() string {
 }
 
 // SyncOnce performs a single synchronization step (snapshot or delta).
-func (c *Connector) SyncOnce(ctx context.Context) error {
+func (c *Connector) SyncOnce(ctx context.Context) (err error) {
+	defer func() {
+		if err == nil {
+			c.lastSync.Store(time.Now().UnixNano())
+		}
+	}()
 	lastRevision := c.cursorStore.Get()
 
 	// 1. Initial sync: no saved cursor -> Fetch full snapshot
@@ -264,4 +271,17 @@ func (c *Connector) Run(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// Ready requires recent confirmed publication, not just a running process.
+func (c *Connector) Ready(now time.Time) error {
+	last := c.lastSync.Load()
+	limit := 3 * c.cfg.SyncInterval
+	if limit < 15*time.Second {
+		limit = 15 * time.Second
+	}
+	if last == 0 || now.Sub(time.Unix(0, last)) > limit {
+		return fmt.Errorf("source publication unavailable")
+	}
+	return nil
 }

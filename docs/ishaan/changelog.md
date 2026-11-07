@@ -12,7 +12,26 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Prototype A — trusted foundation (2026-11-08, in progress)
+## Prototype B - secure execution (2026-11-08, complete)
+
+- Replaced the unsafe simulator consumer with pinned core signature, exact
+  envelope/context/roles/schema/deadline validation and an explicit role allowlist.
+  Removed unknown-action/default-write, permissive decode and discarded PCE paths.
+- Added flushed private command/result journals, target CAS/deadline enforcement,
+  durable target receipt observation, stable signed result retry and genuinely
+  read-only reconciliation. No application timestamp is invented after refusal.
+- Actual executable/JetStream crash acceptance passes: unsigned/unknown and stale
+  inputs refuse writes; target commit survives lost read-back and process death;
+  restart/dedup/query preserve one effect and original application time.
+- Focused simulator/connector integration and race suites, real grant/revocation,
+  publication recovery, result canonicalization and strict lint pass (zero issues).
+  The rebuilt local profile is healthy with authenticated execution enabled.
+- Readiness now proves recent publication and bounded broker connectivity. Its
+  real profile check caught and corrected a missing probe deadline. Regenerated
+  sqlc models for migration 16. Reproduction: prototype-execution.md.
+- Phase B closes; Phase C begins next. Original deferred requirements stay open.
+
+## Prototype A - trusted foundation (2026-11-08, complete)
 
 - Required explicit persistent connector keys and broker credentials, remote
   transport authentication and real JetStream delivery. Removed the runtime

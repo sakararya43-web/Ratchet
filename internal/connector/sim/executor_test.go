@@ -144,6 +144,26 @@ func TestExecutorDurableResultRepublishAndReadOnlyReconciliation(t *testing.T) {
 	if writes.Load() != 1 {
 		t.Fatal("conflicting identity reached target")
 	}
+
+	revoke := validCommand(t)
+	revoke.Envelope.Intent.Kind = "ROLE_REVOKE"
+	revoke.Envelope.Intent.Target = "user:sec-lead-1"
+	revoke.ExpectedRevision = 1001
+	revoke.BeforeRoles = []string{"role:finance-analyst", "role:security-lead"}
+	revoke.ExpectedRoles = []string{"role:security-lead"}
+	revoke.EnvelopeDigest, err = canon.New().Digest(revoke.Envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = open().Handle(ctx, signedCommand(t, core, revoke)); err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(published[len(published)-1], &result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.Success || !result.ReadBackVerified || result.ObservedRevision != 1002 || writes.Load() != 2 {
+		t.Fatal("real role revocation failed", result)
+	}
 }
 func TestExecutorRecoversTargetReceiptAfterLostReadback(t *testing.T) {
 	ctx := context.Background()
@@ -159,7 +179,7 @@ func TestExecutorRecoversTargetReceiptAfterLostReadback(t *testing.T) {
 	var unavailable atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" && unavailable.Load() {
-			http.Error(w, "read outage", 503)
+			http.Error(w, "read outage", http.StatusServiceUnavailable)
 			return
 		}
 		routes.ServeHTTP(w, r)

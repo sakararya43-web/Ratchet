@@ -1,8 +1,9 @@
 # Local access-review prototype
 
 This is the sequential A/B/C milestone, not completion of the original plans.
-The current Phase A profile publishes real signed organization cuts; execution
-is disabled until Phase B security and recovery acceptance passes.
+The profile publishes real signed complete organization cuts and consumes only
+core-signed ordinary role assignments/revocations through a persistent journal.
+Reconciliation is read-only; unsupported purposes fail closed.
 
 ## Start and stop
 

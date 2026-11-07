@@ -5,11 +5,13 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -76,6 +78,7 @@ func main() {
 	stateDirectory := flag.String("state", os.Getenv("CONNECTOR_EXECUTION_STATE"), "Persistent private command/result journal directory")
 	cursorPath := flag.String("cursor", "connector_cursor.json", "Persistent source cursor file")
 	syncInterval := flag.Duration("interval", 3*time.Second, "Complete snapshot polling interval")
+	healthAddress := flag.String("health-listen", "", "Optional loopback readiness listener")
 	flag.Parse()
 	if *brokerToken == "" || *syncInterval < 100*time.Millisecond {
 		log.Fatal("explicit broker credential and polling interval >=100ms required")
@@ -135,6 +138,35 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if *healthAddress != "" {
+		host, _, err := net.SplitHostPort(*healthAddress)
+		if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
+			log.Fatal("health listener must bind a loopback IP")
+		}
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+			probe, done := context.WithTimeout(r.Context(), 2*time.Second)
+			defer done()
+			if conn.Ready(time.Now()) != nil || broker.Ready(probe) != nil {
+				http.Error(w, "not ready", http.StatusServiceUnavailable)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		})
+		server := &http.Server{Addr: *healthAddress, Handler: mux, ReadHeaderTimeout: 2 * time.Second}
+		defer func() {
+			shutdown, done := context.WithTimeout(context.Background(), 2*time.Second)
+			defer done()
+			_ = server.Shutdown(shutdown)
+		}()
+		go func() {
+			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				consumerError <- err
+				cancel()
+			}
+		}()
+	}
 	logger.Info("connector running", "tenant", *tenantID, "connector", *connectorID, "sync_only", *syncOnly)
 	if err = conn.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatal(err)
@@ -157,7 +189,7 @@ func validateTransport(address, secureScheme string, authenticated bool) error {
 	if secureScheme == "tls" {
 		allowedPlain = "nats"
 	}
-	if u.Scheme != secureScheme && !(local && u.Scheme == allowedPlain) {
+	if u.Scheme != secureScheme && (!local || u.Scheme != allowedPlain) {
 		return fmt.Errorf("remote transport requires %s", secureScheme)
 	}
 	if !local && !authenticated {

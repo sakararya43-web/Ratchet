@@ -64,7 +64,12 @@ services:
     environment:
       SIM_BROKER_TOKEN: ${SIM_BROKER_TOKEN:?private prototype env required}
     volumes: [prototype-edge:/data/edge]
-    command: [ratchet-connector, --target, 'http://127.0.0.1:8085', --nats, 'nats://127.0.0.1:4222', --key, /data/edge/signing.key, --cursor, /data/edge/cursor.json, --core-key, /data/edge/core.pub, --state, /data/edge/commands]
+    command: [ratchet-connector, --target, 'http://127.0.0.1:8085', --nats, 'nats://127.0.0.1:4222', --key, /data/edge/signing.key, --cursor, /data/edge/cursor.json, --core-key, /data/edge/core.pub, --state, /data/edge/commands, --health-listen, '127.0.0.1:8086']
+    healthcheck:
+      test: [CMD, ratchet-prototype, health, --url, 'http://127.0.0.1:8086/readyz']
+      interval: 3s
+      timeout: 5s
+      retries: 30
 volumes:
   prototype-postgres:
   prototype-nats:

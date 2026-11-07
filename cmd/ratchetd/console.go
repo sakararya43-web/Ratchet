@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
 	"github.com/sakararya43-web/Ratchet/internal/api"
+	"github.com/sakararya43-web/Ratchet/internal/approval"
 	"github.com/sakararya43-web/Ratchet/internal/bus"
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
@@ -46,14 +47,15 @@ type consoleConfig struct {
 	ContainmentCosts        map[string]int64 `json:"containment_costs"`
 	ApprovalLifetimeSeconds int64            `json:"approval_lifetime_seconds"`
 	Tenants                 []struct {
-		ID                        string `json:"tenant_id"`
-		AuthorityFile             string `json:"authority_file"`
-		GenesisDigest             string `json:"genesis_digest"`
-		BundleFile                string `json:"bundle_file"`
-		CheckpointAuthorityURL    string `json:"checkpoint_authority_url"`
-		DriftResponder            string `json:"drift_responder"`
-		CheckpointActor           string `json:"checkpoint_actor"`
-		CheckpointIntervalSeconds int64  `json:"checkpoint_interval_seconds"`
+		ID                        string           `json:"tenant_id"`
+		Execution                 *executionConfig `json:"execution"`
+		AuthorityFile             string           `json:"authority_file"`
+		GenesisDigest             string           `json:"genesis_digest"`
+		BundleFile                string           `json:"bundle_file"`
+		CheckpointAuthorityURL    string           `json:"checkpoint_authority_url"`
+		DriftResponder            string           `json:"drift_responder"`
+		CheckpointActor           string           `json:"checkpoint_actor"`
+		CheckpointIntervalSeconds int64            `json:"checkpoint_interval_seconds"`
 		KubernetesConnectors      []struct {
 			Connector string `json:"connector_id"`
 			Cluster   string `json:"cluster_id"`
@@ -91,11 +93,16 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	fs.SetOutput(out)
 	path := fs.String("config", os.Getenv("RATCHET_CONSOLE_CONFIG"), "private console configuration")
 	listen := fs.String("listen", "127.0.0.1:8444", "HTTPS console address")
+	roleNames := fs.String("roles", "api,worker,relay", "comma-separated api,worker,relay roles")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *path == "" || fs.NArg() != 0 {
 		return errors.New("console-serve requires --config")
+	}
+	roles, err := selectRoles(*roleNames, "api", "worker", "relay")
+	if err != nil {
+		return err
 	}
 	var config consoleConfig
 	if err := configFile(*path, &config); err != nil {
@@ -186,8 +193,31 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			return err
 		}
 	}
-	// The actual peer factory fails the documented session/origin conformance.
-	// No flag can enable it. Passkey routes remain absent until the peer fixes it.
+	// Real enrollment/ceremony state is shared by API and worker roles. No seed
+	// key or simulated assertion endpoint is installed.
+	credentials, err := approval.NewPersistentCredentialStore(pool)
+	if err != nil {
+		return err
+	}
+	defer credentials.Close()
+	originURL, err := url.Parse(config.Origin)
+	if err != nil {
+		return err
+	}
+	verifier, err := approval.NewApprovalVerifier(credentials, originURL.Hostname(), []string{config.Origin})
+	if err != nil {
+		return err
+	}
+	var executions []*workflow.Execution
+	for _, tenant := range config.Tenants {
+		if tenant.Execution != nil {
+			execution, err := tenant.Execution.load(tenant.ID)
+			if err != nil {
+				return err
+			}
+			executions = append(executions, execution)
+		}
+	}
 	tenantIDs := []string{}
 	for tenant := range tenants {
 		tenantIDs = append(tenantIDs, tenant)
@@ -221,13 +251,13 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			checkpointSchedules[tenant.ID] = workflow.CheckpointSchedule{Actor: tenant.CheckpointActor, Interval: time.Duration(tenant.CheckpointIntervalSeconds) * time.Second, Authority: authority}
 		}
 	}
-	service, err := workflow.NewConfigured(pool, store, engine, graphKey, nil, tenantIDs, workflow.Config{KubernetesConnectors: nativePins, ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second, Observer: observer, DriftResponders: driftResponders, CheckpointSchedules: checkpointSchedules, PublishedGraphVersion: func(ctx context.Context, tenant string) (int64, error) {
+	service, err := workflow.NewConfigured(pool, store, engine, graphKey, verifier, tenantIDs, workflow.Config{KubernetesConnectors: nativePins, ApprovalLifetime: time.Duration(config.ApprovalLifetimeSeconds) * time.Second, Observer: observer, DriftResponders: driftResponders, CheckpointSchedules: checkpointSchedules, PublishedGraphVersion: func(ctx context.Context, tenant string) (int64, error) {
 		s, err := registry.Get(ctx, tenant, 0)
 		if err != nil {
 			return 0, err
 		}
 		return s.Version(), nil
-	}})
+	}}, executions...)
 	if err != nil {
 		return err
 	}
@@ -256,14 +286,16 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	if err := service.Start(ctx); err != nil {
-		return err
+	if roles["worker"] {
+		if err := service.Start(ctx); err != nil {
+			return err
+		}
+		defer func() {
+			stopCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+			defer stop()
+			_ = service.Stop(stopCtx)
+		}()
 	}
-	defer func() {
-		stopCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
-		defer stop()
-		_ = service.Stop(stopCtx)
-	}()
 	changes, err := api.NewChangeHandler(service, cursorKey)
 	if err != nil {
 		return err
@@ -324,8 +356,10 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}
 	mux.Handle("/api/ratchet.v1.DecisionService/DecideKubernetes", http.StripPrefix("/api", nativeDecisions))
 	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", sessions.Routes()))
+	passkeys := approval.MakePasskeyHandlerFactory(credentials, originURL.Hostname(), []string{config.Origin})(ports.PasskeyDeps{RPID: originURL.Hostname(), RPOrigins: []string{config.Origin}, SessionAPI: sessions})
+	mux.Handle("/api/passkeys/", sessions.Require(http.StripPrefix("/api/passkeys", passkeys)))
 	mux.Handle("/api/", http.StripPrefix("/api", sessions.Require(api.NewRequestLimits().Wrap(apiMux))))
-	mux.Handle("/", api.Health{Database: store.CheckDatabase, Migrations: store.CheckMigrations, RuntimeRole: store.CheckRuntimeRole, Graph: func(ctx context.Context) error {
+	health := api.Health{Database: store.CheckDatabase, Migrations: store.CheckMigrations, RuntimeRole: store.CheckRuntimeRole, Graph: func(ctx context.Context) error {
 		for tenant := range tenants {
 			if _, err := registry.Get(ctx, tenant, 0); err != nil {
 				return err
@@ -349,7 +383,12 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			}
 		}
 		return nil
-	}}.Handler())
+	}}.Handler()
+	mux.Handle("/", health)
+	var surface http.Handler = mux
+	if !roles["api"] {
+		surface = health
+	}
 	var wg sync.WaitGroup
 	defer func() { cancel(); wg.Wait() }()
 	failures := make(chan error, 1)
@@ -365,12 +404,23 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			}
 		}()
 	}
-	for tenant := range tenants {
-		start(func() error { return broker.Relay(ctx, store, tenant, logger, observer) })
-		if driftResponders[tenant] != "" {
+	if roles["relay"] {
+		for tenant := range tenants {
+			start(func() error { return broker.Relay(ctx, store, tenant, logger, observer) })
+			if driftResponders[tenant] != "" {
+				start(func() error {
+					return broker.ConsumeDrift(ctx, tenant, func(ctx context.Context, raw []byte) error {
+						_, err := service.RecordDrift(ctx, tenant, raw)
+						if errors.Is(err, workflow.ErrPermission) || errors.Is(err, domain.ErrInvalid) {
+							return eventstore.ErrInvalid
+						}
+						return err
+					}, logger)
+				})
+			}
 			start(func() error {
-				return broker.ConsumeDrift(ctx, tenant, func(ctx context.Context, raw []byte) error {
-					_, err := service.RecordDrift(ctx, tenant, raw)
+				return broker.ConsumeResults(ctx, tenant, func(ctx context.Context, raw []byte) error {
+					err := service.RecordExecutionResult(ctx, tenant, raw)
 					if errors.Is(err, workflow.ErrPermission) || errors.Is(err, domain.ErrInvalid) {
 						return eventstore.ErrInvalid
 					}
@@ -378,15 +428,6 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 				}, logger)
 			})
 		}
-		start(func() error {
-			return broker.ConsumeResults(ctx, tenant, func(ctx context.Context, raw []byte) error {
-				err := service.RecordExecutionResult(ctx, tenant, raw)
-				if errors.Is(err, workflow.ErrPermission) || errors.Is(err, domain.ErrInvalid) {
-					return eventstore.ErrInvalid
-				}
-				return err
-			}, logger)
-		})
 	}
 	start(func() error {
 		ticker := time.NewTicker(5 * time.Second)
@@ -424,7 +465,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		}
 	})
 	start(func() error {
-		return serveTransport(ctx, *listen, api.NewRequestLimits().Wrap(mux), out, &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}})
+		return serveTransport(ctx, *listen, api.NewRequestLimits().Wrap(surface), out, &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}})
 	})
 	select {
 	case <-parent.Done():

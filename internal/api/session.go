@@ -35,6 +35,16 @@ func SessionPrincipal(ctx context.Context) (Principal, bool) {
 	return p, ok
 }
 
+// PasskeyPrincipal exposes only the already authenticated, CSRF-checked context.
+// It never resolves identity from query parameters, JSON or an unchecked cookie.
+func (s *Sessions) PasskeyPrincipal(r *http.Request) (string, string, error) {
+	p, ok := SessionPrincipal(r.Context())
+	if !ok {
+		return "", "", errors.New("authenticated session context required")
+	}
+	return p.TenantID, p.ActorID, nil
+}
+
 var tenantSyntax = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
 const sessionCookie = "__Host-ratchet"

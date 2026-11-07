@@ -50,11 +50,16 @@ func runGraph(parent context.Context, args []string, out io.Writer) error {
 	fs.SetOutput(out)
 	configPath := fs.String("config", os.Getenv("RATCHET_GRAPH_CONFIG"), "private core transport configuration file")
 	listen := fs.String("listen", "127.0.0.1:8443", "mutually authenticated graph API address")
+	roleNames := fs.String("roles", "api,ingest,relay", "comma-separated api,ingest,relay roles")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *configPath == "" || fs.NArg() != 0 {
 		return errors.New("graph-serve requires --config and no positional arguments")
+	}
+	roles, err := selectRoles(*roleNames, "api", "ingest", "relay")
+	if err != nil {
+		return err
 	}
 	file, err := os.Open(*configPath)
 	if err != nil {
@@ -189,14 +194,19 @@ func runGraph(parent context.Context, args []string, out io.Writer) error {
 			_, _ = fmt.Fprintf(w, "ratchet_outbox_pending{tenant=%q} %d\nratchet_outbox_oldest_seconds{tenant=%q} %g\nratchet_outbox_attempts{tenant=%q} %d\n", tenant, backlog.Pending, tenant, backlog.OldestAge.Seconds(), tenant, backlog.Attempts)
 		}
 	})
-	mux.Handle("/", api.Health{Database: store.CheckDatabase, Migrations: store.CheckMigrations, RuntimeRole: store.CheckRuntimeRole, Graph: func(ctx context.Context) error {
+	health := api.Health{Database: store.CheckDatabase, Migrations: store.CheckMigrations, RuntimeRole: store.CheckRuntimeRole, Broker: broker.Ready, Graph: func(ctx context.Context) error {
 		for tenant := range tenants {
 			if _, err := registry.Get(ctx, tenant, 0); err != nil {
 				return err
 			}
 		}
 		return nil
-	}}.Handler())
+	}}.Handler()
+	mux.Handle("/", health)
+	var surface http.Handler = mux
+	if !roles["api"] {
+		surface = health
+	}
 	var wg sync.WaitGroup
 	defer func() { cancel(); wg.Wait() }()
 	failures := make(chan error, 2*len(tenants)+2)
@@ -213,10 +223,14 @@ func runGraph(parent context.Context, args []string, out io.Writer) error {
 		}()
 	}
 	for tenant := range tenants {
-		start(func() error { return broker.Relay(ctx, store, tenant, logger) })
-		start(func() error {
-			return broker.Consume(ctx, tenant, func(ctx context.Context, payload []byte) error { return ingestor.Handle(ctx, tenant, payload) }, logger)
-		})
+		if roles["relay"] {
+			start(func() error { return broker.Relay(ctx, store, tenant, logger) })
+		}
+		if roles["ingest"] {
+			start(func() error {
+				return broker.Consume(ctx, tenant, func(ctx context.Context, payload []byte) error { return ingestor.Handle(ctx, tenant, payload) }, logger)
+			})
+		}
 	}
 	start(func() error {
 		ticker := time.NewTicker(250 * time.Millisecond)
@@ -234,7 +248,7 @@ func runGraph(parent context.Context, args []string, out io.Writer) error {
 			}
 		}
 	})
-	start(func() error { return serveTransport(ctx, *listen, api.NewRequestLimits().Wrap(mux), out, security) })
+	start(func() error { return serveTransport(ctx, *listen, api.NewRequestLimits().Wrap(surface), out, security) })
 	select {
 	case <-parent.Done():
 		return nil

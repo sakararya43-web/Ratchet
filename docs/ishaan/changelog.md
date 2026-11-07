@@ -12,6 +12,17 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Added selectable console/graph API, worker, ingestion and relay roles, and
+  exercised combined/separated real TLS/DB/broker runtimes. API-only preserves
+  queued ingestion; backend roles expose no browser API. Added actual signed
+  execution-capability/key configuration. Under the user's explicit extension
+  of scope, corrected the five peer WebAuthn/session defects on main and wired
+  the real verifier/factory into console. Schema 15 retains ledger-bound durable
+  credential enrollment/revocation and one-use owner-scoped ceremonies. A real
+  registration/assertion, restart, wrong-session, replay and revocation suite
+  passes. No seed credential or simulated assertion route is installed. Generated
+  SQL bindings and focused workflow/River/native admission regressions pass.
+
 - Bounded API bodies, concurrent work and hashed actor/tenant rate buckets.
   Reject authentication payloads that exceed their actual byte limit, including
   oversized whitespace tails. Race tests cover size, concurrency and tenant

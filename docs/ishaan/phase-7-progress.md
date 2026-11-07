@@ -39,7 +39,21 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    govulncheck v1.9.0 now reports no vulnerabilities. CI enforces these checks.
    Reproduced five real passkey conformance failures in the unchanged final peer
    overlay; these remain failures, not expected-failure tests or bypassed gates.
-5. Selectable runtime roles: pending.
+5. Selectable runtime roles: console supports `--roles api,worker,relay`; graph
+   supports `--roles api,ingest,relay`. Individual/composed roles are validated,
+   and combined and separated real PostgreSQL/JetStream/TLS runtime tests pass.
+   API-only does not consume queued graph work; backend roles expose no browser
+   API. Every process refreshes its own graph cache. Console configuration can
+   load actual signed connector capabilities and core signing keys; missing
+   execution capability remains degraded, not a success substitute.
+   User authorization on 2026-11-07 permits required peer integration fixes on
+   main. Corrected origin/RP/ceremony/UV/COSE passkey verification and session-bound
+   routes; all five historical conformance checks pass. Schema 15 persists
+   credential enrollment/revocation and owner-scoped one-use ceremonies. Key
+   commitments are ledger-bound; a separate read pool prevents tenant-lock/pool
+   starvation during approval. A complete WebAuthn registration/assertion using
+   real cryptography passes with wrong-session/replay/revocation/restart checks.
+   There is no simulated assertion endpoint or seeded production credential.
 6. Actual peer web artifact embedding: pending.
 7. Containers, SBOM, signatures and core runbooks: pending.
 8. Full final-candidate checks including actual peer conformance: pending.

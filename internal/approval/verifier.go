@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
@@ -42,6 +43,9 @@ type ApprovalVerifier struct {
 
 // NewApprovalVerifier creates an ApprovalVerifier with initialized WebAuthn configuration.
 func NewApprovalVerifier(store *CredentialStore, rpID string, rpOrigins []string) (*ApprovalVerifier, error) {
+	if store == nil {
+		return nil, fmt.Errorf("credential store required")
+	}
 	if rpID == "" {
 		rpID = "localhost"
 	}
@@ -50,9 +54,10 @@ func NewApprovalVerifier(store *CredentialStore, rpID string, rpOrigins []string
 	}
 
 	w, err := webauthn.New(&webauthn.Config{
-		RPDisplayName: "RATCHET Security Control Plane",
-		RPID:          rpID,
-		RPOrigins:     rpOrigins,
+		RPDisplayName:          "RATCHET Security Control Plane",
+		RPID:                   rpID,
+		RPOrigins:              rpOrigins,
+		AuthenticatorSelection: protocol.AuthenticatorSelection{UserVerification: protocol.VerificationRequired},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize WebAuthn: %w", err)
@@ -71,6 +76,12 @@ func (av *ApprovalVerifier) Verify(
 	sub ports.ApprovalSubmission,
 	changeDigest ports.Digest,
 ) (ports.VerifiedApproval, error) {
+	if err := ctx.Err(); err != nil {
+		return ports.VerifiedApproval{}, err
+	}
+	if av.store == nil || len(sub.ClientDataJSON) > 16384 || len(sub.AuthenticatorData) > 16384 || len(sub.ChallengeNonce) < 16 || len(sub.ChallengeNonce) > 64 {
+		return ports.VerifiedApproval{}, fmt.Errorf("invalid bounded approval context")
+	}
 	if sub.TenantID == "" || sub.ActorID == "" {
 		return ports.VerifiedApproval{}, fmt.Errorf("missing tenant_id or actor_id in submission")
 	}
@@ -98,9 +109,15 @@ func (av *ApprovalVerifier) Verify(
 	if hex.EncodeToString(decodedChallenge) != hex.EncodeToString(expectedChallenge) {
 		return ports.VerifiedApproval{}, fmt.Errorf("challenge mismatch: passkey assertion does not sign this change digest")
 	}
+	if err := clientData.Verify(base64.RawURLEncoding.EncodeToString(expectedChallenge), protocol.AssertCeremony, av.webauthn.Config.RPOrigins, nil, nil, protocol.TopOriginExplicitVerificationMode, false); err != nil {
+		return ports.VerifiedApproval{}, fmt.Errorf("WebAuthn client context refused: %w", err)
+	}
 
 	// 2. Look up enrolled credential
-	user := av.store.GetUser(sub.TenantID, sub.ActorID, sub.ActorID)
+	user, err := av.store.User(ctx, sub.TenantID, sub.ActorID)
+	if err != nil {
+		return ports.VerifiedApproval{}, err
+	}
 	var matchingCred *webauthn.Credential
 	for _, c := range user.Credentials {
 		if hex.EncodeToString(c.ID) == hex.EncodeToString(sub.CredentialID) {
@@ -120,18 +137,34 @@ func (av *ApprovalVerifier) Verify(
 	userPresent := (flags & 0x01) != 0
 	userVerified := (flags & 0x04) != 0
 
-	if !userPresent {
-		return ports.VerifiedApproval{}, fmt.Errorf("user presence flag not set in authenticator data")
+	if !userPresent || !userVerified {
+		return ports.VerifiedApproval{}, fmt.Errorf("user presence and verification are required")
+	}
+	var authenticator protocol.AuthenticatorData
+	if err := authenticator.Unmarshal(sub.AuthenticatorData); err != nil {
+		return ports.VerifiedApproval{}, err
+	}
+	rpHash := sha256.Sum256([]byte(av.webauthn.Config.RPID))
+	if err := authenticator.Verify(rpHash[:], nil, true, true); err != nil {
+		return ports.VerifiedApproval{}, err
 	}
 
 	// 4. Verify cryptographic signature over AuthenticatorData || SHA-256(ClientDataJSON)
 	clientDataHash := sha256.Sum256(sub.ClientDataJSON)
-	sigData := append(sub.AuthenticatorData, clientDataHash[:]...)
+	sigData := append(append([]byte(nil), sub.AuthenticatorData...), clientDataHash[:]...)
 	sigDataHash := sha256.Sum256(sigData)
 
 	pubKey, err := x509.ParsePKIXPublicKey(matchingCred.PublicKey)
 	if err != nil {
-		return ports.VerifiedApproval{}, fmt.Errorf("invalid stored public key: %w", err)
+		cose, parseErr := webauthncose.ParsePublicKey(matchingCred.PublicKey)
+		if parseErr != nil {
+			return ports.VerifiedApproval{}, fmt.Errorf("invalid enrolled public key: %w", parseErr)
+		}
+		valid, verifyErr := webauthncose.VerifySignature(cose, sigData, sub.Signature)
+		if verifyErr != nil || !valid {
+			return ports.VerifiedApproval{}, fmt.Errorf("COSE assertion signature refused")
+		}
+		return ports.VerifiedApproval{TenantID: sub.TenantID, ActorID: sub.ActorID, CredentialID: append([]byte(nil), sub.CredentialID...), VerifiedAt: time.Now().UTC(), UserVerified: true, ChangeDigest: changeDigest}, nil
 	}
 
 	switch pub := pubKey.(type) {
@@ -160,4 +193,3 @@ func (av *ApprovalVerifier) Verify(
 		ChangeDigest: changeDigest,
 	}, nil
 }
-

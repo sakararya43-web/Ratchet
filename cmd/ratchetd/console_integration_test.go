@@ -50,6 +50,10 @@ func (t cookieTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return t.base.RoundTrip(copy)
 }
 func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
+	testConsoleRuntime(t, false)
+}
+func TestConsoleRuntimeSeparatedRoles(t *testing.T) { testConsoleRuntime(t, true) }
+func testConsoleRuntime(t *testing.T, separate bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
 	defer cancel()
 	if os.Getenv("RATCHET_MIGRATION_DSN") == "" {
@@ -153,30 +157,49 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 	if err := os.WriteFile(configPath, configRaw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	runtimeCtx, stop := context.WithCancel(ctx)
-	address := listenerAddress{make(chan string, 1)}
-	finished := make(chan error, 1)
-	go func() {
-		finished <- runConsole(runtimeCtx, []string{"--config", configPath, "--listen", "127.0.0.1:0"}, address)
-	}()
-	t.Cleanup(func() {
-		stop()
-		select {
-		case err := <-finished:
-			if err != nil {
-				t.Error(err)
+	startRuntime := func(roles string) string {
+		runtimeCtx, stop := context.WithCancel(ctx)
+		address := listenerAddress{make(chan string, 1)}
+		finished := make(chan error, 1)
+		go func() {
+			finished <- runConsole(runtimeCtx, []string{"--config", configPath, "--listen", "127.0.0.1:0", "--roles", roles}, address)
+		}()
+		t.Cleanup(func() {
+			stop()
+			select {
+			case err := <-finished:
+				if err != nil {
+					t.Error(err)
+				}
+			case <-time.After(8 * time.Second):
+				t.Error("console did not stop")
 			}
-		case <-time.After(8 * time.Second):
-			t.Error("console did not stop")
+		})
+		var host string
+		select {
+		case host = <-address.ready:
+		case err := <-finished:
+			t.Fatalf("console startup %v", err)
+		case <-ctx.Done():
+			t.Fatal("console did not listen")
 		}
-	})
-	var host string
-	select {
-	case host = <-address.ready:
-	case err := <-finished:
-		t.Fatalf("console startup %v", err)
-	case <-ctx.Done():
-		t.Fatal("console did not listen")
+		return host
+	}
+	roles := "api,worker,relay"
+	if separate {
+		roles = "api"
+	}
+	host := startRuntime(roles)
+	if separate {
+		backend := startRuntime("worker,relay")
+		response, err := client.Get("https://" + backend + "/api/auth/session")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = response.Body.Close()
+		if response.StatusCode != 404 {
+			t.Fatal("worker role exposed browser API", response.StatusCode)
+		}
 	}
 	base := "https://" + host
 	login := func(actor string) *http.Client {
@@ -484,8 +507,8 @@ func TestConsoleRuntimeRealSessionsPolicyRiverAndConnectReview(t *testing.T) {
 		t.Fatal("approval bytes not bound", err)
 	}
 	_, err = reviews.ApproveChange(ctx, connect.NewRequest(&v1.ApproveChangeRequest{TenantId: tenant, RequestId: id, ApproverId: "user:owner", AssertionResponseJson: "{}", Mutation: mutation(assessed.Revision), ApprovedEnvelopeDigest: assessed.ChangeDigest}))
-	if connect.CodeOf(err) != connect.CodeUnavailable {
-		t.Fatal("unsafe passkey dependency admitted", err)
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("malformed passkey assertion was not refused by the real verifier", err)
 	}
 	_, err = changes.GetChange(ctx, connect.NewRequest(&v1.GetChangeRequest{TenantId: "other", RequestId: id}))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {

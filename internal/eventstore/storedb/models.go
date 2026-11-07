@@ -17,6 +17,24 @@ type RatchetAcceptedCheckpoint struct {
 	EventPosition int64
 }
 
+type RatchetApprovalCredential struct {
+	TenantID     string
+	CredentialID []byte
+	ActorID      string
+	Label        string
+	Credential   []byte
+	EnrolledAt   pgtype.Timestamptz
+	RevokedAt    pgtype.Timestamptz
+}
+
+type RatchetApprovalSession struct {
+	TenantID  string
+	SessionID string
+	ActorID   string
+	ExpiresAt pgtype.Timestamptz
+	Document  []byte
+}
+
 type RatchetAuditProjection struct {
 	TenantID       string
 	Sequence       int64

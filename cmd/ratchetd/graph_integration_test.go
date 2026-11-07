@@ -47,7 +47,9 @@ func (w listenerAddress) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func TestGraphRuntimeRealBrokerDatabaseAndMutualTLS(t *testing.T) {
+func TestGraphRuntimeRealBrokerDatabaseAndMutualTLS(t *testing.T) { testGraphRuntime(t, false) }
+func TestGraphRuntimeSeparatedRoles(t *testing.T)                 { testGraphRuntime(t, true) }
+func testGraphRuntime(t *testing.T, separate bool) {
 	if os.Getenv("RATCHET_DATABASE_DSN") == "" || os.Getenv("RATCHET_MIGRATION_DSN") == "" {
 		t.Fatal("real runtime/migration DSNs required")
 	}
@@ -76,31 +78,39 @@ func TestGraphRuntimeRealBrokerDatabaseAndMutualTLS(t *testing.T) {
 	if err := os.WriteFile(configPath, rawConfig, 0600); err != nil {
 		t.Fatal(err)
 	}
-	runtimeCtx, stop := context.WithCancel(ctx)
-	address := listenerAddress{make(chan string, 1)}
-	finished := make(chan error, 1)
-	go func() {
-		finished <- runGraph(runtimeCtx, []string{"--config", configPath, "--listen", "127.0.0.1:0"}, address)
-	}()
-	t.Cleanup(func() {
-		stop()
-		select {
-		case err := <-finished:
-			if err != nil {
-				t.Error(err)
+	startRuntime := func(roles string) string {
+		runtimeCtx, stop := context.WithCancel(ctx)
+		address := listenerAddress{make(chan string, 1)}
+		finished := make(chan error, 1)
+		go func() {
+			finished <- runGraph(runtimeCtx, []string{"--config", configPath, "--listen", "127.0.0.1:0", "--roles", roles}, address)
+		}()
+		t.Cleanup(func() {
+			stop()
+			select {
+			case err := <-finished:
+				if err != nil {
+					t.Error(err)
+				}
+			case <-time.After(8 * time.Second):
+				t.Error("runtime did not stop")
 			}
-		case <-time.After(8 * time.Second):
-			t.Error("runtime did not stop")
+		})
+		var host string
+		select {
+		case host = <-address.ready:
+		case err := <-finished:
+			t.Fatalf("runtime startup: %v", err)
+		case <-ctx.Done():
+			t.Fatal("runtime did not listen")
 		}
-	})
-	var host string
-	select {
-	case host = <-address.ready:
-	case err := <-finished:
-		t.Fatalf("runtime startup: %v", err)
-	case <-ctx.Done():
-		t.Fatal("runtime did not listen")
+		return host
 	}
+	roles := "api,ingest,relay"
+	if separate {
+		roles = "api"
+	}
+	host := startRuntime(roles)
 	broker, err := bus.Connect(natsURL)
 	if err != nil {
 		t.Fatal(err)
@@ -121,6 +131,20 @@ func TestGraphRuntimeRealBrokerDatabaseAndMutualTLS(t *testing.T) {
 	}
 	g := ratchetv1connect.NewGraphServiceClient(client, "https://"+host+"/api")
 	impact := ratchetv1connect.NewImpactServiceClient(client, "https://"+host+"/api")
+	if separate {
+		if _, err := g.GetNodeDetails(ctx, connect.NewRequest(&v1.GetNodeDetailsRequest{TenantId: tenant, NodeId: "wallet", MinGraphVersion: 1})); connect.CodeOf(err) != connect.CodeUnavailable {
+			t.Fatal("API-only runtime consumed ingest work", err)
+		}
+		backend := startRuntime("ingest,relay")
+		response, err := client.Get("https://" + backend + "/api/ratchet.v1.GraphService/GetNodeDetails")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = response.Body.Close()
+		if response.StatusCode != 404 {
+			t.Fatal("ingest role exposed graph API", response.StatusCode)
+		}
+	}
 	var version int64
 	for ctx.Err() == nil {
 		node, err := g.GetNodeDetails(ctx, connect.NewRequest(&v1.GetNodeDetailsRequest{TenantId: tenant, NodeId: "wallet", MinGraphVersion: 1}))

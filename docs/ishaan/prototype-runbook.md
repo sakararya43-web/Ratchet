@@ -28,6 +28,14 @@ accounts, ledger, target state and cursors. Omit `--no-build` after code changes
 The profile uses its own database/NATS; existing core development containers are
 not removed or reused. Ports bind only to loopback.
 
+The accepted profile is named `ratchet-prototype-demo`. During acceptance the
+first bootstrap was found to omit ownership of the daily ledger granted by the
+finance role. Core correctly held that request. The corrected signed genesis
+covers both finance resources; no policy or independence check was bypassed.
+The first profile's named volumes remain under `ratchet-prototype_*`, and its
+operator artifacts are preserved locally in `.local/prototype-initial-policy/`.
+An immutable bootstrap root is never silently rewritten on an existing ledger.
+
 The four demo accounts are the finance intern, finance owner and two security
 leads. All passwords/keys are freshly generated. Policy is the actual repository
 Rego, signed by two local operator bootstrap keys. This is an explicitly read-only

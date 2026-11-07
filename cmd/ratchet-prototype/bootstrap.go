@@ -90,7 +90,7 @@ func initialize(ctx context.Context, pool *pgxpool.Pool, root, policyDir string)
 		}
 		modules[name] = string(raw)
 	}
-	bundle, err := authority.ProposeBundle(tenant, "1.0.0", "Read-only prototype policy; local operator genesis, not live Authority passkey administration", modules, map[string]any{"resource_owners": map[string]any{"res:finance-reports": []string{"user:finance-lead"}}})
+	bundle, err := authority.ProposeBundle(tenant, "1.0.0", "Read-only prototype policy; local operator genesis, not live Authority passkey administration", modules, map[string]any{"resource_owners": map[string]any{"res:finance-reports": []string{"user:finance-lead"}, "res:daily-exchange-ledger": []string{"user:finance-lead"}}})
 	if err != nil {
 		return err
 	}

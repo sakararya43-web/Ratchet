@@ -1,4 +1,4 @@
-name: ratchet-prototype
+name: ratchet-prototype-demo
 x-runtime: &runtime
   image: ratchet-prototype:local
   network_mode: service:nats

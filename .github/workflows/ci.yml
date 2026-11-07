@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, sakar, 'sakar/**', 'ishaan/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  go-ci:
+    name: Go Test & Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          check-latest: true
+          cache: true
+
+      - name: Verify Go Modules
+        run: go mod verify
+
+      - name: Run Go Vet
+        run: go vet ./...
+
+      - name: Run Go Tests
+        run: go test -v -race ./...
+
+      - name: Build Sim Binary
+        run: go build -v ./cmd/ratchet-sim
+
+      - name: Build Connector Binary
+        run: go build -v ./cmd/ratchet-connector
+
+  ts-ci:
+    name: TypeScript & Web Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run RFC 8785 Canonicalization Tests
+        run: node --test web/src/lib/canon.test.ts
+
+      - name: Install Web Dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build Web Console
+        working-directory: web
+        run: npm run build
+

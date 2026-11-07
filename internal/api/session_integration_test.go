@@ -110,7 +110,7 @@ func TestRealPasswordSessionsCSRFRevocationAndTenantBinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	var identity api.Principal
 	_ = json.NewDecoder(response.Body).Decode(&identity)
 	if identity != p {

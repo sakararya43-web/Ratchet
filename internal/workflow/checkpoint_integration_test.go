@@ -28,8 +28,12 @@ func TestCheckpointDefaultBoundsLargeEventBytesAndContinuesWithoutGaps(t *testin
 	sys := setup(t)
 	// This intentionally appends and independently canonicalizes/verifies over
 	// 16 MiB several times. Allow race instrumentation's CPU cost without changing
-	// production HTTP or workflow deadlines.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	// production HTTP or workflow deadlines. The full serialized Linux race run
+	// exceeded 180 seconds while completing the successor checkpoint; allow six
+	// minutes for this large-evidence correctness check. Its event count, byte
+	// budget, independent verification and gap/continuity assertions are unchanged.
+	// Performance acceptance is measured separately without race instrumentation.
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 	service, err := workflow.New(sys.pool, sys.store, sys.engine, sys.key, nil, []string{sys.tenant})
 	if err != nil {

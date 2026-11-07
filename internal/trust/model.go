@@ -37,7 +37,7 @@ func ComputeRegistrySigningDigest(tenantID string, currentEpoch, targetEpoch int
 	h := sha256.New()
 	h.Write([]byte(DomainRegistry))
 	h.Write([]byte(tenantID))
-	h.Write([]byte(fmt.Sprintf(":epochs:%d->%d:", currentEpoch, targetEpoch)))
+	_, _ = fmt.Fprintf(h, ":epochs:%d->%d:", currentEpoch, targetEpoch)
 	h.Write(proposalDigest[:])
 	var out [32]byte
 	copy(out[:], h.Sum(nil))

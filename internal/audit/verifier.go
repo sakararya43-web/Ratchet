@@ -442,31 +442,31 @@ func verifyAuthoritySignature(pkixBytes, domainDigest, rawDigest, signature []by
 func FormatReportText(rep *VerificationReport) string {
 	var sb strings.Builder
 	sb.WriteString("=== RATCHET AUDIT VERIFICATION REPORT ===\n")
-	sb.WriteString(fmt.Sprintf("Status:               %s\n", map[bool]string{true: "VALID", false: "FAILED"}[rep.Valid]))
-	sb.WriteString(fmt.Sprintf("Tenant:               %s\n", rep.TenantID))
-	sb.WriteString(fmt.Sprintf("Events Verified:      %d\n", rep.EventsVerified))
-	sb.WriteString(fmt.Sprintf("Sequence Range:       %d -> %d\n", rep.SequenceStart, rep.SequenceEnd))
-	sb.WriteString(fmt.Sprintf("Chain Tip:            %s\n", rep.TipDigest.String()))
-	sb.WriteString(fmt.Sprintf("Approvals Verified:   %d\n", rep.ApprovalsVerified))
-	sb.WriteString(fmt.Sprintf("Checkpoints Verified: %d\n", rep.CheckpointsVerified))
+	_, _ = fmt.Fprintf(&sb, "Status:               %s\n", map[bool]string{true: "VALID", false: "FAILED"}[rep.Valid])
+	_, _ = fmt.Fprintf(&sb, "Tenant:               %s\n", rep.TenantID)
+	_, _ = fmt.Fprintf(&sb, "Events Verified:      %d\n", rep.EventsVerified)
+	_, _ = fmt.Fprintf(&sb, "Sequence Range:       %d -> %d\n", rep.SequenceStart, rep.SequenceEnd)
+	_, _ = fmt.Fprintf(&sb, "Chain Tip:            %s\n", rep.TipDigest.String())
+	_, _ = fmt.Fprintf(&sb, "Approvals Verified:   %d\n", rep.ApprovalsVerified)
+	_, _ = fmt.Fprintf(&sb, "Checkpoints Verified: %d\n", rep.CheckpointsVerified)
 
 	if len(rep.Warnings) > 0 {
 		sb.WriteString("\nWarnings:\n")
 		for _, w := range rep.Warnings {
-			sb.WriteString(fmt.Sprintf("  - [WARNING] %s\n", w))
+			_, _ = fmt.Fprintf(&sb, "  - [WARNING] %s\n", w)
 		}
 	}
 
 	if len(rep.Errors) > 0 {
 		sb.WriteString("\nErrors:\n")
 		for _, e := range rep.Errors {
-			sb.WriteString(fmt.Sprintf("  - [FAIL] %s\n", e))
+			_, _ = fmt.Fprintf(&sb, "  - [FAIL] %s\n", e)
 		}
 		if rep.OffendingSequence > 0 {
-			sb.WriteString(fmt.Sprintf("Offending Sequence:   %d\n", rep.OffendingSequence))
+			_, _ = fmt.Fprintf(&sb, "Offending Sequence:   %d\n", rep.OffendingSequence)
 		}
 		if rep.OffendingReference != "" {
-			sb.WriteString(fmt.Sprintf("Offending Reference:  %s\n", rep.OffendingReference))
+			_, _ = fmt.Fprintf(&sb, "Offending Reference:  %s\n", rep.OffendingReference)
 		}
 	}
 	sb.WriteString("=========================================\n")

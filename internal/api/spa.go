@@ -50,7 +50,7 @@ func NewSPA(files fs.FS) (http.Handler, error) {
 		}
 		if r.Method != "GET" && r.Method != "HEAD" {
 			w.Header().Set("Allow", "GET, HEAD")
-			http.Error(w, "method not allowed", 405)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if name == "" {
@@ -69,7 +69,7 @@ func NewSPA(files fs.FS) (http.Handler, error) {
 		}
 		data, err := fs.ReadFile(files, name)
 		if err != nil {
-			http.Error(w, "built asset unavailable", 503)
+			http.Error(w, "built asset unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(name)))

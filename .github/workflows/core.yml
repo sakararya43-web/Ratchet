@@ -80,7 +80,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
-          args: --config .golangci-core.yml ./cmd/ratchetd/... ./cmd/ratchet-k8s-webhook/... ./internal/api/... ./internal/eventstore/... ./internal/ledger/... ./internal/graph/... ./internal/bus/... ./internal/connector/... ./internal/domain/... ./internal/policy/... ./internal/workflow/... ./internal/evaluation/... ./internal/telemetry/...
+          args: --config .golangci-core.yml ./...
       - name: Start real local dependencies
         shell: pwsh
         run: ./scripts/core-env.ps1
@@ -93,7 +93,7 @@ jobs:
           $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
           # Serialize packages sharing the local database and bounded runner CPU.
           # The complete suite includes durable replay, expiry and drift tests.
-          go test -race -p=1 -tags=integration -count=1 -timeout=6m ./...
+          go test -race -p=1 -tags=integration -count=1 -timeout=10m ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: New-process persistence and readiness smoke
         run: sh scripts/core-smoke.sh

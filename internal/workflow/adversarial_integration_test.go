@@ -99,7 +99,13 @@ func TestAdversarialProofsAndConcurrentDistinctHumanQuorum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := credentials.SaveCredential(sys.tenant, actor.ID, "restored fixture", &webauthn.Credential{ID: ids[actor.ID], PublicKey: pub}); err != nil {
+	if err := credentials.SaveCredential(sys.tenant, actor.ID, "forbidden revoked-ID replacement", &webauthn.Credential{ID: ids[actor.ID], PublicKey: pub}); err == nil {
+		t.Fatal("revoked credential ID was resurrected")
+	}
+	// A real re-enrollment creates a new credential ID; it never revives the
+	// revoked historical credential used in the negative check above.
+	ids[actor.ID] = []byte(uuid.NewString())
+	if err := credentials.SaveCredential(sys.tenant, actor.ID, "new enrollment", &webauthn.Credential{ID: ids[actor.ID], PublicKey: pub}); err != nil {
 		t.Fatal(err)
 	}
 	proof := valid()

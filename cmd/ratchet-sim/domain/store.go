@@ -398,7 +398,7 @@ func (s *Store) saveToFile() error {
 		if err != nil {
 			return err
 		}
-		defer directory.Close()
+		defer func() { _ = directory.Close() }()
 		return directory.Sync()
 	}
 	return nil

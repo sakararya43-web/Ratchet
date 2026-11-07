@@ -3,10 +3,15 @@
 set -eu
 cd "$(dirname "$0")/.."
 set -a
-. ./.local/core.env
+if test -f ./.local/core.env; then . ./.local/core.env; fi
 set +a
-export RATCHET_DATABASE_DSN="postgres://ratchet_runtime:${RATCHET_RUNTIME_PASSWORD}@${RATCHET_DATABASE_HOST:-127.0.0.1}:${RATCHET_DATABASE_PORT:-${RATCHET_POSTGRES_PORT:-55434}}/ratchet?sslmode=disable"
-export RATCHET_MIGRATION_DSN="postgres://ratchet_migrator:${RATCHET_MIGRATOR_PASSWORD}@${RATCHET_DATABASE_HOST:-127.0.0.1}:${RATCHET_DATABASE_PORT:-${RATCHET_POSTGRES_PORT:-55434}}/ratchet?sslmode=disable"
+if test -z "${RATCHET_DATABASE_DSN:-}"; then
+  export RATCHET_DATABASE_DSN="postgres://ratchet_runtime:${RATCHET_RUNTIME_PASSWORD}@${RATCHET_DATABASE_HOST:-127.0.0.1}:${RATCHET_DATABASE_PORT:-${RATCHET_POSTGRES_PORT:-55434}}/ratchet?sslmode=disable"
+fi
+if test -z "${RATCHET_MIGRATION_DSN:-}"; then
+  export RATCHET_MIGRATION_DSN="postgres://ratchet_migrator:${RATCHET_MIGRATOR_PASSWORD}@${RATCHET_DATABASE_HOST:-127.0.0.1}:${RATCHET_DATABASE_PORT:-${RATCHET_POSTGRES_PORT:-55434}}/ratchet?sslmode=disable"
+fi
+mkdir -p .local
 binary=./.local/ratchetd-core-smoke
 go build -o "$binary" ./cmd/ratchetd
 "$binary" migrate

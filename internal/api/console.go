@@ -12,22 +12,22 @@ import (
 func ConsoleBootstrap(service *workflow.Service, key []byte) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
-			http.Error(w, "GET required", 405)
+			http.Error(w, "GET required", http.StatusMethodNotAllowed)
 			return
 		}
 		p, ok := SessionPrincipal(r.Context())
 		if !ok {
-			http.Error(w, "session required", 401)
+			http.Error(w, "session required", http.StatusUnauthorized)
 			return
 		}
 		actor := workflow.Actor{TenantID: p.TenantID, ID: p.ActorID}
 		if err := service.Authorize(r.Context(), actor, "view"); err != nil {
-			http.Error(w, "view unavailable", 403)
+			http.Error(w, "view unavailable", http.StatusForbidden)
 			return
 		}
 		snapshot, err := service.Store.CurrentGraph(r.Context(), p.TenantID, key)
 		if err != nil {
-			http.Error(w, "graph unavailable", 503)
+			http.Error(w, "graph unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		scope := "SELF"
@@ -46,11 +46,11 @@ func ConsoleBootstrap(service *workflow.Service, key []byte) http.Handler {
 		}
 		raw, err := json.Marshal(map[string]any{"principal": p, "graph_version": snapshot.Version(), "scope": scope, "nodes": nodes, "edges": edges})
 		if err != nil {
-			http.Error(w, "projection unavailable", 503)
+			http.Error(w, "projection unavailable", http.StatusServiceUnavailable)
 			return
 		}
 		if len(raw) > 32<<20 {
-			http.Error(w, "use paginated graph endpoints for this source", 413)
+			http.Error(w, "use paginated graph endpoints for this source", http.StatusRequestEntityTooLarge)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

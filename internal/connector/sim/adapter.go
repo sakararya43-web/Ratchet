@@ -55,7 +55,7 @@ func (a *Adapter) FetchSnapshot(ctx context.Context) (*connector.GraphSnapshot, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach simulator at %s: %w", a.baseURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("simulator returned non-200: %d", resp.StatusCode)
@@ -99,7 +99,7 @@ func (a *Adapter) FetchDelta(ctx context.Context, fromRevision int64) (*connecto
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("simulator audit returned %d", resp.StatusCode)
@@ -175,7 +175,7 @@ func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*con
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach target: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		var errResp map[string]any
@@ -231,7 +231,7 @@ func (a *Adapter) Verify(ctx context.Context, cmd *connector.ExecCommand) (*conn
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach simulator for verification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("read-back failed with HTTP %d", resp.StatusCode)
@@ -303,13 +303,4 @@ func (a *Adapter) Verify(ctx context.Context, cmd *connector.ExecCommand) (*conn
 		IsRestricted:     isRestricted,
 		ObservedRevision: org.Revision,
 	}, nil
-}
-
-func (a *Adapter) isSessionActive(sessions []domain.Session, sessionID string) bool {
-	for _, s := range sessions {
-		if s.SessionID == sessionID && !s.IsRevoked {
-			return true
-		}
-	}
-	return false
 }

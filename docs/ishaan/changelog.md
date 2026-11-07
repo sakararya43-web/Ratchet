@@ -12,6 +12,16 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Expanded strict lint to the full main checkout (zero issues), corrected HTTP
+  status/close handling and removed an unused simulator adapter helper. The full
+  integration run exposed a legacy test that resurrected a revoked credential;
+  it now asserts resurrection refusal and uses a fresh enrollment ID, retaining
+  every adversarial/quorum assertion. Kept the full large-checkpoint workload and
+  verification assertions while allowing six minutes for its Linux race test;
+  production deadlines and separately measured performance gates are unchanged.
+  Process smoke now accepts supplied DSNs without copying private environment
+  files into the check container.
+
 - Closed all reproduced actual-peer conformance failures: complete stable
   simulator envelopes now retain explicit safeguard semantics, original grant
   IDs, session/account state and valid logical-permission endpoints. Actual

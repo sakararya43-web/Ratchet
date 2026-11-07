@@ -50,7 +50,10 @@ func TestGenerateAndVerifyAuthorityFixtures(t *testing.T) {
 		{ActorID: "user:sec-lead-3", DisplayName: "Carol Danvers (Security Lead 3)", PublicKey: hex.EncodeToString(pubCarol)},
 	}
 
-	membersDir := filepath.Join("..", "..", "testdata", "authority")
+	membersDir := filepath.Join(t.TempDir(), "authority")
+	if os.Getenv("UPDATE_FIXTURES") == "1" {
+		membersDir = filepath.Join("..", "..", "testdata", "authority")
+	}
 	if err := os.MkdirAll(membersDir, 0755); err != nil {
 		t.Fatalf("failed to create authority testdata dir: %v", err)
 	}

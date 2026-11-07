@@ -291,7 +291,6 @@ func TestContainRahul_ClickToVerifiedRevocation(t *testing.T) {
 	}
 	h3, _ := audit.ComputeEventDigest(digester, currentHash, &evt3)
 	evt3.EventDigest = h3
-	currentHash = h3
 	events = append(events, evt3)
 
 	// Authority Checkpoint over events 1..3

@@ -165,7 +165,7 @@ func runGenesis(args []string) {
 		fmt.Printf("Failed to reach authority service: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
@@ -219,7 +219,7 @@ func runPolicyPropose(args []string) {
 		fmt.Printf("Failed to reach authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
@@ -255,7 +255,7 @@ func runPolicySign(args []string) {
 		fmt.Printf("Failed to query proposals: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer propResp.Body.Close()
+	defer func() { _ = propResp.Body.Close() }()
 
 	var proposals []*trust.PolicyBundle
 	_ = json.NewDecoder(propResp.Body).Decode(&proposals)
@@ -299,7 +299,7 @@ func runPolicySign(args []string) {
 		fmt.Printf("Failed to submit signature: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer signResp.Body.Close()
+	defer func() { _ = signResp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(signResp.Body)
 	if signResp.StatusCode != http.StatusOK {
@@ -328,7 +328,7 @@ func runPolicyActivate(args []string) {
 		fmt.Printf("Failed to contact authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
@@ -349,7 +349,7 @@ func runPolicyStatus(args []string) {
 		fmt.Printf("Failed to contact authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
@@ -369,7 +369,7 @@ func runPolicyList(args []string) {
 		fmt.Printf("Failed to contact authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	fmt.Printf("Policy Proposals:\n%s\n", string(resBytes))
@@ -385,7 +385,7 @@ func runRegistryList(args []string) {
 		fmt.Printf("Failed to contact authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	fmt.Printf("Current Approver Registry:\n%s\n", string(resBytes))
@@ -434,7 +434,7 @@ func runRegistryPropose(args []string) {
 		fmt.Printf("Failed to contact authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusCreated {
@@ -470,7 +470,7 @@ func runRegistrySign(args []string) {
 		fmt.Printf("Failed to query registry proposals: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer propResp.Body.Close()
+	defer func() { _ = propResp.Body.Close() }()
 
 	var proposals []*trust.RegistryProposal
 	_ = json.NewDecoder(propResp.Body).Decode(&proposals)
@@ -513,7 +513,7 @@ func runRegistrySign(args []string) {
 		fmt.Printf("Failed to submit signature: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer signResp.Body.Close()
+	defer func() { _ = signResp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(signResp.Body)
 	if signResp.StatusCode != http.StatusOK {
@@ -542,7 +542,7 @@ func runRegistryActivate(args []string) {
 		fmt.Printf("Failed to contact authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
@@ -563,7 +563,7 @@ func runRegistryHistory(args []string) {
 		fmt.Printf("Failed to contact authority: %v\n", err)
 		os.Exit(ExitBadArgs)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	resBytes, _ := io.ReadAll(resp.Body)
 	fmt.Printf("Registry Epoch History:\n%s\n", string(resBytes))

@@ -64,7 +64,14 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    reserved, and missing assets return 404. Combined and separated real TLS
    runtime tests pass, including self-only visibility and authenticated API 404.
    All 15 TypeScript canonicalization tests pass; npm audit finds no advisories.
-7. Containers, SBOM, signatures and core runbooks: pending.
+7. Containers, SBOM, signatures and core runbooks: actual 37,216,687-byte
+   distroless image runs as 65532:65532 with read-only root/capabilities dropped.
+   Pinned Syft generated an SPDX SBOM with 112 packages. Pinned Cosign signed and
+   verified the actual OCI image digest with the SBOM hash; wrong key and wrong
+   SBOM hash were rejected. The registry/keys were local/disposable, without a
+   public transparency or production identity claim. CI reproduces and uploads
+   the evidence. Core role/configuration, readiness, build and recovery procedures
+   are in [core-runtime.md](core-runtime.md) and [core-recovery.md](core-recovery.md).
 8. Full final-candidate checks including actual peer conformance: pending.
 9. Joint D1-D8 evidence and release limitations: pending.
 

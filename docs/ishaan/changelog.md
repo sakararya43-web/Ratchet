@@ -12,6 +12,14 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Built and exercised the actual core distroless image as nonroot under a
+  read-only root with capabilities dropped. Pinned base/tool digests, generated
+  a real 112-package SPDX SBOM, signed/verified the actual image digest and SBOM
+  commitment with Cosign, and rejected wrong-key/wrong-SBOM verification.
+  Added reproducible CI artifacts and core configuration/role/readiness/restore
+  documentation. Signing evidence is local/disposable, not a production identity.
+  Restored the repository-wide LF attributes alongside the web artifact rules.
+
 - Reused the actual pinned peer React/Vite source, removed mock workflow state,
   simulated passkeys and browser target credentials, and wired same-origin core
   APIs plus real browser passkey creation/assertion. Embedded the actual build

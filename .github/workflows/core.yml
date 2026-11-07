@@ -67,6 +67,15 @@ jobs:
         run: |
           python3 scripts/core-web-build.py
           git diff --exit-code -- internal/webassets/assets
+      - name: Build nonroot core image and verify its supply chain
+        run: |
+          docker build -f deploy/core.Dockerfile -t ratchet-core:phase7 .
+          python3 scripts/core-supply-chain.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core-image-supply-chain
+          path: .local/phase7-supply/
+          retention-days: 7
       - name: Core lint
         uses: golangci/golangci-lint-action@v9
         with:

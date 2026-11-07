@@ -229,7 +229,7 @@ func testConsoleRuntime(t *testing.T, separate bool) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer response.Body.Close()
+		defer func() { _ = response.Body.Close() }()
 		if response.StatusCode != 200 {
 			raw, _ := io.ReadAll(response.Body)
 			t.Fatalf("login %d %s", response.StatusCode, raw)
@@ -587,7 +587,7 @@ func testConsoleRuntime(t *testing.T, separate bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != 503 {
 		t.Fatal("missing workflow dependency reported ready")
 	}

@@ -46,7 +46,7 @@ func TestD1_OrdinaryAccessJourney(t *testing.T) {
 	if resp.StatusCode != 403 {
 		t.Fatalf("expected HTTP 403 Forbidden before grant, got %d", resp.StatusCode)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// 3. Setup change request D1 (ordinary finance-analyst access for intern)
 	tenantID := "tenant-exchange-demo"
@@ -154,7 +154,7 @@ func TestD1_OrdinaryAccessJourney(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer respAfter.Body.Close()
+	defer func() { _ = respAfter.Body.Close() }()
 
 	if respAfter.StatusCode != 200 {
 		t.Fatalf("expected HTTP 200 OK after verified grant, got %d", respAfter.StatusCode)

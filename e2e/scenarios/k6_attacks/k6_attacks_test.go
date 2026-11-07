@@ -200,7 +200,7 @@ func TestFRK6_CompleteAttackFamiliesAndLegitimateCounterparts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unauth execute failed: %v", err)
 		}
-		defer unauthResp.Body.Close()
+		defer func() { _ = unauthResp.Body.Close() }()
 		if unauthResp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("expected 401 Unauthorized for service overgrant without broker auth, got %d", unauthResp.StatusCode)
 		}
@@ -257,7 +257,7 @@ func TestFRK6_CompleteAttackFamiliesAndLegitimateCounterparts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("req failed: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		// Unauthorized without broker secret
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Fatalf("expected 401 Unauthorized for direct safeguard edit, got %d", resp.StatusCode)
@@ -350,7 +350,7 @@ func probeAccess(simURL, identityID, sessionID, resourceID, action string) probe
 	if err != nil {
 		return probeResult{Allowed: false, Reason: err.Error()}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var res probeResult
 	_ = json.NewDecoder(resp.Body).Decode(&res)

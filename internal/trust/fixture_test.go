@@ -2,14 +2,15 @@ package trust
 
 import (
 	"context"
+	"crypto/ecdh"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -18,11 +19,23 @@ import (
 
 func deriveAuthKey(seed string) *ecdsa.PrivateKey {
 	h := sha256.Sum256([]byte(seed))
-	priv := new(ecdsa.PrivateKey)
-	priv.Curve = elliptic.P256()
-	priv.D = new(big.Int).SetBytes(h[:])
-	priv.PublicKey.Curve = priv.Curve
-	priv.PublicKey.X, priv.PublicKey.Y = priv.Curve.ScalarBaseMult(h[:])
+	ecdhKey, err := ecdh.P256().NewPrivateKey(h[:])
+	for i := 1; err != nil; i++ {
+		h = sha256.Sum256([]byte(fmt.Sprintf("%s:%d", seed, i)))
+		ecdhKey, err = ecdh.P256().NewPrivateKey(h[:])
+	}
+	pkcs8, err := x509.MarshalPKCS8PrivateKey(ecdhKey)
+	if err != nil {
+		panic(fmt.Sprintf("failed to marshal pkcs8: %v", err))
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(pkcs8)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse pkcs8: %v", err))
+	}
+	priv, ok := parsed.(*ecdsa.PrivateKey)
+	if !ok {
+		panic(fmt.Sprintf("unexpected parsed key type: %T", parsed))
+	}
 	return priv
 }
 

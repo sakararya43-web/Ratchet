@@ -183,7 +183,7 @@ func TestContainRahul_ClickToVerifiedRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("business route probe failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected 403 Forbidden for terminated session on live business route, got %d", resp.StatusCode)
 	}
@@ -392,7 +392,7 @@ func executeProbe(t *testing.T, simURL, identityID, sessionID, resourceID, actio
 	if err != nil {
 		t.Fatalf("probe request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result probeResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

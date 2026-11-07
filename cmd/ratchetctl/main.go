@@ -594,9 +594,6 @@ func parsePrivateKey(keyPath string) (*ecdsa.PrivateKey, error) {
 	return nil, fmt.Errorf("key must be ECDSA (errors: %v / %v)", err, err2)
 }
 
-func parseDigest(d ports.Digest) string {
-	return d.String()
-}
 
 func runAuditVerify(args []string) {
 	fs := flag.NewFlagSet("audit verify", flag.ExitOnError)

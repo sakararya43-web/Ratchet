@@ -218,7 +218,65 @@
 
 ---
 
+## Integration Merge & Full Reconciliation (`main` into `sakar`)
+- **Merge Commit**: `a9fb9d6`
+- **Scope & Deliverables**:
+  - **44 Conflicting Files Resolved**: Full semantic reconciliation across schemas, trust/approval, target simulator, connectors, web console, and build metadata preserving both contributors' development histories.
+  - **Schemas & Build Configuration**:
+    - Reconciled `proto/ratchet/v1/` across `audit.proto`, `change.proto`, `connector.proto`, `containment.proto`, `decision.proto`, `graph.proto`, `impact.proto`, `incident.proto`, preserving main's exact-context, tenant, revision, idempotency, signature, precondition, and read-back evidence fields.
+    - Preserved `buf.yaml` Standard linting configuration and backward compatibility rules.
+    - Updated `go.mod` and `go.sum` to retain all dependencies and security patches from both branches with module verification clean.
+  - **Passkey, Approval & Trust Corrections**:
+    - Adopted authenticated session factory and strict origin/RP-ID validation in `internal/approval/`.
+    - Integrated WebAuthn COSE public key verification (`webauthncose`) in `ApprovalVerifier`.
+    - Enforced durable credential persistence and immutable revoked credential IDs (prohibiting resurrection).
+    - Preserved offline audit verifier recomputed checkpoint metadata digest and hash chain continuity enforcement in `internal/audit/`.
+  - **Simulator & Connector Reconciliations**:
+    - Enforced atomic expected revision / CAS precondition checks, durable command receipts, and independent read-back in `cmd/ratchet-sim/`.
+    - Replaced `LogPublisher` in `cmd/ratchet-connector/` with authenticated real NATS JetStream publication, durable consumer loop (`ConsumeExecution`), execution result signing (`RATCHET_EXEC_RESULT_V1`), priority containment engine integration, and `SIM_BASE_URL` environment configuration support.
+  - **Kubernetes Webhook & Adapter**:
+    - Preserved real `ValidatingAdmissionWebhook` with exact core permit binding, mutual TLS, and sensitive write refusal during core unavailability.
+  - **Frontend Console & Embedded Assets**:
+    - Integrated real same-origin console in `web/` (`App.tsx`, `api.ts`), eliminating mock UI components that bypassed core via simulated assertions or direct broker tokens.
+    - Validated all 15 RFC 8785 canonicalization tests, clean Vite production build, zero npm vulnerabilities, and embedded asset reproduction.
+  - **Verification Results**:
+    - `go mod verify`: 100% verified.
+    - `go vet ./...`: 0 warnings / 0 errors.
+    - Core boundaries (`scripts/core-boundaries.py`): PASS.
+    - All Go unit and package tests across repo: 100% PASS.
+    - Conformance suites (`internal/connector/conformance`): 100% PASS.
+    - D1/D2 journeys (`cmd/ratchet-sim`): 100% PASS.
+    - Complete E2E scenarios (`e2e/scenarios/...`): 100% PASS across `contain_rahul`, `controlled_approver`, `hardening`, `k6_attacks`, `self_approval`, and `withdrawal_rule_edit`.
+    - Rapid property tests (seed 20261105, 300 checks): PASS across graph, domain, and workflow.
+    - Fuzz targets (`FuzzAuthenticationDecoder`, `FuzzNormalizedStateAndMutation`): PASS.
+    - `govulncheck`: 0 vulnerabilities reported.
+    - CLI offline audit verification: PASS on valid bundle; exit 3 on tampered bundle.
+    - Web verification (`scripts/core-web-build.py`): 15/15 tests, 0 vulnerabilities, asset parity verified.
+
+---
+
 ## Current State & Verification Status
+- **Git Branch**: `sakar` (tracking `origin/sakar`).
+- **Go Test Suite**: All unit, integration, and e2e scenario tests passing:
+  - `cmd/ratchet-sim` (passed)
+  - `cmd/ratchet-sim/domain` (passed)
+  - `e2e/scenarios/contain_rahul` (passed)
+  - `e2e/scenarios/controlled_approver` (passed)
+  - `e2e/scenarios/hardening` (passed)
+  - `e2e/scenarios/k6_attacks` (passed)
+  - `e2e/scenarios/self_approval` (passed)
+  - `e2e/scenarios/withdrawal_rule_edit` (passed)
+  - `internal/approval` (passed)
+  - `internal/audit` (passed)
+  - `internal/canon` (passed)
+  - `internal/connector` (passed)
+  - `internal/connector/k8s` (passed)
+  - `internal/connector/sim` (passed)
+  - `internal/trust` (passed)
+- **Web Console**: `npm test` (15/15 golden vectors passed) and `npm run build` (0 TypeScript errors).
+- **Public Documentation**: `README.md` published and synced with `origin/sakar`, featuring all required hackathon sections: *At a Glance*, *The Problem*, *Why RATCHET?*, *How It Works*, *System Architecture*, *Repo Layout*, *Test and Quality*, *Tech Stack*, *Honest Limits*, DataNova 2026 Devpost badge, and Hackathon Submission Details table.
+- **Pull Request**: PR #1 (`sakar` $\to$ `main`) at https://github.com/sakararya43-web/Ratchet/pull/1 prepared for review and publication.
+
 - **Git Branch**: `sakar` (tracking `origin/sakar`).
 - **Go Test Suite**: All unit, integration, and e2e scenario tests passing:
   - `cmd/ratchet-sim` (passed)

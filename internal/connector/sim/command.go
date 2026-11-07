@@ -25,6 +25,10 @@ func protocolDigest(domain string, body any) (ports.Digest, error) {
 // AuthenticateCommand fails closed before any target operation. Only ordinary
 // role changes are advertised by the simulator prototype capability.
 func AuthenticateCommand(raw []byte, tenant, connector string, public ed25519.PublicKey, now time.Time) (workflow.PreparedCommand, error) {
+	return authenticateCommand(raw, tenant, connector, public, now, false)
+}
+
+func authenticateCommand(raw []byte, tenant, connector string, public ed25519.PublicKey, now time.Time, allowExpired bool) (workflow.PreparedCommand, error) {
 	var c workflow.PreparedCommand
 	invalid := func() (workflow.PreparedCommand, error) { return workflow.PreparedCommand{}, eventstore.ErrInvalid }
 	if len(raw) == 0 || len(raw) > 1<<20 || len(public) != ed25519.PublicKeySize {
@@ -68,7 +72,7 @@ func AuthenticateCommand(raw []byte, tenant, connector string, public ed25519.Pu
 		return invalid()
 	}
 	// Reconciliation is permitted after the deadline, but can never issue a write.
-	if !c.VerifyOnly && !now.Before(c.Deadline) {
+	if !allowExpired && !c.VerifyOnly && !now.Before(c.Deadline) {
 		return invalid()
 	}
 	bound, err := canon.New().Digest(e)

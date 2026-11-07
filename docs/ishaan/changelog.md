@@ -12,6 +12,12 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Corrected the reproduced offline checkpoint metadata/linkage defect in the
+  pinned peer verifier on main: recompute signed metadata commitments, enforce
+  contiguous checkpoint history and refuse empty anchored/truncated-head exports.
+  The peer's comprehensive verifier suite and all nine core checkpoint handoff
+  cases pass under race, including the previously accepted wrong-prior export.
+
 - Built and exercised the actual core distroless image as nonroot under a
   read-only root with capabilities dropped. Pinned base/tool digests, generated
   a real 112-package SPDX SBOM, signed/verified the actual image digest and SBOM

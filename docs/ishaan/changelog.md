@@ -12,6 +12,13 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Added external privacy-key lifecycle commands and file-based core key loading.
+  Real key destruction prevents decryption of retained ciphertext while public
+  graph/chain commitments survive. Requester/outsider/reviewer access, audit
+  erasure, actual River projection recovery and console tests pass under race
+  instrumentation. Documented reader shutdown, backup/config copies and the
+  limits of logical file deletion; no secure-SSD-erasure claim is made.
+
 - Added real retained-evidence recovery and projection repair through `ratchetd
   recover`. A new-process regression reconstructs damaged audit display state
   with unchanged graph/chain commitments. Added and passed a full PostgreSQL

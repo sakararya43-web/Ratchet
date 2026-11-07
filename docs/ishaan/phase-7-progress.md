@@ -20,7 +20,14 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    all 28 core/River table counts and ordered SHA-256 row commitments match.
    The original database is never a restore/drop target. Historical checkpoint
    verification retains its existing signed-history tests.
-3. Privacy key deletion and sensitive access: pending.
+3. Privacy key deletion and sensitive access: real external-key creation/load/
+   destruction and `graph_key_file` configuration are implemented, with no key
+   material in CLI output. Deleting a real key after stopping/clearing its reader
+   prevents private decryption while retained graph/chain commitments match.
+   Existing requester/outsider/reviewer visibility and erasure tests pass with
+   the new recovery checks. [Procedure and limits](core-recovery.md) explicitly
+   require stopping readers and deleting backup/config copies; logical file
+   deletion does not promise physical SSD erasure.
 4. Resource limits, fuzzing, dependencies and domain boundaries: pending.
 5. Selectable runtime roles: pending.
 6. Actual peer web artifact embedding: pending.

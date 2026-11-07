@@ -37,6 +37,7 @@ type consoleConfig struct {
 	Origin                  string           `json:"origin"`
 	SessionKey              string           `json:"session_key_hex"`
 	GraphKey                string           `json:"graph_key_hex"`
+	GraphKeyFile            string           `json:"graph_key_file"`
 	CursorKey               string           `json:"cursor_key_hex"`
 	ServerCert              string           `json:"server_cert"`
 	ServerKey               string           `json:"server_key"`
@@ -104,7 +105,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	graphKey, err := key32(config.GraphKey)
+	graphKey, err := configuredPrivacyKey(config.GraphKey, config.GraphKeyFile)
 	if err != nil {
 		return err
 	}

@@ -30,6 +30,7 @@ import (
 
 type graphConfig struct {
 	GraphKey        string                `json:"graph_key_hex"`
+	GraphKeyFile    string                `json:"graph_key_file"`
 	CursorKey       string                `json:"cursor_key_hex"`
 	NATSURL         string                `json:"nats_url"`
 	NATSCredentials string                `json:"nats_credentials"`
@@ -70,7 +71,7 @@ func runGraph(parent context.Context, args []string, out io.Writer) error {
 	if err := decoder.Decode(&extra); err != io.EOF {
 		return errors.New("graph configuration must contain exactly one JSON object")
 	}
-	graphKey, err := hex.DecodeString(config.GraphKey)
+	graphKey, err := configuredPrivacyKey(config.GraphKey, config.GraphKeyFile)
 	if err != nil || len(graphKey) != 32 {
 		return errors.New("graph encryption key must be 32 bytes")
 	}

@@ -1,3 +1,5 @@
+//go:build peerintegration
+
 package hardening_test
 
 import (
@@ -121,7 +123,7 @@ func TestHardening_PersistenceRestartAndColdStartRecovery(t *testing.T) {
 		ts := httptest.NewServer(srv.Routes())
 		defer ts.Close()
 
-		adapter := sim.NewAdapter(ts.URL, "sim-secret", "tenant-demo", "conn-01")
+		adapter := sim.NewAdapter(ts.URL, "sim-secret", store.GetState().TenantID, "conn-01")
 
 		pce1, err := connector.NewPriorityContainmentEngine(adapter, priorityFile)
 		if err != nil {
@@ -130,7 +132,7 @@ func TestHardening_PersistenceRestartAndColdStartRecovery(t *testing.T) {
 
 		plan := &connector.ContainmentPlan{
 			PlanID:         "plan-restart-01",
-			TenantID:       "tenant-demo",
+			TenantID:       store.GetState().TenantID,
 			IncidentID:     "inc-01",
 			TargetIdentity: "user:rahul",
 			Actions: []connector.ContainmentAction{
@@ -168,7 +170,7 @@ func TestHardening_PersistenceRestartAndColdStartRecovery(t *testing.T) {
 		ts := httptest.NewServer(srv.Routes())
 		defer ts.Close()
 
-		adapter := sim.NewAdapter(ts.URL, "sim-secret", "tenant-demo", "conn-01")
+		adapter := sim.NewAdapter(ts.URL, "sim-secret", store.GetState().TenantID, "conn-01")
 
 		// Assign role initially
 		_ = store.AssignRole("broker:ratchet-connector", "user:admin-operator", "role:security-lead")
@@ -180,15 +182,17 @@ func TestHardening_PersistenceRestartAndColdStartRecovery(t *testing.T) {
 
 		// Grant was supposed to expire 5 seconds ago (expired while system was down)
 		expiredTime := time.Now().Add(-5 * time.Second)
-		_ = tgm1.ScheduleGrant(&connector.TemporaryGrantRecord{
+		if err := tgm1.ScheduleGrant(&connector.TemporaryGrantRecord{
 			GrantID:    "grant-offline-expired",
-			TenantID:   "tenant-demo",
+			TenantID:   store.GetState().TenantID,
 			IdentityID: "user:admin-operator",
 			RoleID:     "role:security-lead",
 			GrantedAt:  time.Now().Add(-1 * time.Hour),
 			ExpiresAt:  expiredTime,
 			Status:     connector.GrantStatusActive,
-		})
+		}); err != nil {
+			t.Fatal(err)
+		}
 
 		// Cold restart: connector starts up and immediately sweeps backlog
 		tgm2, err := connector.NewTemporaryGrantManager(adapter, tempGrantsFile)

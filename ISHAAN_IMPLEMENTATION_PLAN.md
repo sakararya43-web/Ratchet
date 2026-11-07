@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Planning only; implementation has not started in this repository.  
+**Status:** Phase 6's five core tasks and selected real-kind acceptance are complete on `main`; see [Phase 6 evidence](docs/ishaan/phase-6-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 7's nine hardening/check/evidence tasks are delivered and all required checks pass on source 7ddc8a9; its exit/full product sign-off remain open because earlier Phase 4 operations and joint D1-D8 acceptance are unfinished. See [Phase 7 evidence](docs/ishaan/phase-7-completion.md). Phase 5's core implementation is complete, while its joint acceptance and earlier trust/target gates remain open. Phase 4's unfinished own work and joint gates remain required and are not marked complete. No requirement was removed or shortened.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -59,7 +59,7 @@ The architecture's Oracle **4-core / 24-GB Always Free** assumption must not be 
 
 ## 4. Phase sequence
 
-Weeks are estimates from the agreed start date, not promises or instructions to overlap unfinished security gates. Moving a dependency changes the schedule, not ownership. Maintain `ishaan/<topic>` branches, focused PRs, Conventional Commits and the PRD's short branch lifetime where practical. Use the twice-weekly check-in to report delivered contracts and blockers.
+Weeks are estimates from the agreed start date, not promises or instructions to overlap unfinished security gates. Moving a dependency changes the schedule, not ownership. Per the current user instruction, work on `main` only, use focused Conventional Commits, and keep shared changes subject to peer agreement. Use the twice-weekly check-in to report delivered contracts and blockers.
 
 | Phase | Indicative window | Working result |
 |---|---|---|
@@ -78,19 +78,29 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 **Entry:** Documents are the current repository contents; do not assume application code or infrastructure already exists.
 
+**Execution record (2026-11-04):** The real core slice, schemas, SQL, hash chain,
+privacy separation, role restrictions, process operations and local checks are
+implemented. Contract freeze/agreement remains pending peer review. The isolated
+combined test run also reproduces an existing peer audit-fixture failure on
+untouched `origin/sakar`. Phase 0 remains unsigned until the
+[handoff gates](docs/ishaan/phase-0-handoff.md) are resolved. The user subsequently
+explicitly authorized starting Phase 1 with these joint gates outstanding; this
+does not imply peer approval. The user's instruction overrides the topic-branch
+rule: all Ishaan changes are committed on `main` only.
+
 ### Ishaan's work
 
-- [ ] Establish the Go module and build configuration needed by the first actual core operation. Add implementation files as they become useful; do not populate empty future modules.
+- [x] Establish the Go module and build configuration needed by the first actual core operation. Add implementation files as they become useful; do not populate empty future modules.
 - [ ] Contribute the eight core service schemas: `ChangeService`, `ImpactService`, `GraphService`, `ContainmentService`, `IncidentService`, `AuditService`, `OverviewService`, `DecisionService`. Freeze request kinds, state names, enum meanings, pagination, typed errors, tenant identifiers, graph versions and idempotency fields with the peer.
-- [ ] Specify the control-plane side of `GraphSnapshot`, `GraphDelta`, `ExecCommand`, `ExecResult`, `ObservedState`, `AuditEvent` and `DriftReport`. Include connector identity, tenant, schema version, source revision, correlation ID, command ID, preconditions and read-back evidence. Keep the five PRD NATS subjects unchanged unless a reviewed additive contract change is necessary.
-- [ ] Review `ApprovalVerifier`, `BundleVerifier`, `Digester` and `PasskeyHandlerFactory` ports and their failure behavior. Specify how the authenticated actor and tenant enter these boundaries without trusting user-supplied identity fields.
-- [ ] Specify the approval envelope: exact change intent, requester and target, request/revision ID, graph version, impact digest, policy hash, tenant and expiration. Accept Sakar's canonicalization format instead of creating another digest implementation.
+- [x] Specify the control-plane side of `GraphSnapshot`, `GraphDelta`, `ExecCommand`, `ExecResult`, `ObservedState`, `AuditEvent` and `DriftReport`. Include connector identity, tenant, schema version, source revision, correlation ID, command ID, preconditions and read-back evidence. Keep the five PRD NATS subjects unchanged unless a reviewed additive contract change is necessary.
+- [x] Review `ApprovalVerifier`, `BundleVerifier`, `Digester` and `PasskeyHandlerFactory` ports and their failure behavior. Specify how the authenticated actor and tenant enter these boundaries without trusting user-supplied identity fields.
+- [x] Specify the approval envelope: exact change intent, requester and target, request/revision ID, graph version, impact digest, policy hash, tenant and expiration. Accept Sakar's canonicalization format instead of creating another digest implementation.
 - [ ] Agree the append-only chain format and a replayable decision fact sheet. Specify byte encoding, sequence order, genesis hash, versioning and canonical metadata before events are stored.
-- [ ] Implement real PostgreSQL migrations and repositories using `pgx`, `sqlc` and `goose`: append/load an event stream, expected-version conflicts, command idempotency and outbox insertion in one transaction. Use a tenant-specific locked chain head or equivalent serialization so concurrent streams cannot fork the tenant hash chain. Do not assume generated sequence allocation equals commit order.
-- [ ] Start hash chaining immediately with Sakar's real `Digester`. Separate mutable personal-data storage and encrypted references from immutable event content. Do not duplicate justifications or names into permanent metadata by accident.
-- [ ] Provide distinct migration and runtime DB privileges; runtime must not update, delete or truncate event/ledger rows. Read-model writers need only their projection permissions. Runtime must not own tables or hold superuser privileges.
-- [ ] Make `ratchetd` perform a real persisted operation and expose honest liveness/readiness. Readiness distinguishes migration, database and graph/bundle readiness; unavailable decision dependencies never appear healthy for escalation.
-- [ ] Contribute working local Postgres/NATS startup and core checks to shared Compose/CI. Add `go vet`, lint, focused integration tests and race checks for code that exists. Establish the initial Buf baseline; later contract diffs run `buf breaking` against it.
+- [x] Implement real PostgreSQL migrations and repositories using `pgx`, `sqlc` and `goose`: append/load an event stream, expected-version conflicts, command idempotency and outbox insertion in one transaction. Use a tenant-specific locked chain head or equivalent serialization so concurrent streams cannot fork the tenant hash chain. Do not assume generated sequence allocation equals commit order.
+- [x] Start hash chaining immediately with Sakar's real `Digester`. Separate mutable personal-data storage and encrypted references from immutable event content. Do not duplicate justifications or names into permanent metadata by accident.
+- [x] Provide distinct migration and runtime DB privileges; runtime must not update, delete or truncate event/ledger rows. Read-model writers need only their projection permissions. Runtime must not own tables or hold superuser privileges.
+- [x] Make `ratchetd` perform a real persisted operation and expose honest liveness/readiness. Readiness distinguishes migration, database and graph/bundle readiness; unavailable decision dependencies never appear healthy for escalation.
+- [x] Contribute working local Postgres/NATS startup and core checks to shared Compose/CI. Add `go vet`, lint, focused integration tests and race checks for code that exists. Establish the initial Buf baseline; later contract diffs run `buf breaking` against it.
 
 **Dependency:** The real digester and canonical vectors come from the peer-owned package. Before that lands, design schemas and SQL or test independent domain operations; do not add a second digester or bypass hash verification.
 
@@ -102,18 +112,26 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 **Requirements:** FR-G1-G5, FR-G7, FR-I1; core API support for FR-G6 and FR-I2.
 
+**Execution record (2026-11-04):** Core operations and verification are implemented
+without runtime fakes. Real PostgreSQL/JetStream/TLS acceptance passes. Shared
+fixtures remain review candidates and the actual peer adapter fails five
+conformance checks; its executable also lacks actual NATS publication. The
+[handoff](docs/ishaan/phase-1-handoff.md) records exact evidence and owner actions.
+Phase 1 is not signed off; Phase 2 was subsequently authorized and is in progress. The first 100k-edge impact
+baseline is 1.38 s/op; the 100 ms target remains unmet and is scheduled for Phase 5.
+
 ### Ishaan's work
 
-- [ ] Implement the outbox-to-JetStream relay with durable acknowledgement, stable message IDs, retry/backoff and observable backlog. Mark delivery only after acknowledgement; tolerate replay. Exactly-once business effects come from durable idempotency, not a claim of exactly-once transport.
-- [ ] Implement ingestion authorization and consumers for actual connector snapshots/deltas. Deduplicate input, check source ordering, reject cross-tenant or malformed data, and atomically expose a completed snapshot. Detect gaps and request/respect resync rather than silently dropping edges.
-- [ ] Build the typed graph for humans, service accounts, groups, roles, permissions, resources, safeguards, sessions and credentials. Preserve access provenance and resource tiers 0-3.
-- [ ] Implement takeover inheritance, role-modification self-grant semantics and safeguard-protection semantics. `ControlSet` must account for control powers acquired through memberships and roles, not only directly attached takeover edges. Handle cycles and transitive control safely.
-- [ ] Implement immutable CSR snapshots, delta application and isolated proposed-change overlays. Publish versions atomically; one query cannot mix graph generations. Version results from their applied event position.
-- [ ] Deliver `Reach`, `PathsTo`, `ControlSet` and `ImpactDiff`. Analyze every identity affected by the change, including identities other than the requester. Return new resources, controllable identities, tier-0 paths, weakened safeguards and blast-radius changes by tier.
-- [ ] Implement `GraphService` node details, focused neighborhoods, provenance and bounded/paginated paths; implement draft-only `ImpactService`. Simulation must not submit a request, publish an execution command, mutate target state or advance the graph.
-- [ ] Support bounded `min_version` waits and explicit stale/unavailable responses. Do not make an escalation decision against a replica known to be behind the required revision.
+- [x] Implement the outbox-to-JetStream relay with durable acknowledgement, stable message IDs, retry/backoff and observable backlog. Mark delivery only after acknowledgement; tolerate replay. Exactly-once business effects come from durable idempotency, not a claim of exactly-once transport.
+- [x] Implement ingestion authorization and consumers for actual connector snapshots/deltas. Deduplicate input, check source ordering, reject cross-tenant or malformed data, and atomically expose a completed snapshot. Detect gaps and request/respect resync rather than silently dropping edges.
+- [x] Build the typed graph for humans, service accounts, groups, roles, permissions, resources, safeguards, sessions and credentials. Preserve access provenance and resource tiers 0-3.
+- [x] Implement takeover inheritance, role-modification self-grant semantics and safeguard-protection semantics. `ControlSet` must account for control powers acquired through memberships and roles, not only directly attached takeover edges. Handle cycles and transitive control safely.
+- [x] Implement immutable CSR snapshots, delta application and isolated proposed-change overlays. Publish versions atomically; one query cannot mix graph generations. Version results from their applied event position.
+- [x] Deliver `Reach`, `PathsTo`, `ControlSet` and `ImpactDiff`. Analyze every identity affected by the change, including identities other than the requester. Return new resources, controllable identities, tier-0 paths, weakened safeguards and blast-radius changes by tier.
+- [x] Implement `GraphService` node details, focused neighborhoods, provenance and bounded/paginated paths; implement draft-only `ImpactService`. Simulation must not submit a request, publish an execution command, mutate target state or advance the graph.
+- [x] Support bounded `min_version` waits and explicit stale/unavailable responses. Do not make an escalation decision against a replica known to be behind the required revision.
 - [ ] Produce reviewed expected impact fixtures from the real seeded exchange and policy fact inputs. Keep fixture updates in shared PRs.
-- [ ] Extend connector conformance coverage for sync, snapshot completeness, duplicate messages, delta gaps, tenant isolation and reconnect/replay.
+- [x] Extend connector conformance coverage for sync, snapshot completeness, duplicate messages, delta gaps, tenant isolation and reconnect/replay.
 
 **Verification:** Compare optimized queries with an independent test-only reference traversal on random cyclic organizations. Include indirect role administration, service-account takeover, missing nodes, multi-identity impact and concurrent simulations. Record a first reproducible 100k-edge benchmark with dataset seed and hardware.
 
@@ -125,22 +143,34 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 **Requirements:** FR-C1-C3, FR-C5 rules, FR-C7-C9 core, FR-P1-P2, FR-P4 loading, FR-P6, FR-O1 data, FR-U1, FR-U3, FR-L1. These security checks are required now, not optional Phase 3 additions.
 
+**Execution checkpoint (2026-11-04):** The user explicitly authorized Phase 2.
+Password sessions, the pure state machine, signed prepared OPA policies,
+transactional River workers, guarded command staging/read-back and core API
+operations are implemented. Native component tests use real PostgreSQL, real
+cryptography and real River jobs. Live browser/peer-target acceptance is still
+blocked by the peer session/verifier/connector conformance gaps. No unsafe peer
+handler or simulated assertion endpoint is mounted. Final runtime/CI/contract
+verification and handoff are recorded in [the Phase 2 handoff](docs/ishaan/phase-2-handoff.md).
+The core race/contract checks pass, but peer conformance fails reproducibly;
+do not sign off this phase yet. The user subsequently authorized Phase 3 core work
+on 2026-11-05 while these peer gates remain open.
+
 ### Ishaan's work
 
-- [ ] Implement seeded-user login with actual session verification, expiration, logout and server-derived actor identity. Use secure cookie configuration appropriate to the origin, CSRF protection for state changes and policy authorization at each service operation. A role dropdown or arbitrary user-ID header is not login.
+- [x] Implement seeded-user login with actual session verification, expiration, logout and server-derived actor identity. Use secure cookie configuration appropriate to the origin, CSRF protection for state changes and policy authorization at each service operation. A role dropdown or arbitrary user-ID header is not login.
 - [ ] Mount the peer's real passkey handlers through the agreed factory and dependencies; do not reimplement enrollment or assertion verification. Block privileged operations while the verifier or required identity binding is unavailable.
-- [ ] Implement pure `(state, command) -> events/error` transitions for Submitted, Assessed, Allowed, AwaitingApproval, Held, Rejected, Approved, Executing, Executed, Failed, Expired and Revoked. Define valid transitions explicitly; support added context and reassessment after a hold. Do not create a direct Submitted-to-Executed shortcut.
-- [ ] Validate each supported change kind, justification, target, requested access, incident linkage and optional expiration. Reject unknown or unsupported kinds with a typed error.
-- [ ] Embed OPA prepared queries. Return structured `ALLOW`, `REQUIRE_APPROVAL`, `HOLD` or `REJECT`, with reasons and required groups/quorum. Bind policy inputs to recorded, replayable facts rather than live wall-clock or network lookups during evaluation.
-- [ ] Implement the actual demo policy: ordinary access requires one independent resource owner; a new tier-0 route requires two distinct security leads; tier-0 safeguard weakening is rejected; an authorized verified reduction is eligible for allow. Use hold where required context is incomplete.
-- [ ] Load policy exclusively through the real peer `BundleVerifier`, pinned to the agreed genesis trust root and current registry history. An invalid bundle cannot replace the last valid bundle; without any valid bundle, escalation stays unavailable. Record the active bundle hash on each decision.
-- [ ] Implement approval orchestration using the peer `ApprovalVerifier`. Check requester versus approver, requester control over approver, allowed group membership, distinct human identities and conflicts where the approver or an identity they control benefits from the proposed expansion. Multiple passkeys for one person never count as multiple people.
-- [ ] Persist the exact approved envelope and assertion evidence. Quorum completion, the transition and its outbox/job writes must be concurrency-safe; retries or parallel submissions cannot count one signature twice.
-- [ ] Implement River-backed assessment/execution jobs in the same transaction as domain events. Use OSS jobs and explicit state transitions, not paid workflow abstractions.
-- [ ] Before dispatch, re-evaluate current graph impact, policy version, approval eligibility and target preconditions. A changed approved context returns to review with `context changed` and invalidates stale approval reuse. Define this conservatively when graph versions differ; no silent substitution of a new digest.
+- [x] Implement pure `(state, command) -> events/error` transitions for Submitted, Assessed, Allowed, AwaitingApproval, Held, Rejected, Approved, Executing, Executed, Failed, Expired and Revoked. Define valid transitions explicitly; support added context and reassessment after a hold. Do not create a direct Submitted-to-Executed shortcut.
+- [x] Validate each supported change kind, justification, target, requested access, incident linkage and optional expiration. Reject unknown or unsupported kinds with a typed error.
+- [x] Embed OPA prepared queries. Return structured `ALLOW`, `REQUIRE_APPROVAL`, `HOLD` or `REJECT`, with reasons and required groups/quorum. Bind policy inputs to recorded, replayable facts rather than live wall-clock or network lookups during evaluation.
+- [x] Implement the actual demo policy: ordinary access requires one independent resource owner; a new tier-0 route requires two distinct security leads; tier-0 safeguard weakening is rejected; an authorized verified reduction is eligible for allow. Use hold where required context is incomplete.
+- [x] Load policy exclusively through the real peer `BundleVerifier`, pinned to the agreed genesis trust root and current registry history. An invalid bundle cannot replace the last valid bundle; without any valid bundle, escalation stays unavailable. Record the active bundle hash on each decision. Current support is pinned epoch 1; later epochs refuse activation pending verified history in Phase 3.
+- [x] Implement approval orchestration using the peer `ApprovalVerifier`. Check requester versus approver, requester control over approver, allowed group membership, distinct human identities and conflicts where the approver or an identity they control benefits from the proposed expansion. Multiple passkeys for one person never count as multiple people.
+- [x] Persist the exact approved envelope and assertion evidence. Quorum completion, the transition and its outbox/job writes must be concurrency-safe; retries or parallel submissions cannot count one signature twice.
+- [x] Implement River-backed assessment/execution jobs in the same transaction as domain events. Use OSS jobs and explicit state transitions, not paid workflow abstractions.
+- [x] Before dispatch, re-evaluate current graph impact, policy version, approval eligibility and target preconditions. A changed approved context returns to review with `context changed` and invalidates stale approval reuse. Define this conservatively when graph versions differ; no silent substitution of a new digest.
 - [ ] Publish a correlated, idempotent command only after all guards pass. Consume the connector's apply/read-back evidence. Record Executed only after verified observed state matches the approved intent; an acknowledgement or successful HTTP write alone is insufficient. On uncertain execution, reconcile instead of blindly repeating a non-idempotent operation.
-- [ ] Project request details, approval queues and attention-oriented overview data. Implement the real core Change/Overview handlers; provide clear pending, failed and unavailable results.
-- [ ] Add connector conformance cases for Execute/Verify, duplicate delivery, failed preconditions, mismatched read-back, interrupted execution and recovery.
+- [x] Project request details, approval queues and attention-oriented overview data. Implement the real core Change/Overview handlers; provide clear pending, failed and unavailable results.
+- [x] Add connector conformance cases for Execute/Verify, duplicate delivery, failed preconditions, mismatched read-back, interrupted execution and recovery. The actual peer fails precondition enforcement; see the handoff for exact failing cases.
 
 **Dependency gate:** Signed initial bundle, enrolled approvers, real assertion verifier and real connector Execute/Verify are required inputs. If any is unavailable, keep affected requests pending and work on independent core tests. Never substitute an unsigned policy or automatically approved request.
 
@@ -150,17 +180,19 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 **Requirements:** Complete FR-C7-C8 enforcement, FR-P4 loading/enforcement and R1-R4/R7 evidence. The basic implementations already exist from Phase 2.
 
+**Core checkpoint (2026-11-05):** The implementation and owned acceptance checks are delivered. Joint browser/connector acceptance remains pending; the execution contract is defined as a proposal and the actual peer fails precondition enforcement. See [Phase 3 evidence](docs/ishaan/phase-3-handoff.md).
+
 ### Ishaan's work
 
-- [ ] Extend independence tests to requester-controlled approvers, newly acquired control, transitive takeover, beneficiary self-approval, multiple credentials for one person and concurrent quorum attempts.
-- [ ] Re-check independence and permissions at execution as well as assessment. A later graph/registry change must not let a formerly independent approval execute an expansion.
-- [ ] Exercise invalid, missing, duplicate, revoked and wrong-context signatures returned through the verifier boundary. Do not duplicate its cryptographic implementation in workflow code.
-- [ ] Verify activation behavior across valid/invalid bundles, changed approver registries, threshold changes and rollback attempts. Only artifacts verified against the authorized trust-root history may influence policy; prevent replay of an obsolete but previously valid bundle.
-- [ ] Preserve last-known-valid operation when Authority is temporarily unavailable, subject to recorded validity rules. Record activation events and make bundle history available through core projections where required.
-- [ ] Confirm ordinary target requests cannot edit approver lists, quorum, withdrawal safeguards or trust-root configuration through an alternate API path. No admin-session override may bypass `BundleVerifier`.
-- [ ] Define execution serialization/preconditions with the connector contract so a relevant target revision cannot change unnoticed between approval, dispatch and apply. A core recheck alone is not proof against target-side races.
-- [ ] Run property-based sequences over random organizations and changes for R1-R3: no deciding self-benefit, no claimed reduction that creates reach, and no stale approval executing a changed intent/context.
-- [ ] Demonstrate deterministic decision replay using recorded graph revision, policy bundle, facts and evaluator/schema version. Export the required evidence through the agreed interfaces.
+- [x] Extend independence tests to requester-controlled approvers, newly acquired control, transitive takeover, beneficiary self-approval, multiple credentials for one person and concurrent quorum attempts.
+- [x] Re-check independence and permissions at execution as well as assessment. A later graph/registry change must not let a formerly independent approval execute an expansion.
+- [x] Exercise invalid, missing, duplicate, revoked and wrong-context signatures returned through the verifier boundary. Do not duplicate its cryptographic implementation in workflow code.
+- [x] Verify activation behavior across valid/invalid bundles, changed approver registries, threshold changes and rollback attempts. Only artifacts verified against the authorized trust-root history may influence policy; prevent replay of an obsolete but previously valid bundle.
+- [x] Preserve last-known-valid operation when Authority is temporarily unavailable, subject to recorded validity rules. Record activation events and make bundle history available through core projections where required.
+- [x] Confirm ordinary target requests cannot edit approver lists, quorum, withdrawal safeguards or trust-root configuration through an alternate API path. No admin-session override may bypass `BundleVerifier`.
+- [x] Define execution serialization/preconditions with the connector contract so a relevant target revision cannot change unnoticed between approval, dispatch and apply. A core recheck alone is not proof against target-side races.
+- [x] Run property-based sequences over random organizations and changes for R1-R3: no deciding self-benefit, no claimed reduction that creates reach, and no stale approval executing a changed intent/context.
+- [x] Demonstrate deterministic decision replay using recorded graph revision, policy bundle, facts and evaluator/schema version. Export the required evidence through the agreed interfaces.
 
 **Exit evidence:** D4 refuses both Rahul and an identity he controls without advancing request approval state. D5 rejects ordinary withdrawal-rule weakening, while a legitimate governance amendment only becomes active after independently signed Authority verification. Changing graph or policy after approval forces reassessment rather than execution. No runtime bypass flags exist.
 
@@ -172,17 +204,17 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 ### Ishaan's work
 
-- [ ] Implement `IsMonotonicReduction`: every affected identity's after-reach is a subset of before-reach and no safeguard is weakened. Removal of a deny rule, approval requirement or protective membership is not automatically a reduction. Unknown semantics cannot enter the fast path.
+- [x] Implement `IsMonotonicReduction`: every affected identity's after-reach is a subset of before-reach and no safeguard is weakened. Removal of a deny rule, approval requirement or protective membership is not automatically a reduction. Unknown semantics cannot enter the fast path.
 - [ ] Implement passkey-confirmed authorized responder commands for restriction, grant removal, service-permission removal and session termination. Bind the assertion to the exact containment action/plan and context through the peer verifier.
 - [ ] Persist and publish verified reductions on the priority containment subject without waiting for ordinary grant approvals. Revalidate the plan/context before dispatch and verify the result through the same durable evidence flow.
-- [ ] Implement weighted min-cut containment against a super-sink for tier-0 resources. Cut candidates must map to executable revocation operations; derived reachability edges cannot be presented as removable target grants. Account for shared grants and protected/non-removable edges.
-- [ ] Prove zero remaining tier-0 reach by simulating the complete proposed action set through the real graph semantics. Report affected and preserved non-critical activities. If an exact minimum cannot be established for a topology, identify that limit and use a verified safe alternative; do not claim an unproven optimum.
+- [x] Implement weighted min-cut containment against a super-sink for tier-0 resources. Cut candidates must map to executable revocation operations; derived reachability edges cannot be presented as removable target grants. Account for shared grants and protected/non-removable edges.
+- [x] Prove zero remaining tier-0 reach by simulating the complete proposed action set through the real graph semantics. Report affected and preserved non-critical activities. If an exact minimum cannot be established for a topology, identify that limit and use a verified safe alternative; do not claim an unproven optimum.
 - [ ] Implement `ContainmentService` Plan/Execute/Restore and `IncidentService` List/Get. Store incident correlation, actions, failures, residual paths and restoration prerequisites.
 - [ ] Treat restoration as a new increase through normal independent review; preserve the incident link and never reuse a containment passkey assertion to restore access.
-- [ ] Complete audit projections and `AuditService` search/export with actor/resource/request/incident/time filters and role-based visibility. Export raw chain evidence separately from redacted display records.
+- [x] Complete audit projections and `AuditService` search/export with actor/resource/request/incident/time filters and role-based visibility. Export raw chain evidence separately from redacted display records.
 - [ ] Finalize the versioned offline chain format: canonical event bytes, previous/current hashes, ordered tenant sequence, approval envelopes/assertions, historical public keys and registry/bundle evidence. Export no private keys. Privacy retention may erase separate encrypted personal data without changing immutable bytes.
-- [ ] Compute unambiguous checkpoint candidates with sequence range, prior checkpoint reference, leaf encoding and Merkle algorithm. Submit candidates through the peer signing contract, verify returned signatures and append checkpoint references without a self-referential hash cycle.
-- [ ] Add DB tamper-denial, chain-fork, replay/rebuild and checkpoint-continuity tests. Supply deliberately corrupted export fixtures for the peer's verifier tests.
+- [x] Compute unambiguous checkpoint candidates with sequence range, prior checkpoint reference, leaf encoding and Merkle algorithm. Submit candidates through the peer signing contract, verify returned signatures and append checkpoint references without a self-referential hash cycle.
+- [x] Add DB tamper-denial, chain-fork, replay/rebuild and checkpoint-continuity tests. Supply deliberately corrupted export fixtures for the peer's verifier tests.
 
 **Verification:** Measure from containment click initiation through passkey confirmation, dispatch and verified read-back; also report machine processing time separately so human interaction is visible. Exercise a normal-work backlog and a connector restart. Check actual report-access probes before/after containment, not merely counts in the graph.
 
@@ -194,29 +226,49 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 ### Ishaan's work
 
-- [ ] Add requester-safe response redaction at the API boundary. Keep investigator detail policy-restricted; do not rely on the frontend to hide sensitive fields.
+- [x] Add requester-safe response redaction at the API boundary. Keep investigator detail policy-restricted; do not rely on the frontend to hide sensitive fields.
 - [ ] Implement configurable approval expiry and durable emergency-grant expiry using database time. Schedule revocation atomically when the grant is committed, preserve it across restart, and reconcile missed/late jobs. Never record Revoked until the target confirms revocation.
-- [ ] Route emergency requests to the existing eligible independent approver policy and enforce fixed duration/minimum necessary access. An emergency flag must not disable quorum, passkeys or impact analysis.
-- [ ] Add temporary-grant review read models, including failed expiry/revocation requiring attention. Flag over-broad access from explicit requested resources/permissions; do not infer business intent through AI or invented scores.
-- [ ] Implement resumable Change/Incident Watch streams with stable cursors and explicit reconnect behavior, backed by real projections/events. Avoid data races between list results and streamed updates.
+- [x] Route emergency requests to the existing eligible independent approver policy and enforce fixed duration/minimum necessary access. An emergency flag must not disable quorum, passkeys or impact analysis.
+- [x] Add temporary-grant review read models, including failed expiry/revocation requiring attention. Flag over-broad access from explicit requested resources/permissions; do not infer business intent through AI or invented scores.
+- [x] Implement resumable Change/Incident Watch streams with stable cursors and explicit reconnect behavior, backed by real projections/events. Avoid data races between list results and streamed updates.
 - [ ] Consume actual `DriftReport`/audit observations. Correlate against approved commands, decide whether a reversal is a proven reduction, open the incident and publish the authorized corrective command. Unknown/unsafe restoration is held for review rather than labeled reduction.
-- [ ] Prevent drift-reversion loops, duplicate incidents and false drift alarms from normal read-back delay. Preserve provenance of the observed and corrective changes.
-- [ ] Expose authenticated `DecisionService` from the same graph/policy engine; keep inline decisions side-effect semantics explicit in the shared contract and record enforcement decisions durably. A previous allow response is not a reusable execution authorization.
-- [ ] Optimize prepared policy queries, graph snapshots and bounded traversal using measurements. Benchmark inline p99 < 50 ms on the demo dataset and ImpactDiff < 100 ms at 100k edges; publish hardware, graph composition, sample counts and tail results. Do not advertise targets as achieved without evidence.
-- [ ] Build the core benign-change replay/metrics harness in Ishaan-owned packages. Measure unexpected delays/rejections against expected legitimate outcomes, report denominator and causes, and target < 5%. Do not modify the peer's `e2e/` scripts.
-- [ ] Add trace spans across submit, assessment, decision, outbox, connector result and verification, preserving correlation IDs. Emit backlog, graph-lag, policy-version, job failure and containment-duration metrics without leaking approval secrets or personal data.
+- [x] Prevent drift-reversion loops, duplicate incidents and false drift alarms from normal read-back delay. Preserve provenance of the observed and corrective changes.
+- [x] Expose authenticated `DecisionService` from the same graph/policy engine; keep inline decisions side-effect semantics explicit in the shared contract and record enforcement decisions durably. A previous allow response is not a reusable execution authorization.
+- [x] Optimize prepared policy queries, graph snapshots and bounded traversal using measurements. Benchmark inline p99 < 50 ms on the demo dataset and ImpactDiff < 100 ms at 100k edges; publish hardware, graph composition, sample counts and tail results. Do not advertise targets as achieved without evidence.
+- [x] Build the core benign-change replay/metrics harness in Ishaan-owned packages. Measure unexpected delays/rejections against expected legitimate outcomes, report denominator and causes, and target < 5%. Do not modify the peer's `e2e/` scripts.
+- [x] Add trace spans across submit, assessment, decision, outbox, connector result and verification, preserving correlation IDs. Emit backlog, graph-lag, policy-version, job failure and containment-duration metrics without leaking approval secrets or personal data.
+- [x] Schedule FR-L2 core checkpoint candidates periodically with durable database-time jobs, bounded consecutive ranges, pending-root reuse and restart recovery. Submit through the actual Authority HTTP contract and accept only independently verified member quorum; Authority member signing remains peer-owned.
 
 **Exit evidence:** Temporary access actually expires after restart; requester redaction survives direct API access; live streams recover; unauthorized target drift creates one incident and a verified corrective action; realistic benign and performance results are recorded. Any unfinished P1 item is explicitly marked deferred, never represented by a stub.
+
+**Implementation/acceptance distinction:** Both remaining unchecked items have
+working core implementations and real PostgreSQL/River/JetStream evidence. They
+remain unchecked for actual peer publisher/target acceptance, including signed
+capability adoption and independent read-back. No requirement was removed or
+shortened. See [Phase 5 evidence and remaining gates](docs/ishaan/phase-5-progress.md),
+[expiry contract](docs/ishaan/phase-5-expiry-contract.md) and
+[drift contract](docs/ishaan/phase-5-drift-contract.md). Phase 6 core completion
+and selected native scope are recorded below; earlier joint gates remain open.
 
 ## 11. Phase 6 - Optional Kubernetes core integration
 
 **Requirements:** FR-K5 decision endpoint; this is stretch scope, not a reason to weaken the completed simulator path.
 
-- [ ] Review the shared mapping for Role/ClusterRole, RoleBinding/ClusterRoleBinding, wildcard grants, `bind`, `escalate`, `impersonate` and service-account token creation. Implement their core graph/policy semantics where needed; API parsing and admission integration remain connector-owned.
-- [ ] Support admission request identity, target revision and approved-intent correlation through `DecisionService`. Unsupported or stale sensitive changes must not default to allow.
-- [ ] Ensure the inline allow decision corresponds to the exact admission object/context; reconcile webhook observation and execution state without inventing a second grant path.
-- [ ] Run core fail-closed and latency checks with the real peer adapter on local `kind`. Keep request errors, policy refusals and downstream unavailability distinguishable.
-- [ ] Support drift decisions and incident/read-model evidence for actual RBAC changes. Record any unsupported D1-D8 mapping explicitly; do not claim full Kubernetes parity from one blocked RoleBinding.
+**Execution record (2026-11-06):** All five core tasks below are implemented and
+selected real-kind acceptance passes. The user explicitly authorized required
+connector corrections on main; Sakar's branch and plan remain untouched. Actual
+mutual-TLS admission, independent approval, one-use execution/read-back, outage
+refusal and real RBAC drift/incident evidence are verified. Native automatic
+rollback/watch collection and live containment continuity remain explicit
+unsupported mappings, not inferred parity. See [results and validation](docs/ishaan/phase-6-progress.md),
+[reproduction](docs/ishaan/phase-6-kind.md) and the [D1-D8 matrix](docs/ishaan/phase-6-peer-gates.md).
+Phase 7 and earlier joint release gates are not marked complete.
+
+- [x] Review the shared mapping for Role/ClusterRole, RoleBinding/ClusterRoleBinding, wildcard grants, `bind`, `escalate`, `impersonate` and service-account token creation. Implement their core graph/policy semantics where needed; API parsing and admission integration remain connector-owned.
+- [x] Support admission request identity, target revision and approved-intent correlation through `DecisionService`. Unsupported or stale sensitive changes must not default to allow.
+- [x] Ensure the inline allow decision corresponds to the exact admission object/context; reconcile webhook observation and execution state without inventing a second grant path.
+- [x] Run core fail-closed and latency checks with the real peer adapter on local `kind`. Keep request errors, policy refusals and downstream unavailability distinguishable.
+- [x] Support drift decisions and incident/read-model evidence for actual RBAC changes. Record any unsupported D1-D8 mapping explicitly; do not claim full Kubernetes parity from one blocked RoleBinding.
 
 **Exit evidence:** The real adapter's admission request receives the correct decision, a sensitive grant is blocked during core unavailability, approved changes are correlated and observed, and core metrics remain reproducible. If this stretch is deferred, label it deferred in release scope without changing either person's ownership.
 
@@ -224,15 +276,15 @@ There is no deployment phase or hosting blueprint in this document. Local Compos
 
 ### Ishaan's work
 
-- [ ] Exercise database, NATS, graph lag, Authority unavailability and connector outage independently. Prove durable queues/reconciliation, fail-closed grants and honest degraded status. Do not claim HA from a single local instance.
-- [ ] Rebuild graphs/read models from events after restart and compare them with pre-restart results. Validate snapshot integrity, replay checkpoints, migrations and local backup/restore for the core database.
-- [ ] Finish privacy-key deletion and sensitive-record access checks; demonstrate that retained chain verification survives deletion of separate personal data. Keep required non-personal replay facts available.
-- [ ] Complete rate limits, request-size limits, malformed-payload fuzzing, dependency checks and concurrency testing for core-owned code. Enforce inward dependencies so domain logic stays free of I/O.
-- [ ] Make `ratchetd` roles selectable without code changes; test the supported combined and separated-role configurations locally. Preserve tenant fields and isolation checks without building a production cell router or multi-tenant SaaS.
-- [ ] Embed the peer's actual built web assets through the agreed artifact path and same-origin API routes. Verify SPA fallback does not intercept `/api` errors; no placeholder index page may replace a missing build.
-- [ ] Contribute core container builds, non-root/distroless settings, SBOM generation and image-signature verification checks to reviewed shared build files. Complete core configuration/readiness/restore documentation; do not write the peer's component runbooks.
-- [ ] Run required checks: `go vet`, `golangci-lint`, `go test -race ./...`, property tests/fuzz regressions, `opa test`, Buf lint/breaking, actual connector conformance and real local Compose smoke integration. Whole-repository failures are routed to their owner instead of fixed across the boundary.
-- [ ] Attach core evidence to the joint D1-D8 report, including known R6/P2 limits, retained/deferred P1 scope, selected Kubernetes scope, latency results, benign false-positive results and preserved business activities. Reference Sakar's scenario/CLI results instead of duplicating their implementation.
+- [x] Exercise database, NATS, graph lag, Authority unavailability and connector outage independently. Prove durable queues/reconciliation, fail-closed grants and honest degraded status. Do not claim HA from a single local instance.
+- [x] Rebuild graphs/read models from events after restart and compare them with pre-restart results. Validate snapshot integrity, replay checkpoints, migrations and local backup/restore for the core database.
+- [x] Finish privacy-key deletion and sensitive-record access checks; demonstrate that retained chain verification survives deletion of separate personal data. Keep required non-personal replay facts available.
+- [x] Complete rate limits, request-size limits, malformed-payload fuzzing, dependency checks and concurrency testing for core-owned code. Enforce inward dependencies so domain logic stays free of I/O.
+- [x] Make `ratchetd` roles selectable without code changes; test the supported combined and separated-role configurations locally. Preserve tenant fields and isolation checks without building a production cell router or multi-tenant SaaS.
+- [x] Embed the peer's actual built web assets through the agreed artifact path and same-origin API routes. Verify SPA fallback does not intercept `/api` errors; no placeholder index page may replace a missing build.
+- [x] Contribute core container builds, non-root/distroless settings, SBOM generation and image-signature verification checks to reviewed shared build files. Complete core configuration/readiness/restore documentation; do not write the peer's component runbooks.
+- [x] Run required checks: `go vet`, `golangci-lint`, `go test -race ./...`, property tests/fuzz regressions, `opa test`, Buf lint/breaking, actual connector conformance and real local Compose smoke integration. Whole-repository failures are routed to their owner instead of fixed across the boundary.
+- [x] Attach core evidence to the joint D1-D8 report, including known R6/P2 limits, retained/deferred P1 scope, selected Kubernetes scope, latency results, benign false-positive results and preserved business activities. Reference Sakar's scenario/CLI results instead of duplicating their implementation.
 
 **Exit:** Every selected core operation is implemented, every relevant check passes on the same candidate commit, no unfinished runtime substitute remains, and failures/limitations are stated accurately. A green build alone is not product completion.
 

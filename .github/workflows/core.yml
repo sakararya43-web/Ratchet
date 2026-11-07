@@ -1,0 +1,156 @@
+name: Core phase checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  core-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install local generators
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install connectrpc.com/connect/cmd/protoc-gen-connect-go@v1.19.1
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: '1.75.0'
+      - name: Lint and check compatibility with peer baseline
+        run: |
+          # Preserve unchanged peer-owned schema formatting during integration.
+          buf format --diff --exit-code --path proto/ratchet/v1/common.proto --path proto/ratchet/v1/change.proto --path proto/ratchet/v1/graph.proto --path proto/ratchet/v1/impact.proto --path proto/ratchet/v1/containment.proto --path proto/ratchet/v1/incident.proto --path proto/ratchet/v1/audit.proto --path proto/ratchet/v1/decision.proto --path proto/ratchet/v1/connector.proto
+          buf lint
+          buf breaking --against testdata/contracts/sakar-v1.binpb
+      - name: Compare with previous main contracts when available
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if test -n "$BASE" && git cat-file -e "$BASE:buf.yaml" 2>/dev/null; then
+            buf breaking --against ".git#ref=$BASE"
+          fi
+      - name: Verify generated bindings
+        run: |
+          buf generate
+          docker run --rm --mount "type=bind,source=$PWD,target=/src" -w /src sqlc/sqlc:1.31.1 generate
+          git diff --exit-code -- proto internal/eventstore/storedb
+          test -z "$(git ls-files --others --exclude-standard proto internal/eventstore/storedb)"
+
+  core-tests:
+    needs: core-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Verify modules and core code
+        run: |
+          go mod verify
+          go vet ./...
+          go test -race -p=1 ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Verify actual embedded console build
+        run: |
+          python3 scripts/core-web-build.py
+          git diff --exit-code -- internal/webassets/assets
+      - name: Build nonroot core image and verify its supply chain
+        run: |
+          docker build -f deploy/core.Dockerfile -t ratchet-core:phase7 .
+          python3 scripts/core-supply-chain.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core-image-supply-chain
+          path: .local/phase7-supply/
+          retention-days: 7
+      - name: Core lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          args: --config .golangci-core.yml ./...
+      - name: Policy decisions and authorization regressions
+        run: python3 scripts/core-check.py --image openpolicyagent/opa:1.22.0-static test --fail-on-empty -v policies/
+      - name: Start real local dependencies
+        shell: pwsh
+        run: ./scripts/core-env.ps1
+      - name: Compose PostgreSQL and JetStream
+        run: docker compose --env-file .local/core.env -f deploy/compose/compose.yaml up -d --wait
+      - name: Durable storage acceptance
+        shell: pwsh
+        run: |
+          . ./scripts/core-env-load.ps1
+          $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
+          # Serialize packages sharing the local database and bounded runner CPU.
+          # The complete suite includes durable replay, expiry and drift tests.
+          go test -race -p=1 -tags=integration -count=1 -timeout=10m ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: New-process persistence and readiness smoke
+        run: sh scripts/core-smoke.sh
+      - name: Measure P1 workloads without race instrumentation
+        shell: pwsh
+        run: |
+          . ./scripts/core-env-load.ps1
+          $env:RATCHET_EVALUATION_DIR = Join-Path $PWD '.local/phase5-evaluation'
+          go test -tags=integration -count=1 -v ./internal/workflow -run 'TestPhase5MeasuredPerformance|TestPhase5BenignCoreReplay' -timeout=2m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve P1 measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase5-core-measurements
+          path: .local/phase5-evaluation/*.json
+          retention-days: 7
+      - name: Independent graph and adversarial workflow properties
+        run: go test -p=1 ./internal/graph ./internal/domain ./internal/workflow -count=1 -rapid.seed=20261105 -rapid.checks=300
+      - name: Domain boundaries, dependencies and malformed payloads
+        env:
+          GOMAXPROCS: '2'
+        run: |
+          python3 scripts/core-boundaries.py
+          go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+          go test -p=1 -parallel=1 ./internal/api -run='^$' -fuzz=FuzzAuthenticationDecoder -fuzztime=30s
+          go test -p=1 -parallel=1 ./internal/domain/kubernetes -run='^$' -fuzz=FuzzNormalizedStateAndMutation -fuzztime=30s
+      - name: Actual Authority checkpoint HTTP and restart when integrated
+        if: ${{ hashFiles('cmd/ratchet-authority/main.go') != '' }}
+        shell: pwsh
+        run: |
+          . ./scripts/core-env-load.ps1
+          go test -race '-tags=integration,peerintegration' -count=1 -timeout=3m ./internal/workflow -run TestPeerCheckpointHTTPSubmissionSigningAndRestart
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Actual connector conformance when peer code is integrated
+        if: ${{ hashFiles('cmd/ratchet-sim/server/server.go') != '' }}
+        run: go test -race -tags=peerintegration -count=1 ./internal/connector/conformance
+      - name: Pinned peer scenarios and combined checkout compatibility
+        shell: pwsh
+        run: |
+          git fetch --no-tags origin d823a106bb4a64b0fe54e366c41029ccbd8dfda8
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          . ./scripts/core-env-load.ps1
+          $env:RATCHET_NATS_URL = 'nats://127.0.0.1:54222'
+          python3 scripts/core-acceptance.py peer-scenarios combined-ordinary-race actual-authority-checkpoint database-backup-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Dependency diagnostics on failure
+        if: failure()
+        run: |
+          if test -f .local/core.env; then
+            docker compose --env-file .local/core.env -f deploy/compose/compose.yaml logs --no-color --tail=100
+          fi
+      - name: Stop only this job's containers
+        if: always()
+        run: |
+          if test -f .local/core.env; then
+            docker compose --env-file .local/core.env -f deploy/compose/compose.yaml down
+          fi

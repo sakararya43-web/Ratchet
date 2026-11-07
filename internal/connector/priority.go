@@ -29,7 +29,9 @@ type ContainmentAction struct {
 	CorrelationID           string `json:"correlation_id"`
 }
 
-// ContainmentPlan is a signed, server-computed minimum cut plan.
+// ContainmentPlan carries a core-authorized reduction batch. This component is
+// not an authorization endpoint: the authenticated core must verify confirmation
+// and current-context reduction proofs before passing the batch here.
 type ContainmentPlan struct {
 	PlanID                string              `json:"plan_id"`
 	TenantID              string              `json:"tenant_id"`
@@ -67,7 +69,8 @@ type ContainmentPlanResult struct {
 	TargetRevisionAfter int64                     `json:"target_revision_after"`
 }
 
-// PriorityContainmentEngine executes reduction commands on a dedicated high-priority queue.
+// PriorityContainmentEngine executes one reduction batch sequentially. The
+// transport/caller owns queue priority and authenticated command delivery.
 type PriorityContainmentEngine struct {
 	mu        sync.RWMutex
 	adapter   TargetAdapter
@@ -93,12 +96,12 @@ func NewPriorityContainmentEngine(adapter TargetAdapter, statePath string) (*Pri
 	return pce, nil
 }
 
-// ExecutePlan runs each action in the containment plan through the adapter with dedicated worker capacity.
+// ExecutePlan applies an already-authorized batch with target CAS and read-back.
 func (pce *PriorityContainmentEngine) ExecutePlan(ctx context.Context, plan *ContainmentPlan) (*ContainmentPlanResult, error) {
 	pce.mu.Lock()
 	defer pce.mu.Unlock()
 
-	if len(plan.Actions) == 0 {
+	if plan == nil || len(plan.Actions) == 0 {
 		return nil, fmt.Errorf("cannot execute empty containment plan")
 	}
 
@@ -106,7 +109,15 @@ func (pce *PriorityContainmentEngine) ExecutePlan(ctx context.Context, plan *Con
 	var actionResults []ContainmentActionResult
 	succeeded := 0
 	failed := 0
-	var lastRevision int64
+	// Freeze the target version once; carry actual receipt versions forward.
+	source, err := pce.adapter.FetchSnapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if source == nil || !source.Complete || source.TenantID != plan.TenantID || source.SourceRevision < 1 {
+		return nil, fmt.Errorf("complete tenant-bound target snapshot required")
+	}
+	lastRevision := source.SourceRevision
 
 	for _, action := range plan.Actions {
 		actionStart := time.Now().UTC()
@@ -129,18 +140,19 @@ func (pce *PriorityContainmentEngine) ExecutePlan(ctx context.Context, plan *Con
 
 		// Map to connector ExecCommand
 		execCmd := &ExecCommand{
-			CommandID:      action.ActionID,
-			TenantID:       plan.TenantID,
-			RequestID:      plan.PlanID,
-			Action:         action.ActionType,
-			TargetIdentity: action.TargetIdentity,
-			ResourceOrRole: action.TargetResourceOrSession,
-			IsReduction:    true,
+			ExpectedTargetRevision: lastRevision,
+			CommandID:              action.ActionID,
+			TenantID:               plan.TenantID,
+			RequestID:              plan.PlanID,
+			Action:                 action.ActionType,
+			TargetIdentity:         action.TargetIdentity,
+			ResourceOrRole:         action.TargetResourceOrSession,
+			IsReduction:            true,
 		}
 
 		// Execute on target adapter
 		execRes, err := pce.adapter.Execute(ctx, execCmd)
-		if err != nil || !execRes.Success {
+		if err != nil || execRes == nil || !execRes.Success {
 			errMsg := "execution failed"
 			if err != nil {
 				errMsg = err.Error()
@@ -208,7 +220,9 @@ func (pce *PriorityContainmentEngine) ExecutePlan(ctx context.Context, plan *Con
 
 	pce.history[plan.PlanID] = planResult
 	if pce.statePath != "" {
-		_ = pce.saveToFile()
+		if err := pce.saveToFile(); err != nil {
+			return nil, err
+		}
 	}
 
 	return planResult, nil

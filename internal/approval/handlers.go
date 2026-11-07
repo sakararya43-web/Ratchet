@@ -5,58 +5,96 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"io"
 	"net/http"
+	"slices"
 
+	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
 
-// Handler provides HTTP endpoints for WebAuthn passkey registration, management, and assertions.
+type SessionIdentity interface {
+	PasskeyPrincipal(*http.Request) (string, string, error)
+}
 type Handler struct {
 	verifier *ApprovalVerifier
 	store    *CredentialStore
+	identity SessionIdentity
 }
 
-func NewHandler(verifier *ApprovalVerifier, store *CredentialStore) *Handler {
-	return &Handler{
-		verifier: verifier,
-		store:    store,
+func NewHandler(v *ApprovalVerifier, s *CredentialStore) *Handler {
+	return &Handler{verifier: v, store: s}
+}
+func MakePasskeyHandlerFactory(store *CredentialStore, rp string, origins []string) ports.PasskeyHandlerFactory {
+	return func(deps ports.PasskeyDeps) http.Handler {
+		effectiveRP, effectiveOrigins := rp, slices.Clone(origins)
+		if deps.RPID != "" {
+			effectiveRP = deps.RPID
+		}
+		if len(deps.RPOrigins) > 0 {
+			effectiveOrigins = slices.Clone(deps.RPOrigins)
+		}
+		v, err := NewApprovalVerifier(store, effectiveRP, effectiveOrigins)
+		identity, ok := deps.SessionAPI.(SessionIdentity)
+		if err != nil || !ok {
+			return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				http.Error(w, "authenticated passkey session required", http.StatusUnauthorized)
+			})
+		}
+		return (&Handler{verifier: v, store: store, identity: identity}).Routes()
 	}
 }
-
-// Routes returns an http.Handler implementing all passkey ceremonies.
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("POST /register/begin", h.handleRegisterBegin)
-	mux.HandleFunc("POST /register/finish", h.handleRegisterFinish)
-	mux.HandleFunc("GET /list", h.handleList)
-	mux.HandleFunc("POST /revoke", h.handleRevoke)
-	mux.HandleFunc("POST /assert/begin", h.handleAssertBegin)
-	mux.HandleFunc("POST /assert/finish", h.handleAssertFinish)
-	mux.HandleFunc("POST /assert/simulate", h.handleAssertSimulate)
-
-	return mux
+	mux.HandleFunc("POST /register/begin", h.registerBegin)
+	mux.HandleFunc("POST /register/finish", h.registerFinish)
+	mux.HandleFunc("GET /list", h.list)
+	mux.HandleFunc("POST /revoke", h.revoke)
+	mux.HandleFunc("POST /assert/begin", h.assertBegin)
+	mux.HandleFunc("POST /assert/finish", h.assertFinish)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h.identity == nil || r.TLS == nil {
+			http.Error(w, "authenticated HTTPS session required", http.StatusUnauthorized)
+			return
+		}
+		if _, _, err := h.identity.PasskeyPrincipal(r); err != nil {
+			http.Error(w, "authenticated session required", http.StatusUnauthorized)
+			return
+		}
+		if r.Method != "GET" && r.Method != "HEAD" && !slices.Contains(h.verifier.webauthn.Config.RPOrigins, r.Header.Get("Origin")) {
+			http.Error(w, "origin refused", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		w.Header().Set("Cache-Control", "no-store")
+		mux.ServeHTTP(w, r)
+	})
 }
-
-// MakePasskeyHandlerFactory returns a ports.PasskeyHandlerFactory implementation.
-func MakePasskeyHandlerFactory(store *CredentialStore, rpID string, rpOrigins []string) ports.PasskeyHandlerFactory {
-	return func(deps ports.PasskeyDeps) http.Handler {
-		effectiveRPID := rpID
-		if deps.RPID != "" {
-			effectiveRPID = deps.RPID
-		}
-		effectiveOrigins := rpOrigins
-		if len(deps.RPOrigins) > 0 {
-			effectiveOrigins = deps.RPOrigins
-		}
-
-		verifier, err := NewApprovalVerifier(store, effectiveRPID, effectiveOrigins)
-		if err != nil {
-			panic(fmt.Sprintf("failed to create ApprovalVerifier: %v", err))
-		}
-		return NewHandler(verifier, store).Routes()
+func passkeyDecode(r *http.Request, out any) error {
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err := d.Decode(out); err != nil {
+		return err
 	}
+	if d.Decode(new(any)) != io.EOF {
+		return errors.New("single ceremony object required")
+	}
+	return nil
+}
+func (h *Handler) owner(w http.ResponseWriter, r *http.Request, tenant, actor string) (string, string, bool) {
+	t, a, err := h.identity.PasskeyPrincipal(r)
+	if err != nil || tenant != "" && tenant != t || actor != "" && actor != a {
+		http.Error(w, "ceremony owner mismatch", http.StatusForbidden)
+		return "", "", false
+	}
+	return t, a, true
+}
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 type RegisterBeginRequest struct {
@@ -65,81 +103,84 @@ type RegisterBeginRequest struct {
 	DisplayName string `json:"display_name"`
 }
 
-func (h *Handler) handleRegisterBegin(w http.ResponseWriter, r *http.Request) {
-	var req RegisterBeginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+func (h *Handler) registerBegin(w http.ResponseWriter, r *http.Request) {
+	var in RegisterBeginRequest
+	if passkeyDecode(r, &in) != nil {
+		http.Error(w, "invalid registration", http.StatusBadRequest)
 		return
 	}
-	if req.TenantID == "" || req.ActorID == "" {
-		http.Error(w, "tenant_id and actor_id are required", http.StatusBadRequest)
+	t, a, ok := h.owner(w, r, in.TenantID, in.ActorID)
+	if !ok {
 		return
 	}
-
-	user := h.store.GetUser(req.TenantID, req.ActorID, req.DisplayName)
-	options, sessionData, err := h.verifier.webauthn.BeginRegistration(user)
+	user, err := h.store.User(r.Context(), t, a)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to begin registration: %v", err), http.StatusInternalServerError)
+		http.Error(w, "credentials unavailable", http.StatusServiceUnavailable)
 		return
 	}
-
-	sessionID := h.store.SaveSession(req.TenantID, req.ActorID, "", nil, sessionData)
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"session_id": sessionID,
-		"options":    options,
-	})
+	options, data, err := h.verifier.webauthn.BeginRegistration(user)
+	if err != nil {
+		http.Error(w, "registration refused", http.StatusBadRequest)
+		return
+	}
+	id := h.store.SaveSession(t, a, "", nil, data)
+	if id == "" {
+		http.Error(w, "ceremony unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"session_id": id, "options": options})
 }
-
-func (h *Handler) handleRegisterFinish(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.URL.Query().Get("session_id")
+func (h *Handler) registerFinish(w http.ResponseWriter, r *http.Request) {
+	t, a, ok := h.owner(w, r, "", "")
+	if !ok {
+		return
+	}
+	s, err := h.store.ConsumeOwnedSession(r.Context(), r.URL.Query().Get("session_id"), t, a)
+	if err != nil || s.ChangeDigest != "" || s.Data == nil {
+		http.Error(w, "registration ceremony refused", http.StatusBadRequest)
+		return
+	}
+	user, err := h.store.User(r.Context(), t, a)
+	if err != nil {
+		http.Error(w, "credentials unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	credential, err := h.verifier.webauthn.FinishRegistration(user, *s.Data, r)
+	if err != nil {
+		http.Error(w, "registration assertion refused", http.StatusBadRequest)
+		return
+	}
 	label := r.URL.Query().Get("label")
-
-	if sessionID == "" {
-		http.Error(w, "missing session_id parameter", http.StatusBadRequest)
-		return
-	}
-
-	sess, err := h.store.ConsumeSession(sessionID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	user := h.store.GetUser(sess.TenantID, sess.ActorID, sess.ActorID)
-	cred, err := h.verifier.webauthn.FinishRegistration(user, *sess.Data, r)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to finish registration: %v", err), http.StatusBadRequest)
-		return
-	}
-
 	if label == "" {
-		label = "Primary Passkey"
+		label = "Passkey"
 	}
-
-	if err := h.store.SaveCredential(sess.TenantID, sess.ActorID, label, cred); err != nil {
-		http.Error(w, fmt.Sprintf("failed to save credential: %v", err), http.StatusInternalServerError)
+	if err := h.store.SaveCredential(t, a, label, credential); err != nil {
+		http.Error(w, "credential persistence refused", http.StatusConflict)
 		return
 	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"success":       true,
-		"credential_id": hex.EncodeToString(cred.ID),
-		"label":         label,
-	})
+	writeJSON(w, 200, map[string]any{"credential_id": hex.EncodeToString(credential.ID), "label": label})
 }
-
-func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.URL.Query().Get("tenant_id")
-	actorID := r.URL.Query().Get("actor_id")
-
-	if tenantID == "" || actorID == "" {
-		http.Error(w, "tenant_id and actor_id required", http.StatusBadRequest)
+func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+	t, a, ok := h.owner(w, r, r.URL.Query().Get("tenant_id"), r.URL.Query().Get("actor_id"))
+	if !ok {
 		return
 	}
-
-	creds := h.store.ListCredentials(tenantID, actorID)
-	writeJSON(w, http.StatusOK, creds)
+	var list []*StoredCredential
+	if h.store.pool != nil {
+		var err error
+		list, err = h.store.listPersistent(r.Context(), t, a)
+		if err != nil {
+			http.Error(w, "credentials unavailable", http.StatusServiceUnavailable)
+			return
+		}
+	} else {
+		list = h.store.ListCredentials(t, a)
+	}
+	result := []map[string]any{}
+	for _, c := range list {
+		result = append(result, map[string]any{"credential_id": hex.EncodeToString(c.Credential.ID), "label": c.Label, "enrolled_at": c.CreatedAt, "revoked": c.IsRevoked})
+	}
+	writeJSON(w, 200, result)
 }
 
 type RevokeRequest struct {
@@ -148,204 +189,119 @@ type RevokeRequest struct {
 	CredentialID string `json:"credential_id"`
 }
 
-func (h *Handler) handleRevoke(w http.ResponseWriter, r *http.Request) {
-	var req RevokeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+func (h *Handler) revoke(w http.ResponseWriter, r *http.Request) {
+	var in RevokeRequest
+	if passkeyDecode(r, &in) != nil {
+		http.Error(w, "invalid revocation", http.StatusBadRequest)
 		return
 	}
-
-	credBytes, err := hex.DecodeString(req.CredentialID)
+	t, a, ok := h.owner(w, r, in.TenantID, in.ActorID)
+	if !ok {
+		return
+	}
+	id, err := hex.DecodeString(in.CredentialID)
 	if err != nil {
-		http.Error(w, "invalid hex credential_id", http.StatusBadRequest)
+		http.Error(w, "invalid credential", http.StatusBadRequest)
 		return
 	}
-
-	if err := h.store.RevokeCredential(req.TenantID, req.ActorID, credBytes); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	if err := h.store.RevokeCredential(t, a, id); err != nil {
+		http.Error(w, "active credential absent", http.StatusNotFound)
 		return
 	}
-
-	writeJSON(w, http.StatusOK, map[string]any{"success": true})
+	writeJSON(w, 200, map[string]bool{"revoked": true})
 }
 
 type AssertBeginRequest struct {
 	TenantID     string `json:"tenant_id"`
 	ActorID      string `json:"actor_id"`
-	ChangeDigest string `json:"change_digest"` // 64-char hex string
+	ChangeDigest string `json:"change_digest"`
 }
 
-func (h *Handler) handleAssertBegin(w http.ResponseWriter, r *http.Request) {
-	var req AssertBeginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+func (h *Handler) assertBegin(w http.ResponseWriter, r *http.Request) {
+	var in AssertBeginRequest
+	if passkeyDecode(r, &in) != nil {
+		http.Error(w, "invalid assertion", http.StatusBadRequest)
 		return
 	}
-
-	digestBytes, err := ports.DigestFromHex(req.ChangeDigest)
+	t, a, ok := h.owner(w, r, in.TenantID, in.ActorID)
+	if !ok {
+		return
+	}
+	digest, err := ports.DigestFromHex(in.ChangeDigest)
+	if err != nil || digest.IsZero() {
+		http.Error(w, "exact change digest required", http.StatusBadRequest)
+		return
+	}
+	user, err := h.store.User(r.Context(), t, a)
 	if err != nil {
-		http.Error(w, "invalid change_digest hex", http.StatusBadRequest)
+		http.Error(w, "credentials unavailable", http.StatusServiceUnavailable)
 		return
 	}
-
-	nonce := make([]byte, 16)
-	_, _ = rand.Read(nonce)
-
-	boundChallenge := ComputeApprovalChallenge(req.TenantID, req.ActorID, digestBytes, nonce)
-
-	user := h.store.GetUser(req.TenantID, req.ActorID, req.ActorID)
-	if len(user.Credentials) == 0 {
-		http.Error(w, "no active passkeys enrolled for this actor", http.StatusPreconditionFailed)
-		return
-	}
-
-	options, sessionData, err := h.verifier.webauthn.BeginLogin(user)
+	options, data, err := h.verifier.webauthn.BeginLogin(user, webauthn.WithUserVerification(protocol.VerificationRequired))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to begin assertion: %v", err), http.StatusInternalServerError)
+		http.Error(w, "active passkey required", http.StatusPreconditionFailed)
 		return
 	}
-
-	// Override the challenge with the domain-separated change-bound challenge
-	options.Response.Challenge = boundChallenge
-	sessionData.Challenge = base64.RawURLEncoding.EncodeToString(boundChallenge)
-
-	sessionID := h.store.SaveSession(req.TenantID, req.ActorID, req.ChangeDigest, nonce, sessionData)
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"session_id":      sessionID,
-		"options":         options,
-		"bound_challenge": hex.EncodeToString(boundChallenge),
-		"challenge_nonce": hex.EncodeToString(nonce),
-	})
+	nonce := make([]byte, 32)
+	if _, err := rand.Read(nonce); err != nil {
+		http.Error(w, "challenge unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	challenge := ComputeApprovalChallenge(t, a, digest, nonce)
+	options.Response.Challenge = challenge
+	data.Challenge = base64.RawURLEncoding.EncodeToString(challenge)
+	id := h.store.SaveSession(t, a, digest.String(), nonce, data)
+	if id == "" {
+		http.Error(w, "ceremony unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"session_id": id, "options": options, "challenge_nonce": hex.EncodeToString(nonce)})
 }
 
 type AssertFinishRequest struct {
 	SessionID         string `json:"session_id"`
-	CredentialID      string `json:"credential_id"`       // hex
-	ClientDataJSON    string `json:"client_data_json"`    // base64
-	AuthenticatorData string `json:"authenticator_data"` // base64
-	Signature         string `json:"signature"`          // base64
+	CredentialID      string `json:"credential_id"`
+	ClientDataJSON    string `json:"client_data_json"`
+	AuthenticatorData string `json:"authenticator_data"`
+	Signature         string `json:"signature"`
 }
 
-func (h *Handler) handleAssertFinish(w http.ResponseWriter, r *http.Request) {
-	var req AssertFinishRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
+func decodeAssertionBytes(raw string) ([]byte, error) {
+	b, err := base64.StdEncoding.DecodeString(raw)
+	if err == nil {
+		return b, nil
 	}
-
-	sess, err := h.store.ConsumeSession(req.SessionID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	credBytes, err := hex.DecodeString(req.CredentialID)
-	if err != nil {
-		http.Error(w, "invalid credential_id hex", http.StatusBadRequest)
-		return
-	}
-
-	clientData, err := base64.StdEncoding.DecodeString(req.ClientDataJSON)
-	if err != nil {
-		http.Error(w, "invalid client_data_json base64", http.StatusBadRequest)
-		return
-	}
-
-	authData, err := base64.StdEncoding.DecodeString(req.AuthenticatorData)
-	if err != nil {
-		http.Error(w, "invalid authenticator_data base64", http.StatusBadRequest)
-		return
-	}
-
-	sigBytes, err := base64.StdEncoding.DecodeString(req.Signature)
-	if err != nil {
-		http.Error(w, "invalid signature base64", http.StatusBadRequest)
-		return
-	}
-
-	changeDigest, err := ports.DigestFromHex(sess.ChangeDigest)
-	if err != nil {
-		http.Error(w, "invalid session change digest", http.StatusInternalServerError)
-		return
-	}
-
-	submission := ports.ApprovalSubmission{
-		TenantID:          sess.TenantID,
-		ActorID:           sess.ActorID,
-		CredentialID:      credBytes,
-		ClientDataJSON:    clientData,
-		AuthenticatorData: authData,
-		Signature:         sigBytes,
-		ChallengeNonce:    sess.ChallengeNonce,
-	}
-
-	verified, err := h.verifier.Verify(r.Context(), submission, changeDigest)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("passkey verification failed: %v", err), http.StatusUnauthorized)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"verified":      true,
-		"verified_at":   verified.VerifiedAt,
-		"actor_id":      verified.ActorID,
-		"credential_id": hex.EncodeToString(verified.CredentialID),
-		"user_verified": verified.UserVerified,
-		"change_digest": verified.ChangeDigest.String(),
-	})
+	return base64.RawURLEncoding.DecodeString(raw)
 }
-
-type AssertSimulateRequest struct {
-	TenantID     string `json:"tenant_id"`
-	ActorID      string `json:"actor_id"`
-	ChangeDigest string `json:"change_digest"`
-}
-
-func (h *Handler) handleAssertSimulate(w http.ResponseWriter, r *http.Request) {
-	var req AssertSimulateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+func (h *Handler) assertFinish(w http.ResponseWriter, r *http.Request) {
+	var in AssertFinishRequest
+	if passkeyDecode(r, &in) != nil {
+		http.Error(w, "invalid assertion", http.StatusBadRequest)
 		return
 	}
-
-	changeDigest, err := ports.DigestFromHex(req.ChangeDigest)
+	t, a, ok := h.owner(w, r, "", "")
+	if !ok {
+		return
+	}
+	s, err := h.store.ConsumeOwnedSession(r.Context(), in.SessionID, t, a)
+	if err != nil || s.ChangeDigest == "" {
+		http.Error(w, "assertion ceremony refused", http.StatusBadRequest)
+		return
+	}
+	id, e1 := hex.DecodeString(in.CredentialID)
+	client, e2 := decodeAssertionBytes(in.ClientDataJSON)
+	auth, e3 := decodeAssertionBytes(in.AuthenticatorData)
+	signature, e4 := decodeAssertionBytes(in.Signature)
+	digest, e5 := ports.DigestFromHex(s.ChangeDigest)
+	if e1 != nil || e2 != nil || e3 != nil || e4 != nil || e5 != nil {
+		http.Error(w, "invalid assertion encoding", http.StatusBadRequest)
+		return
+	}
+	sub := ports.ApprovalSubmission{TenantID: t, ActorID: a, CredentialID: id, ClientDataJSON: client, AuthenticatorData: auth, Signature: signature, ChallengeNonce: s.ChallengeNonce}
+	verified, err := h.verifier.Verify(r.Context(), sub, digest)
 	if err != nil {
-		http.Error(w, "invalid change_digest hex", http.StatusBadRequest)
+		http.Error(w, "assertion refused", http.StatusUnauthorized)
 		return
 	}
-
-	submission, err := GenerateSimulatedAssertion(req.TenantID, req.ActorID, changeDigest, "localhost", "http://localhost:3000")
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to generate assertion: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	verified, err := h.verifier.Verify(r.Context(), submission, changeDigest)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("passkey verification failed: %v", err), http.StatusUnauthorized)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"verified":      true,
-		"verified_at":   verified.VerifiedAt,
-		"actor_id":      verified.ActorID,
-		"credential_id": hex.EncodeToString(verified.CredentialID),
-		"user_verified": verified.UserVerified,
-		"change_digest": verified.ChangeDigest.String(),
-		"submission": map[string]any{
-			"credential_id":      hex.EncodeToString(submission.CredentialID),
-			"client_data_json":   base64.StdEncoding.EncodeToString(submission.ClientDataJSON),
-			"authenticator_data": base64.StdEncoding.EncodeToString(submission.AuthenticatorData),
-			"signature":          base64.StdEncoding.EncodeToString(submission.Signature),
-			"challenge_nonce":    hex.EncodeToString(submission.ChallengeNonce),
-		},
-	})
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+	writeJSON(w, 200, map[string]any{"verified": true, "user_verified": verified.UserVerified, "change_digest": digest.String(), "submission": sub})
 }

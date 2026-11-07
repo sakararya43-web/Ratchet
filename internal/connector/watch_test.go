@@ -95,10 +95,19 @@ func TestWatchEngine_DriftDetectionAndRevert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to fetch org: %v", err)
 	}
-	defer orgResp.Body.Close()
+	defer func() {
+		if err := orgResp.Body.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if orgResp.StatusCode != http.StatusOK {
+		t.Fatalf("org read-back status: %d", orgResp.StatusCode)
+	}
 
 	var org domain.OrgState
-	_ = json.NewDecoder(orgResp.Body).Decode(&org)
+	if err := json.NewDecoder(orgResp.Body).Decode(&org); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, g := range org.Grants {
 		if g.IdentityID == "user:rahul" && g.RoleID == "role:wallet-operator" {
@@ -131,12 +140,13 @@ func TestTemporaryGrantManager_ScheduleAndRevoke(t *testing.T) {
 
 	// Initially grant temporary role to Rahul's assistant
 	grantCmd := &connector.ExecCommand{
-		CommandID:      "grant-intern-temp-01",
-		TenantID:       "tenant-exchange-demo",
-		Action:         "ASSIGN_ROLE",
-		TargetIdentity: "user:rahul-assistant",
-		ResourceOrRole: "role:finance-analyst",
-		IsReduction:    false,
+		ExpectedTargetRevision: store.GetState().Revision,
+		CommandID:              "grant-intern-temp-01",
+		TenantID:               "tenant-exchange-demo",
+		Action:                 "ASSIGN_ROLE",
+		TargetIdentity:         "user:rahul-assistant",
+		ResourceOrRole:         "role:finance-analyst",
+		IsReduction:            false,
 	}
 	_, err = adapter.Execute(ctx, grantCmd)
 	if err != nil {
@@ -198,10 +208,19 @@ func TestTemporaryGrantManager_ScheduleAndRevoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to fetch org: %v", err)
 	}
-	defer orgResp.Body.Close()
+	defer func() {
+		if err := orgResp.Body.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if orgResp.StatusCode != http.StatusOK {
+		t.Fatalf("org read-back status: %d", orgResp.StatusCode)
+	}
 
 	var org domain.OrgState
-	_ = json.NewDecoder(orgResp.Body).Decode(&org)
+	if err := json.NewDecoder(orgResp.Body).Decode(&org); err != nil {
+		t.Fatal(err)
+	}
 
 	for _, g := range org.Grants {
 		if g.IdentityID == "user:rahul-assistant" && g.RoleID == "role:finance-analyst" {

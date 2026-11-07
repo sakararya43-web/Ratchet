@@ -97,7 +97,7 @@ func (we *WatchEngine) PollOnce(ctx context.Context) ([]DriftAlert, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach simulator audit endpoint: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("simulator audit returned HTTP %d", resp.StatusCode)
@@ -169,17 +169,18 @@ func (we *WatchEngine) RevertDrift(ctx context.Context, alertID string) (*ExecRe
 
 	// Corrective reduction: Revoke the rogue role grant
 	revertCmd := &ExecCommand{
-		CommandID:      fmt.Sprintf("revert-%s", alertID),
-		TenantID:       targetAlert.TenantID,
-		RequestID:      alertID,
-		Action:         "REVOKE_ROLE",
-		TargetIdentity: targetAlert.TargetIdentity,
-		ResourceOrRole: targetAlert.ResourceOrRole,
-		IsReduction:    true,
+		ExpectedTargetRevision: targetAlert.Revision,
+		CommandID:              fmt.Sprintf("revert-%s", alertID),
+		TenantID:               targetAlert.TenantID,
+		RequestID:              alertID,
+		Action:                 "REVOKE_ROLE",
+		TargetIdentity:         targetAlert.TargetIdentity,
+		ResourceOrRole:         targetAlert.ResourceOrRole,
+		IsReduction:            true,
 	}
 
 	res, err := we.adapter.Execute(ctx, revertCmd)
-	if err != nil || (res != nil && !res.Success) {
+	if err != nil || res == nil || !res.Success {
 		errMsg := "revert execution failed"
 		if err != nil {
 			errMsg = err.Error()

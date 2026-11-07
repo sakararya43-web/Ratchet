@@ -2,13 +2,17 @@ syntax = "proto3";
 
 package ratchet.v1;
 
+import "ratchet/v1/common.proto";
+import "ratchet/v1/containment.proto";
+import "ratchet/v1/impact.proto";
+
 option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
 
-import "ratchet/v1/containment.proto";
-
 service IncidentService {
+  rpc OpenIncident(OpenIncidentRequest) returns (OpenIncidentResponse);
   rpc ListIncidents(ListIncidentsRequest) returns (ListIncidentsResponse);
   rpc GetIncident(GetIncidentRequest) returns (GetIncidentResponse);
+  rpc WatchIncidents(WatchIncidentsRequest) returns (stream WatchIncidentsResponse);
 }
 
 message Incident {
@@ -16,7 +20,7 @@ message Incident {
   string tenant_id = 2;
   string title = 3;
   string severity = 4; // LOW, MEDIUM, HIGH, CRITICAL
-  string status = 5;   // OPEN, CONTAINING, CONTAINED, RESOLVED
+  string status = 5; // OPEN, CONTAINING, CONTAINED, RESOLVED
   string affected_identity = 6;
   string root_cause_type = 7; // DRIFT, SUSPICIOUS_ESCALATION, MANUAL_CONTAINMENT
   ContainmentPlan containment_plan = 8;
@@ -24,6 +28,18 @@ message Incident {
   string opened_at = 10;
   string contained_at = 11;
   string resolved_at = 12;
+  string correlation_id = 13;
+  repeated GraphRoute residual_routes = 14;
+  bool residual_routes_complete = 15;
+  int64 observed_graph_version = 16;
+  string observed_at = 17;
+  repeated string restoration_prerequisites = 18;
+  int64 revision = 19;
+  repeated string restoration_request_ids = 20;
+  string source_drift_id = 21;
+  string corrective_request_id = 22;
+  string corrective_verified_at = 23;
+  bytes native_drift_evidence_json = 24; // Anonymous normalized RBAC impact, policy facts and committed source digests.
 }
 
 message ListIncidentsRequest {
@@ -36,6 +52,19 @@ message ListIncidentsRequest {
 message ListIncidentsResponse {
   repeated Incident incidents = 1;
   string next_page_token = 2;
+  int64 snapshot_end_sequence = 3;
+  string watch_cursor = 4;
+}
+
+message OpenIncidentRequest {
+  string tenant_id = 1;
+  string plan_id = 2;
+  string plan_digest = 3;
+  MutationContext mutation = 4;
+}
+
+message OpenIncidentResponse {
+  Incident incident = 1;
 }
 
 message GetIncidentRequest {
@@ -47,3 +76,13 @@ message GetIncidentResponse {
   Incident incident = 1;
 }
 
+message WatchIncidentsRequest {
+  string tenant_id = 1;
+  WatchCursor cursor = 2;
+}
+
+message WatchIncidentsResponse {
+  Incident incident = 1;
+  string cursor = 2;
+  bool heartbeat = 3;
+}

@@ -1,3 +1,5 @@
+//go:build peerintegration
+
 package k6_attacks_test
 
 import (
@@ -118,13 +120,14 @@ func TestFRK6_CompleteAttackFamiliesAndLegitimateCounterparts(t *testing.T) {
 
 		// Execute legitimate grant through connector
 		applyCmd := &connector.ExecCommand{
-			CommandID:      "cmd-apply-legit-intern",
-			TenantID:       tenantID,
-			RequestID:      "req-intern-legit-002",
-			Action:         "ASSIGN_ROLE",
-			TargetIdentity: "user:rahul-assistant",
-			ResourceOrRole: "role:finance-analyst",
-			IsReduction:    false,
+			ExpectedTargetRevision: store.GetState().Revision,
+			CommandID:              "cmd-apply-legit-intern",
+			TenantID:               tenantID,
+			RequestID:              "req-intern-legit-002",
+			Action:                 "ASSIGN_ROLE",
+			TargetIdentity:         "user:rahul-assistant",
+			ResourceOrRole:         "role:finance-analyst",
+			IsReduction:            false,
 		}
 		execRes, err := adapter.Execute(ctx, applyCmd)
 		if err != nil || !execRes.Success {
@@ -187,9 +190,9 @@ func TestFRK6_CompleteAttackFamiliesAndLegitimateCounterparts(t *testing.T) {
 	t.Run("Family4_ServiceAccountOverGrantVsScopedTemporaryGrant", func(t *testing.T) {
 		// Attack: Service account cannot self-escalate or bypass broker
 		overgrantReq, _ := json.Marshal(map[string]string{
-			"command_id":      "cmd-attack-svc-overgrant",
-			"action":          "ASSIGN_ROLE",
-			"target_identity": "svc:reporting-worker",
+			"command_id":       "cmd-attack-svc-overgrant",
+			"action":           "ASSIGN_ROLE",
+			"target_identity":  "svc:reporting-worker",
 			"resource_or_role": "role:exchange-admin",
 		})
 		// Attempting direct execution without broker auth
@@ -209,11 +212,12 @@ func TestFRK6_CompleteAttackFamiliesAndLegitimateCounterparts(t *testing.T) {
 		}
 
 		grantCmd := &connector.ExecCommand{
-			CommandID:      "cmd-scoped-svc-temp",
-			TenantID:       tenantID,
-			Action:         "ASSIGN_ROLE",
-			TargetIdentity: "svc:reporting-worker",
-			ResourceOrRole: "role:finance-analyst",
+			ExpectedTargetRevision: store.GetState().Revision,
+			CommandID:              "cmd-scoped-svc-temp",
+			TenantID:               tenantID,
+			Action:                 "ASSIGN_ROLE",
+			TargetIdentity:         "svc:reporting-worker",
+			ResourceOrRole:         "role:finance-analyst",
 		}
 		_, err = adapter.Execute(ctx, grantCmd)
 		if err != nil {
@@ -244,9 +248,9 @@ func TestFRK6_CompleteAttackFamiliesAndLegitimateCounterparts(t *testing.T) {
 	t.Run("Family5_DirectSafeguardWeakeningVsGovernedQuorum", func(t *testing.T) {
 		// Attack: Direct IAM modification of safeguard by user is rejected (no such endpoint / broker denied)
 		directWeakening, _ := json.Marshal(map[string]string{
-			"command_id":      "cmd-weakening",
-			"action":          "MODIFY_SAFEGUARD",
-			"target_identity": "user:rahul",
+			"command_id":       "cmd-weakening",
+			"action":           "MODIFY_SAFEGUARD",
+			"target_identity":  "user:rahul",
 			"resource_or_role": "safeguard:withdrawal-rule",
 		})
 		resp, err := http.Post(ts.URL+"/api/v1/execute", "application/json", bytes.NewReader(directWeakening))
@@ -310,11 +314,12 @@ func TestFRK6_CompleteAttackFamiliesAndLegitimateCounterparts(t *testing.T) {
 
 		// Positive: Legitimate Tier-0 wallet operator with specific role
 		grantOperatorCmd := &connector.ExecCommand{
-			CommandID:      "cmd-grant-wallet-operator",
-			TenantID:       tenantID,
-			Action:         "ASSIGN_ROLE",
-			TargetIdentity: "user:admin-operator",
-			ResourceOrRole: "role:wallet-operator",
+			ExpectedTargetRevision: store.GetState().Revision,
+			CommandID:              "cmd-grant-wallet-operator",
+			TenantID:               tenantID,
+			Action:                 "ASSIGN_ROLE",
+			TargetIdentity:         "user:admin-operator",
+			ResourceOrRole:         "role:wallet-operator",
 		}
 		_, err = adapter.Execute(ctx, grantOperatorCmd)
 		if err != nil {

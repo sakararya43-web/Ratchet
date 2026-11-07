@@ -126,7 +126,8 @@ func TestExportSeedFixture(t *testing.T) {
 		t.Fatalf("marshal error: %v", err)
 	}
 
-	dir := filepath.Join("..", "..", "..", "testdata", "orgs")
+	// Serialization verification must not rewrite the reviewed repository fixture.
+	dir := t.TempDir()
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatalf("mkdir error: %v", err)
 	}

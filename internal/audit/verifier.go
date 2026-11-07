@@ -29,19 +29,19 @@ type VerifyOptions struct {
 
 // VerificationReport contains structured evidence of the offline audit verification.
 type VerificationReport struct {
-	Valid               bool           `json:"valid"`
-	TenantID            string         `json:"tenant_id"`
-	EventsVerified      int            `json:"events_verified"`
-	SequenceStart       int64          `json:"sequence_start"`
-	SequenceEnd         int64          `json:"sequence_end"`
-	TipDigest           ports.Digest   `json:"tip_digest"`
-	CheckpointsVerified int            `json:"checkpoints_verified"`
-	ApprovalsVerified   int            `json:"approvals_verified"`
-	OffendingSequence   int64          `json:"offending_sequence,omitempty"`
-	OffendingReference  string         `json:"offending_reference,omitempty"`
-	Errors              []string       `json:"errors,omitempty"`
-	Warnings            []string       `json:"warnings,omitempty"`
-	VerifiedAt          time.Time      `json:"verified_at"`
+	Valid               bool         `json:"valid"`
+	TenantID            string       `json:"tenant_id"`
+	EventsVerified      int          `json:"events_verified"`
+	SequenceStart       int64        `json:"sequence_start"`
+	SequenceEnd         int64        `json:"sequence_end"`
+	TipDigest           ports.Digest `json:"tip_digest"`
+	CheckpointsVerified int          `json:"checkpoints_verified"`
+	ApprovalsVerified   int          `json:"approvals_verified"`
+	OffendingSequence   int64        `json:"offending_sequence,omitempty"`
+	OffendingReference  string       `json:"offending_reference,omitempty"`
+	Errors              []string     `json:"errors,omitempty"`
+	Warnings            []string     `json:"warnings,omitempty"`
+	VerifiedAt          time.Time    `json:"verified_at"`
 }
 
 // OfflineVerifier executes cryptographically independent verification over exported audit bundles.
@@ -58,6 +58,9 @@ func NewOfflineVerifier() *OfflineVerifier {
 
 // VerifyBundle checks the cryptographic integrity of an entire exported audit bundle.
 func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOptions) (*VerificationReport, error) {
+	if bundle == nil {
+		return &VerificationReport{Errors: []string{"audit bundle required"}}, nil
+	}
 	report := &VerificationReport{
 		Valid:      false,
 		TenantID:   bundle.TenantID,
@@ -94,6 +97,10 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 
 	// 2. Validate events sequence and unbroken hash chain
 	if len(bundle.Events) == 0 {
+		if len(bundle.Checkpoints) > 0 || opts.ExpectedTipDigest != nil || opts.ExpectedCheckpointDigest != nil {
+			report.Errors = append(report.Errors, "empty log cannot satisfy evidence anchors")
+			return report, nil
+		}
 		report.Warnings = append(report.Warnings, "empty event log in bundle")
 		report.Valid = true
 		return report, nil
@@ -101,6 +108,10 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 
 	report.SequenceStart = bundle.Events[0].Sequence
 	report.SequenceEnd = bundle.Events[len(bundle.Events)-1].Sequence
+	if report.SequenceStart != 1 {
+		report.Errors = append(report.Errors, "full export must begin at sequence 1")
+		return report, nil
+	}
 
 	var currentHash ports.Digest
 	eventMap := make(map[int64]*AuditEvent)
@@ -168,7 +179,17 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 	report.TipDigest = currentHash
 
 	// 3. Verify Checkpoints
+	var priorCheckpoint ports.Digest
+	var previousEnd int64
 	for _, chk := range bundle.Checkpoints {
+		// Signatures bind a recomputed metadata digest, never an unchecked
+		// digest supplied alongside mutable range/link/algorithm fields.
+		computed, err := v.digester.Digest(map[string]any{"algorithm": chk.Algorithm, "epoch": chk.Epoch, "from_sequence": chk.FromSequence, "merkle_root": chk.MerkleRoot.String(), "prior_checkpoint_digest": chk.PriorCheckpointDigest.String(), "tenant_id": chk.TenantID, "to_sequence": chk.ToSequence})
+		if err != nil || computed != chk.CheckpointDigest || chk.Algorithm != "SHA-256" || chk.Epoch < 1 || chk.PriorCheckpointDigest != priorCheckpoint || chk.FromSequence != previousEnd+1 {
+			report.OffendingReference = chk.CheckpointID
+			report.Errors = append(report.Errors, "checkpoint metadata or history continuity mismatch")
+			return report, nil
+		}
 		if chk.TenantID != bundle.TenantID {
 			report.OffendingReference = chk.CheckpointID
 			report.Errors = append(report.Errors, fmt.Sprintf("checkpoint %s tenant_id mismatch", chk.CheckpointID))
@@ -238,6 +259,8 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 		}
 
 		report.CheckpointsVerified++
+		priorCheckpoint = chk.CheckpointDigest
+		previousEnd = chk.ToSequence
 	}
 
 	// 4. Verify expected tip or expected checkpoint if supplied
@@ -419,31 +442,31 @@ func verifyAuthoritySignature(pkixBytes, domainDigest, rawDigest, signature []by
 func FormatReportText(rep *VerificationReport) string {
 	var sb strings.Builder
 	sb.WriteString("=== RATCHET AUDIT VERIFICATION REPORT ===\n")
-	sb.WriteString(fmt.Sprintf("Status:               %s\n", map[bool]string{true: "VALID", false: "FAILED"}[rep.Valid]))
-	sb.WriteString(fmt.Sprintf("Tenant:               %s\n", rep.TenantID))
-	sb.WriteString(fmt.Sprintf("Events Verified:      %d\n", rep.EventsVerified))
-	sb.WriteString(fmt.Sprintf("Sequence Range:       %d -> %d\n", rep.SequenceStart, rep.SequenceEnd))
-	sb.WriteString(fmt.Sprintf("Chain Tip:            %s\n", rep.TipDigest.String()))
-	sb.WriteString(fmt.Sprintf("Approvals Verified:   %d\n", rep.ApprovalsVerified))
-	sb.WriteString(fmt.Sprintf("Checkpoints Verified: %d\n", rep.CheckpointsVerified))
+	_, _ = fmt.Fprintf(&sb, "Status:               %s\n", map[bool]string{true: "VALID", false: "FAILED"}[rep.Valid])
+	_, _ = fmt.Fprintf(&sb, "Tenant:               %s\n", rep.TenantID)
+	_, _ = fmt.Fprintf(&sb, "Events Verified:      %d\n", rep.EventsVerified)
+	_, _ = fmt.Fprintf(&sb, "Sequence Range:       %d -> %d\n", rep.SequenceStart, rep.SequenceEnd)
+	_, _ = fmt.Fprintf(&sb, "Chain Tip:            %s\n", rep.TipDigest.String())
+	_, _ = fmt.Fprintf(&sb, "Approvals Verified:   %d\n", rep.ApprovalsVerified)
+	_, _ = fmt.Fprintf(&sb, "Checkpoints Verified: %d\n", rep.CheckpointsVerified)
 
 	if len(rep.Warnings) > 0 {
 		sb.WriteString("\nWarnings:\n")
 		for _, w := range rep.Warnings {
-			sb.WriteString(fmt.Sprintf("  - [WARNING] %s\n", w))
+			_, _ = fmt.Fprintf(&sb, "  - [WARNING] %s\n", w)
 		}
 	}
 
 	if len(rep.Errors) > 0 {
 		sb.WriteString("\nErrors:\n")
 		for _, e := range rep.Errors {
-			sb.WriteString(fmt.Sprintf("  - [FAIL] %s\n", e))
+			_, _ = fmt.Fprintf(&sb, "  - [FAIL] %s\n", e)
 		}
 		if rep.OffendingSequence > 0 {
-			sb.WriteString(fmt.Sprintf("Offending Sequence:   %d\n", rep.OffendingSequence))
+			_, _ = fmt.Fprintf(&sb, "Offending Sequence:   %d\n", rep.OffendingSequence)
 		}
 		if rep.OffendingReference != "" {
-			sb.WriteString(fmt.Sprintf("Offending Reference:  %s\n", rep.OffendingReference))
+			_, _ = fmt.Fprintf(&sb, "Offending Reference:  %s\n", rep.OffendingReference)
 		}
 	}
 	sb.WriteString("=========================================\n")

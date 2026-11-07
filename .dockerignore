@@ -1,0 +1,9 @@
+.git
+.local
+**/node_modules
+**/dist
+bin
+build
+*.exe
+*.test
+sim_data.json*

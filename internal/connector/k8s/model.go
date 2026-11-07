@@ -17,9 +17,11 @@ const (
 
 // PolicyRule defines permissions for a Role or ClusterRole.
 type PolicyRule struct {
-	APIGroups []string `json:"apiGroups,omitempty"`
-	Resources []string `json:"resources,omitempty"`
-	Verbs     []string `json:"verbs"`
+	APIGroups       []string `json:"apiGroups,omitempty"`
+	Resources       []string `json:"resources,omitempty"`
+	Verbs           []string `json:"verbs"`
+	ResourceNames   []string `json:"resourceNames,omitempty"`
+	NonResourceURLs []string `json:"nonResourceURLs,omitempty"`
 }
 
 // Role represents a namespaced Kubernetes Role.
@@ -59,21 +61,26 @@ type RoleBinding struct {
 
 // AdmissionReview encapsulates the Kubernetes admission review envelope.
 type AdmissionReview struct {
-	APIVersion string            `json:"apiVersion"`
-	Kind       string            `json:"kind"`
+	APIVersion string             `json:"apiVersion"`
+	Kind       string             `json:"kind"`
 	Request    *AdmissionRequest  `json:"request,omitempty"`
 	Response   *AdmissionResponse `json:"response,omitempty"`
 }
 
 // AdmissionRequest contains details of the incoming object admission.
 type AdmissionRequest struct {
-	UID       string         `json:"uid"`
-	Kind      map[string]string `json:"kind"`
-	Resource  map[string]string `json:"resource"`
-	Operation string         `json:"operation"` // CREATE, UPDATE, DELETE
-	UserInfo  map[string]any `json:"userInfo"`
-	Object    map[string]any `json:"object,omitempty"`
-	OldObject map[string]any `json:"oldObject,omitempty"`
+	UID         string            `json:"uid"`
+	Kind        map[string]string `json:"kind"`
+	Resource    map[string]string `json:"resource"`
+	Operation   string            `json:"operation"` // CREATE, UPDATE, DELETE
+	UserInfo    map[string]any    `json:"userInfo"`
+	Object      map[string]any    `json:"object,omitempty"`
+	OldObject   map[string]any    `json:"oldObject,omitempty"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	SubResource string            `json:"subResource"`
+	DryRun      bool              `json:"dryRun"`
+	Options     map[string]any    `json:"options,omitempty"`
 }
 
 // AdmissionResponse contains the admission decision.

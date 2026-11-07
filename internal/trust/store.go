@@ -19,12 +19,12 @@ type Store struct {
 	mu                sync.RWMutex
 	filePath          string
 	genesis           *GenesisState
-	proposals         map[string]*PolicyBundle     // key: proposal_id
+	proposals         map[string]*PolicyBundle // key: proposal_id
 	activeBundle      *PolicyBundle
 	history           []*PolicyBundle
 	registryProposals map[string]*RegistryProposal // key: proposal_id
 	registryHistory   []RegistryHistoryEntry
-	checkpoints       map[string]*AuditCheckpoint  // key: checkpoint_id
+	checkpoints       map[string]*AuditCheckpoint // key: checkpoint_id
 	digester          *canon.Digester
 }
 
@@ -325,9 +325,7 @@ func (s *Store) GetHistory() []*PolicyBundle {
 	defer s.mu.RUnlock()
 
 	var list []*PolicyBundle
-	for _, b := range s.history {
-		list = append(list, b)
-	}
+	list = append(list, s.history...)
 	return list
 }
 
@@ -524,9 +522,7 @@ func (s *Store) GetRegistryHistory() []RegistryHistoryEntry {
 	defer s.mu.RUnlock()
 
 	var list []RegistryHistoryEntry
-	for _, h := range s.registryHistory {
-		list = append(list, h)
-	}
+	list = append(list, s.registryHistory...)
 	return list
 }
 
@@ -636,4 +632,3 @@ func (s *Store) ListCheckpoints() []*AuditCheckpoint {
 	}
 	return list
 }
-

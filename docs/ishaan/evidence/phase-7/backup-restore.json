@@ -1,0 +1,7 @@
+{
+  "custom_format_backup": true,
+  "isolated_restore": true,
+  "all_table_commitments_match": true,
+  "tables": 30,
+  "rows": 120257
+}

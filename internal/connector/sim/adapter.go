@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
 	"net/http"
 	"time"
 
@@ -53,7 +55,7 @@ func (a *Adapter) FetchSnapshot(ctx context.Context) (*connector.GraphSnapshot, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach simulator at %s: %w", a.baseURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("simulator returned non-200: %d", resp.StatusCode)
@@ -63,15 +65,25 @@ func (a *Adapter) FetchSnapshot(ctx context.Context) (*connector.GraphSnapshot, 
 	if err := json.NewDecoder(resp.Body).Decode(&org); err != nil {
 		return nil, fmt.Errorf("failed to decode org state: %w", err)
 	}
+	if org.TenantID != a.tenantID {
+		return nil, fmt.Errorf("target tenant mismatch")
+	}
 
 	nodes, edges := connector.BuildGraphElements(&org)
+	message := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("ratchet-simulator-snapshot:%s:%s:%d", a.tenantID, a.connectorID, org.Revision))).String()
+	stamp := ""
+	if len(org.AuditLog) > 0 {
+		stamp = org.AuditLog[len(org.AuditLog)-1].Timestamp.UTC().Format(time.RFC3339Nano)
+	}
 	return &connector.GraphSnapshot{
+		Complete:       true,
+		Envelope:       &v1.ConnectorEnvelope{SchemaVersion: 1, TenantId: a.tenantID, ConnectorId: a.connectorID, MessageId: message, CorrelationId: message, SourceRevision: org.Revision},
 		TenantID:       a.tenantID,
 		ConnectorID:    a.connectorID,
 		SourceRevision: org.Revision,
 		Nodes:          nodes,
 		Edges:          edges,
-		Timestamp:      time.Now().UTC().Format(time.RFC3339),
+		Timestamp:      stamp,
 	}, nil
 }
 
@@ -87,7 +99,7 @@ func (a *Adapter) FetchDelta(ctx context.Context, fromRevision int64) (*connecto
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("simulator audit returned %d", resp.StatusCode)
@@ -140,10 +152,12 @@ func (a *Adapter) FetchDelta(ctx context.Context, fromRevision int64) (*connecto
 // Execute applies an authorized IAM command to the simulator via broker authentication.
 func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*connector.ExecResult, error) {
 	payload, err := json.Marshal(map[string]any{
-		"command_id":       cmd.CommandID,
-		"action":           cmd.Action,
-		"target_identity":  cmd.TargetIdentity,
-		"resource_or_role": cmd.ResourceOrRole,
+		"command_id":               cmd.CommandID,
+		"tenant_id":                cmd.TenantID,
+		"expected_target_revision": cmd.ExpectedTargetRevision,
+		"action":                   cmd.Action,
+		"target_identity":          cmd.TargetIdentity,
+		"resource_or_role":         cmd.ResourceOrRole,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal command: %w", err)
@@ -161,7 +175,7 @@ func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*con
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach target: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		var errResp map[string]any
@@ -175,6 +189,7 @@ func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*con
 	}
 
 	var simResult struct {
+		AppliedAt     string `json:"applied_at"`
 		CommandID     string `json:"command_id"`
 		Success       bool   `json:"success"`
 		Revision      int64  `json:"revision"`
@@ -193,7 +208,7 @@ func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*con
 	return &connector.ExecResult{
 		CommandID:           cmd.CommandID,
 		Success:             simResult.Success,
-		AppliedAt:           time.Now().UTC().Format(time.RFC3339),
+		AppliedAt:           simResult.AppliedAt,
 		TargetRevisionAfter: simResult.Revision,
 		ObservedState: connector.ObservedState{
 			TenantID:         cmd.TenantID,
@@ -217,7 +232,7 @@ func (a *Adapter) Verify(ctx context.Context, cmd *connector.ExecCommand) (*conn
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach simulator for verification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("read-back failed with HTTP %d", resp.StatusCode)
@@ -290,13 +305,3 @@ func (a *Adapter) Verify(ctx context.Context, cmd *connector.ExecCommand) (*conn
 		ObservedRevision: org.Revision,
 	}, nil
 }
-
-func (a *Adapter) isSessionActive(sessions []domain.Session, sessionID string) bool {
-	for _, s := range sessions {
-		if s.SessionID == sessionID && !s.IsRevoked {
-			return true
-		}
-	}
-	return false
-}
-

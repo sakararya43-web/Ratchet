@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package ratchet.v1;
 
-option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
+import "ratchet/v1/common.proto";
 
-import "ratchet/v1/connector.proto";
+option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
 
 service ChangeService {
   rpc SubmitChange(SubmitChangeRequest) returns (SubmitChangeResponse);
@@ -14,6 +14,10 @@ service ChangeService {
   rpc RejectChange(RejectChangeRequest) returns (RejectChangeResponse);
   rpc HoldChange(HoldChangeRequest) returns (HoldChangeResponse);
   rpc RequestMoreInfo(RequestMoreInfoRequest) returns (RequestMoreInfoResponse);
+  rpc ProvideContext(ProvideContextRequest) returns (ProvideContextResponse);
+  rpc GetDecisionEvidence(GetDecisionEvidenceRequest) returns (GetDecisionEvidenceResponse);
+  rpc ListPolicyHistory(ListPolicyHistoryRequest) returns (ListPolicyHistoryResponse);
+  rpc WatchChanges(WatchChangesRequest) returns (stream WatchChangesResponse);
 }
 
 message ChangeRequest {
@@ -34,6 +38,20 @@ message ChangeRequest {
   repeated string decision_reasons = 15;
   string created_at = 16;
   string updated_at = 17;
+  ChangeKind typed_kind = 18;
+  ChangeState state = 19;
+  int64 revision = 20;
+  ApprovalEnvelope approval_envelope = 21;
+  string policy_bundle_hash = 22;
+  bytes canonical_approval_envelope_json = 23;
+  repeated string requested_resources = 24;
+  repeated string requested_permissions = 25;
+  string grant_expires_at = 26;
+  string expiry_status = 27; // SCHEDULED, REVOKING, FAILED, REVOKED; target confirmation is required
+  bool scope_over_broad = 28;
+  repeated string scope_extra_resources = 29;
+  repeated string scope_extra_permissions = 30;
+  NormalizedKubernetesMutation kubernetes_context = 31;
 }
 
 message SubmitChangeRequest {
@@ -45,6 +63,9 @@ message SubmitChangeRequest {
   string requested_by = 6;
   bool emergency = 7;
   int64 time_limit_seconds = 8;
+  MutationContext mutation = 9;
+  ExactChangeIntent intent = 10;
+  NormalizedKubernetesMutation kubernetes = 11;
 }
 
 message SubmitChangeResponse {
@@ -65,11 +86,14 @@ message ListChangesRequest {
   string status_filter = 2;
   int32 page_size = 3;
   string page_token = 4;
+  bool temporary_grants_only = 5;
 }
 
 message ListChangesResponse {
   repeated ChangeRequest requests = 1;
   string next_page_token = 2;
+  int64 snapshot_end_sequence = 3;
+  string watch_cursor = 4;
 }
 
 message ApproveChangeRequest {
@@ -77,6 +101,8 @@ message ApproveChangeRequest {
   string request_id = 2;
   string approver_id = 3;
   string assertion_response_json = 4;
+  MutationContext mutation = 5;
+  string approved_envelope_digest = 6;
 }
 
 message ApproveChangeResponse {
@@ -89,6 +115,7 @@ message RejectChangeRequest {
   string request_id = 2;
   string rejecter_id = 3;
   string reason = 4;
+  MutationContext mutation = 5;
 }
 
 message RejectChangeResponse {
@@ -101,6 +128,7 @@ message HoldChangeRequest {
   string request_id = 2;
   string actor_id = 3;
   string reason = 4;
+  MutationContext mutation = 5;
 }
 
 message HoldChangeResponse {
@@ -112,9 +140,58 @@ message RequestMoreInfoRequest {
   string request_id = 2;
   string actor_id = 3;
   string question = 4;
+  MutationContext mutation = 5;
 }
 
 message RequestMoreInfoResponse {
   ChangeRequest request = 1;
 }
 
+message WatchChangesRequest {
+  string tenant_id = 1;
+  WatchCursor cursor = 2;
+}
+
+message ProvideContextRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+  string context = 3;
+  MutationContext mutation = 4;
+}
+message ProvideContextResponse {
+  ChangeRequest request = 1;
+}
+
+message WatchChangesResponse {
+  ChangeRequest request = 1;
+  string cursor = 2;
+  bool heartbeat = 3;
+}
+
+message GetDecisionEvidenceRequest {
+  string tenant_id = 1;
+  string request_id = 2;
+  int64 assessment_revision = 3; // Zero selects the latest assessment.
+}
+message GetDecisionEvidenceResponse {
+  bytes canonical_evidence_json = 1;
+  string assessment_event_hash = 2;
+  string genesis_digest = 3; // Client must compare with its independent pin.
+}
+message ListPolicyHistoryRequest {
+  string tenant_id = 1;
+  int64 after_event_position = 2;
+  int32 page_size = 3;
+}
+message PolicyActivationRecord {
+  string bundle_version = 1;
+  string bundle_digest = 2;
+  int64 registry_epoch = 3;
+  string registry_digest = 4;
+  int64 event_position = 5;
+}
+message ListPolicyHistoryResponse {
+  repeated PolicyActivationRecord activations = 1;
+  int64 next_event_position = 2;
+  bool has_more = 3;
+}

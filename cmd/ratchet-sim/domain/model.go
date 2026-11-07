@@ -57,12 +57,12 @@ type Safeguard struct {
 
 // Grant represents an assignment of a role or permission to an identity.
 type Grant struct {
-	ID          string    `json:"id"`
-	IdentityID  string    `json:"identity_id"`
-	RoleID      string    `json:"role_id"`
-	GrantedAt   time.Time `json:"granted_at"`
-	GrantedBy   string    `json:"granted_by"`
-	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	ID         string     `json:"id"`
+	IdentityID string     `json:"identity_id"`
+	RoleID     string     `json:"role_id"`
+	GrantedAt  time.Time  `json:"granted_at"`
+	GrantedBy  string     `json:"granted_by"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 }
 
 // ControlRelation represents direct or indirect control/takeover between identities.
@@ -104,15 +104,15 @@ type AccessProbeResult struct {
 
 // OrgState is the complete snapshot of the simulated exchange organization.
 type OrgState struct {
-	TenantID         string             `json:"tenant_id"`
-	Revision         int64              `json:"revision"`
-	Identities       []Identity         `json:"identities"`
-	Roles            []Role             `json:"roles"`
-	Resources        []Resource         `json:"resources"`
-	Safeguards       []Safeguard        `json:"safeguards"`
-	Grants           []Grant            `json:"grants"`
-	ControlRelations []ControlRelation  `json:"control_relations"`
-	Sessions         []Session          `json:"sessions"`
-	AuditLog         []TargetAuditEntry `json:"audit_log"`
+	CommandReceipts  map[string]CommandReceipt `json:"command_receipts,omitempty"`
+	TenantID         string                    `json:"tenant_id"`
+	Revision         int64                     `json:"revision"`
+	Identities       []Identity                `json:"identities"`
+	Roles            []Role                    `json:"roles"`
+	Resources        []Resource                `json:"resources"`
+	Safeguards       []Safeguard               `json:"safeguards"`
+	Grants           []Grant                   `json:"grants"`
+	ControlRelations []ControlRelation         `json:"control_relations"`
+	Sessions         []Session                 `json:"sessions"`
+	AuditLog         []TargetAuditEntry        `json:"audit_log"`
 }
-

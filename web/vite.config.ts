@@ -11,16 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    proxy: {
-      '/api/v1/authority': {
-        target: 'http://localhost:8086',
-        changeOrigin: true,
-      },
-      '/api': {
-        target: 'http://localhost:8085',
-        changeOrigin: true,
-      },
-    },
+    // Authentication and passkeys run on ratchetd's HTTPS origin. Build and
+    // embed for end-to-end use; the Vite server is only a layout preview.
   },
 });
 

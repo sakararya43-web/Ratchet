@@ -2,10 +2,17 @@ syntax = "proto3";
 
 package ratchet.v1;
 
+import "ratchet/v1/common.proto";
+
 option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
 
 service DecisionService {
   rpc Decide(DecisionRequest) returns (DecisionResponse);
+  rpc DecideKubernetes(KubernetesDecisionRequest) returns (DecisionResponse);
+}
+
+message KubernetesDecisionRequest {
+  bytes signed_admission_json = 1; // RATCHET_KUBERNETES_ADMISSION_V1, connector-pinned; never a session identity claim.
 }
 
 message ChangeIntent {
@@ -15,10 +22,16 @@ message ChangeIntent {
   string requested_access = 4;
   string requested_by = 5;
   map<string, string> context = 6;
+  ExactChangeIntent exact_intent = 7;
 }
 
 message DecisionRequest {
   ChangeIntent intent = 1;
+  int64 min_graph_version = 2;
+  string admission_request_id = 3;
+  string exact_object_digest = 4; // Simulator: canonical ExactChangeIntent mapped to the core Intent digest.
+  string target_revision = 5;
+  string approved_request_id = 6;
 }
 
 message DecisionResponse {
@@ -28,5 +41,14 @@ message DecisionResponse {
   int32 required_quorum = 4;
   string policy_bundle_hash = 5;
   int64 graph_version = 6;
+  DecisionOutcome typed_outcome = 7;
+  string decision_id = 8;
+  string exact_object_digest = 9;
+  bool execution_authorized = 10; // One consumed staged command only; outcome alone never authorizes a write.
+  string admission_request_id = 11;
+  string target_revision = 12;
+  string expires_at = 13;
+  string policy_outcome = 14; // Policy result before the one-use execution binding is checked.
+  string admission_context_digest = 15;
+  bytes signed_native_decision_json = 16; // Exact RATCHET_KUBERNETES_DECISION_V1 permit; absent for refusals and retries.
 }
-

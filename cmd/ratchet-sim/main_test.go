@@ -50,7 +50,7 @@ func TestSimulatorHTTPServer(t *testing.T) {
 	}
 
 	// 3. Test Broker Mode: unauthorized execute
-	execBody := []byte(`{"command_id":"cmd-1","action":"ASSIGN_ROLE","target_identity":"user:rahul","resource_or_role":"role:exchange-admin"}`)
+	execBody := []byte(`{"command_id":"cmd-1","tenant_id":"tenant-exchange-demo","expected_target_revision":1000,"action":"ASSIGN_ROLE","target_identity":"user:rahul","resource_or_role":"role:exchange-admin"}`)
 	reqExecNoAuth := httptest.NewRequest("POST", "/api/v1/execute", bytes.NewReader(execBody))
 	recExecNoAuth := httptest.NewRecorder()
 	handler.ServeHTTP(recExecNoAuth, reqExecNoAuth)
@@ -159,4 +159,3 @@ func TestBusinessProbesAndSafeguards(t *testing.T) {
 		t.Errorf("expected 403 Forbidden after session termination, got %d", recBiz2.Code)
 	}
 }
-

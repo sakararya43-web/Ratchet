@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"encoding/json"
+	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
 	"os"
 	"path/filepath"
 	"sync"
@@ -30,25 +31,27 @@ type GraphEdge struct {
 
 // GraphSnapshot represents the full graph state ingested from a target.
 type GraphSnapshot struct {
-	TenantID       string      `json:"tenant_id"`
-	ConnectorID    string      `json:"connector_id"`
-	SourceRevision int64       `json:"source_revision"`
-	Nodes          []GraphNode `json:"nodes"`
-	Edges          []GraphEdge `json:"edges"`
-	Timestamp      string      `json:"timestamp"`
+	TenantID       string                `json:"tenant_id"`
+	ConnectorID    string                `json:"connector_id"`
+	SourceRevision int64                 `json:"source_revision"`
+	Nodes          []GraphNode           `json:"nodes"`
+	Edges          []GraphEdge           `json:"edges"`
+	Timestamp      string                `json:"timestamp"`
+	Complete       bool                  `json:"complete"`
+	Envelope       *v1.ConnectorEnvelope `json:"envelope,omitempty"`
 }
 
 // GraphDelta represents an incremental update from a known revision.
 type GraphDelta struct {
-	TenantID       string      `json:"tenant_id"`
-	ConnectorID    string      `json:"connector_id"`
-	FromRevision   int64       `json:"from_revision"`
-	ToRevision     int64       `json:"to_revision"`
-	NodesAdded     []GraphNode `json:"nodes_added,omitempty"`
-	NodesRemoved   []string    `json:"nodes_removed,omitempty"`
-	EdgesAdded     []GraphEdge `json:"edges_added,omitempty"`
-	EdgesRemoved   []GraphEdge `json:"edges_removed,omitempty"`
-	Timestamp      string      `json:"timestamp"`
+	TenantID     string      `json:"tenant_id"`
+	ConnectorID  string      `json:"connector_id"`
+	FromRevision int64       `json:"from_revision"`
+	ToRevision   int64       `json:"to_revision"`
+	NodesAdded   []GraphNode `json:"nodes_added,omitempty"`
+	NodesRemoved []string    `json:"nodes_removed,omitempty"`
+	EdgesAdded   []GraphEdge `json:"edges_added,omitempty"`
+	EdgesRemoved []GraphEdge `json:"edges_removed,omitempty"`
+	Timestamp    string      `json:"timestamp"`
 }
 
 // ExecCommand represents an authorized IAM modification to apply on the target.
@@ -172,98 +175,5 @@ func (cs *CursorStore) Set(cursor int64) error {
 
 // BuildGraphElements converts simulator domain OrgState into generic GraphNodes and GraphEdges.
 func BuildGraphElements(org *domain.OrgState) ([]GraphNode, []GraphEdge) {
-	var nodes []GraphNode
-	var edges []GraphEdge
-
-	// 1. Identities
-	for _, id := range org.Identities {
-		nodes = append(nodes, GraphNode{
-			ID:          id.ID,
-			Type:        string(id.Type),
-			DisplayName: id.DisplayName,
-			Properties:  id.Properties,
-		})
-	}
-
-	// 2. Roles
-	for _, r := range org.Roles {
-		nodes = append(nodes, GraphNode{
-			ID:          r.ID,
-			Type:        string(domain.NodeRole),
-			DisplayName: r.DisplayName,
-			Properties:  r.Properties,
-		})
-	}
-
-	// 3. Resources
-	for _, res := range org.Resources {
-		nodes = append(nodes, GraphNode{
-			ID:          res.ID,
-			Type:        string(domain.NodeResource),
-			Tier:        res.Tier,
-			DisplayName: res.DisplayName,
-			Properties:  res.Properties,
-		})
-	}
-
-	// 4. Safeguards
-	for _, sg := range org.Safeguards {
-		nodes = append(nodes, GraphNode{
-			ID:          sg.ID,
-			Type:        string(domain.NodeSafeguard),
-			Tier:        sg.Tier,
-			DisplayName: sg.DisplayName,
-			Properties:  sg.Parameters,
-		})
-		for _, pr := range sg.ProtectedResources {
-			edges = append(edges, GraphEdge{
-				Source: sg.ID,
-				Target: pr,
-				Kind:   "PROTECTED_BY",
-			})
-		}
-	}
-
-	// 5. Grants (Identity -> Role)
-	for _, g := range org.Grants {
-		edges = append(edges, GraphEdge{
-			Source: g.IdentityID,
-			Target: g.RoleID,
-			Kind:   "ASSIGNED",
-		})
-	}
-
-	// 6. Role Permissions (Role -> Resource)
-	for _, r := range org.Roles {
-		for _, perm := range r.Permissions {
-			// Format: "resource_id:action"
-			var resID, action string
-			for i := len(perm) - 1; i >= 0; i-- {
-				if perm[i] == ':' {
-					resID = perm[:i]
-					action = perm[i+1:]
-					break
-				}
-			}
-			if resID != "" {
-				edges = append(edges, GraphEdge{
-					Source: r.ID,
-					Target: resID,
-					Kind:   "GRANTS",
-					Action: action,
-				})
-			}
-		}
-	}
-
-	// 7. Control Relations (Takeover: Identity -> Identity)
-	for _, cr := range org.ControlRelations {
-		edges = append(edges, GraphEdge{
-			Source: cr.ControllerID,
-			Target: cr.ControlledID,
-			Kind:   cr.Kind,
-		})
-	}
-
-	return nodes, edges
+	return buildSimulatorGraph(org)
 }

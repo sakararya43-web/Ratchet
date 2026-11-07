@@ -1,0 +1,280 @@
+{
+  "graph_version": 1000,
+  "monotonic_reduction": false,
+  "affected_identities": [
+    {
+      "identity_id": "user:rahul",
+      "new_resources": [
+        {
+          "id": "res:customer-db",
+          "type": "Resource",
+          "tier": 0
+        },
+        {
+          "id": "res:daily-exchange-ledger",
+          "type": "Resource",
+          "tier": 2
+        },
+        {
+          "id": "res:finance-reports",
+          "type": "Resource",
+          "tier": 2
+        },
+        {
+          "id": "res:staging-env",
+          "type": "Resource",
+          "tier": 3
+        },
+        {
+          "id": "svc:wallet-signer",
+          "type": "Resource",
+          "tier": 0
+        }
+      ],
+      "new_controlled_identities": [
+        "svc:reporting-worker",
+        "svc:withdrawal-worker",
+        "user:admin-operator",
+        "user:finance-lead",
+        "user:sec-lead-1",
+        "user:sec-lead-2"
+      ],
+      "new_powers": [
+        {
+          "node_id": "permission:audit:inspect",
+          "action": "exercise"
+        },
+        {
+          "node_id": "permission:iam:all",
+          "action": "exercise"
+        },
+        {
+          "node_id": "permission:policy:review",
+          "action": "exercise"
+        },
+        {
+          "node_id": "res:customer-db",
+          "action": "*"
+        },
+        {
+          "node_id": "res:customer-db",
+          "action": "admin"
+        },
+        {
+          "node_id": "res:daily-exchange-ledger",
+          "action": "*"
+        },
+        {
+          "node_id": "res:finance-reports",
+          "action": "*"
+        },
+        {
+          "node_id": "res:finance-reports",
+          "action": "approve"
+        },
+        {
+          "node_id": "res:staging-env",
+          "action": "*"
+        },
+        {
+          "node_id": "role:exchange-admin",
+          "action": "modify"
+        },
+        {
+          "node_id": "role:finance-analyst",
+          "action": "modify"
+        },
+        {
+          "node_id": "role:finance-lead",
+          "action": "modify"
+        },
+        {
+          "node_id": "role:security-lead",
+          "action": "modify"
+        },
+        {
+          "node_id": "role:wallet-operator",
+          "action": "modify"
+        },
+        {
+          "node_id": "safeguard:withdrawal-rule",
+          "action": "modify"
+        },
+        {
+          "node_id": "svc:reporting-worker",
+          "action": "takeover"
+        },
+        {
+          "node_id": "svc:wallet-signer",
+          "action": "*"
+        },
+        {
+          "node_id": "svc:wallet-signer",
+          "action": "admin"
+        },
+        {
+          "node_id": "svc:wallet-signer",
+          "action": "sign"
+        },
+        {
+          "node_id": "svc:withdrawal-worker",
+          "action": "takeover"
+        },
+        {
+          "node_id": "user:admin-operator",
+          "action": "takeover"
+        },
+        {
+          "node_id": "user:finance-lead",
+          "action": "takeover"
+        },
+        {
+          "node_id": "user:rahul",
+          "action": "takeover"
+        },
+        {
+          "node_id": "user:sec-lead-1",
+          "action": "takeover"
+        },
+        {
+          "node_id": "user:sec-lead-2",
+          "action": "takeover"
+        }
+      ],
+      "new_tier0_routes": [
+        {
+          "node_ids": [
+            "user:rahul",
+            "role:exchange-admin",
+            "res:customer-db"
+          ],
+          "edge_kinds": [
+            "ASSIGNED",
+            "GRANTS"
+          ],
+          "edge_ids": [
+            "draft:user:rahul:role:exchange-admin",
+            "edge:798e4ecbae43ad0cfc312780abc5584e1577191557f21683b7055ca814652dfc"
+          ]
+        },
+        {
+          "node_ids": [
+            "user:rahul",
+            "role:exchange-admin",
+            "svc:wallet-signer"
+          ],
+          "edge_kinds": [
+            "ASSIGNED",
+            "GRANTS"
+          ],
+          "edge_ids": [
+            "draft:user:rahul:role:exchange-admin",
+            "edge:af86302392dac0e48ce1090327027b53538ed406fe9e2aaa2b274e4946a0885a"
+          ]
+        },
+        {
+          "node_ids": [
+            "user:rahul",
+            "role:exchange-admin",
+            "safeguard:withdrawal-rule"
+          ],
+          "edge_kinds": [
+            "ASSIGNED",
+            "GRANTS"
+          ],
+          "edge_ids": [
+            "draft:user:rahul:role:exchange-admin",
+            "edge:bc1e19c17e810d2144b2ac1b29e019766af185c54a3766ce3ffccc282cb03bb3"
+          ]
+        },
+        {
+          "node_ids": [
+            "user:rahul",
+            "role:exchange-admin",
+            "permission:iam:all",
+            "svc:wallet-signer"
+          ],
+          "edge_kinds": [
+            "ASSIGNED",
+            "GRANTS",
+            "GRANTS"
+          ],
+          "edge_ids": [
+            "draft:user:rahul:role:exchange-admin",
+            "edge:d96f0c3b4e67c47f732beeedfc74af18af2dac7b8abb0935babd73ea55c95aab",
+            "edge:27c807c77b0b033f625b7491e12abb7ec33783fe0840965bfa3c29558bb57180"
+          ]
+        },
+        {
+          "node_ids": [
+            "user:rahul",
+            "role:exchange-admin",
+            "permission:iam:all",
+            "role:wallet-operator",
+            "svc:wallet-signer"
+          ],
+          "edge_kinds": [
+            "ASSIGNED",
+            "GRANTS",
+            "CAN_MODIFY",
+            "GRANTS"
+          ],
+          "edge_ids": [
+            "draft:user:rahul:role:exchange-admin",
+            "edge:d96f0c3b4e67c47f732beeedfc74af18af2dac7b8abb0935babd73ea55c95aab",
+            "edge:2a6bcc50db9f1d78e837ea73229ac0b40b130a1ef7ae6498b2b41ca8cfe2ebb7",
+            "edge:1bf9e88f758e6b004fd4a1b50c091e681e8bcedcfa86eb595560f2735521b321"
+          ]
+        },
+        {
+          "node_ids": [
+            "user:rahul",
+            "role:exchange-admin",
+            "permission:iam:all",
+            "res:customer-db"
+          ],
+          "edge_kinds": [
+            "ASSIGNED",
+            "GRANTS",
+            "GRANTS"
+          ],
+          "edge_ids": [
+            "draft:user:rahul:role:exchange-admin",
+            "edge:d96f0c3b4e67c47f732beeedfc74af18af2dac7b8abb0935babd73ea55c95aab",
+            "edge:764490851580fe4071b9dc999d892055e22544b180463bc185b2db40b2060523"
+          ]
+        }
+      ],
+      "safeguards_weakened": [
+        {
+          "id": "safeguard:withdrawal-rule",
+          "type": "Safeguard",
+          "tier": 0,
+          "properties": {
+            "guard_kind": "withdrawal_threshold_v1",
+            "required_checks": "2",
+            "threshold_usd": "10000"
+          }
+        }
+      ],
+      "blast_radius_delta": {
+        "0": 2,
+        "1": 0,
+        "2": 0,
+        "3": 1
+      }
+    }
+  ],
+  "safeguards_weakened": [
+    {
+      "id": "safeguard:withdrawal-rule",
+      "type": "Safeguard",
+      "tier": 0,
+      "properties": {
+        "guard_kind": "withdrawal_threshold_v1",
+        "required_checks": "2",
+        "threshold_usd": "10000"
+      }
+    }
+  ]
+}

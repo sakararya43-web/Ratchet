@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set=ON_ERROR_STOP=1 \
+  --set=migrator_password="$RATCHET_MIGRATOR_PASSWORD" \
+  --set=runtime_password="$RATCHET_RUNTIME_PASSWORD" \
+  --set=projector_password="$RATCHET_PROJECTOR_PASSWORD" <<'SQL'
+CREATE ROLE ratchet_migrator LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'migrator_password';
+CREATE ROLE ratchet_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'runtime_password';
+CREATE ROLE ratchet_projector LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD :'projector_password';
+ALTER DATABASE ratchet OWNER TO ratchet_migrator;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON DATABASE ratchet FROM PUBLIC;
+GRANT CONNECT ON DATABASE ratchet TO ratchet_migrator, ratchet_runtime, ratchet_projector;
+SQL

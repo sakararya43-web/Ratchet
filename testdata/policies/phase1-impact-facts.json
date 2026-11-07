@@ -1,0 +1,171 @@
+{
+  "source": "testdata/orgs/exchange-v1.json",
+  "source_canonical_digest": "ac228f696a4c83142fb409ac75388a5554ca3240b8b4bdc78a98441ffb0d76d7",
+  "semantics_status": "proposed; peer review pending",
+  "cases": [
+    {
+      "name": "ordinary-existing-finance-assistant",
+      "kind": "ROLE_ASSIGN",
+      "target": "user:rahul-assistant",
+      "access": "role:finance-analyst",
+      "impact": {
+        "graph_version": 1000,
+        "monotonic_reduction": false,
+        "affected_identities": [
+          {
+            "identity_id": "user:rahul-assistant",
+            "new_resources": [
+              {
+                "id": "res:daily-exchange-ledger",
+                "type": "Resource",
+                "tier": 2
+              },
+              {
+                "id": "res:finance-reports",
+                "type": "Resource",
+                "tier": 2
+              }
+            ],
+            "new_controlled_identities": [],
+            "new_powers": [
+              {
+                "node_id": "res:daily-exchange-ledger",
+                "action": "read"
+              },
+              {
+                "node_id": "res:finance-reports",
+                "action": "read"
+              }
+            ],
+            "new_tier0_routes": [],
+            "safeguards_weakened": [],
+            "blast_radius_delta": {
+              "0": 0,
+              "1": 0,
+              "2": 2,
+              "3": 0
+            }
+          }
+        ],
+        "safeguards_weakened": []
+      }
+    },
+    {
+      "name": "service-overgrant",
+      "kind": "ROLE_ASSIGN",
+      "target": "svc:reporting-worker",
+      "access": "role:wallet-operator",
+      "impact": {
+        "graph_version": 1000,
+        "monotonic_reduction": false,
+        "affected_identities": [
+          {
+            "identity_id": "svc:reporting-worker",
+            "new_resources": [
+              {
+                "id": "svc:wallet-signer",
+                "type": "Resource",
+                "tier": 0
+              }
+            ],
+            "new_controlled_identities": [],
+            "new_powers": [
+              {
+                "node_id": "svc:wallet-signer",
+                "action": "sign"
+              }
+            ],
+            "new_tier0_routes": [
+              {
+                "node_ids": [
+                  "svc:reporting-worker",
+                  "role:wallet-operator",
+                  "svc:wallet-signer"
+                ],
+                "edge_kinds": [
+                  "ASSIGNED",
+                  "GRANTS"
+                ],
+                "edge_ids": [
+                  "draft:svc:reporting-worker:role:wallet-operator",
+                  "edge:1bf9e88f758e6b004fd4a1b50c091e681e8bcedcfa86eb595560f2735521b321"
+                ]
+              }
+            ],
+            "safeguards_weakened": [],
+            "blast_radius_delta": {
+              "0": 1,
+              "1": 0,
+              "2": 0,
+              "3": 0
+            }
+          }
+        ],
+        "safeguards_weakened": []
+      }
+    },
+    {
+      "name": "withdrawal-rule-weakening",
+      "kind": "MODIFY_SAFEGUARD",
+      "target": "safeguard:withdrawal-rule",
+      "parameters": {
+        "required_checks": "1",
+        "threshold_usd": "1000000"
+      },
+      "impact": {
+        "graph_version": 1000,
+        "monotonic_reduction": false,
+        "affected_identities": [],
+        "safeguards_weakened": [
+          {
+            "id": "safeguard:withdrawal-rule",
+            "type": "Safeguard",
+            "tier": 0,
+            "properties": {
+              "guard_kind": "withdrawal_threshold_v1",
+              "required_checks": "1",
+              "threshold_usd": "1000000"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "revoke-finance-role",
+      "kind": "ROLE_REVOKE",
+      "target": "user:rahul",
+      "access": "role:finance-analyst",
+      "impact": {
+        "graph_version": 1000,
+        "monotonic_reduction": true,
+        "affected_identities": [
+          {
+            "identity_id": "user:rahul",
+            "new_resources": [],
+            "new_controlled_identities": [],
+            "new_powers": [],
+            "removed_powers": [
+              {
+                "node_id": "res:daily-exchange-ledger",
+                "action": "read"
+              },
+              {
+                "node_id": "res:finance-reports",
+                "action": "read"
+              }
+            ],
+            "new_tier0_routes": [],
+            "safeguards_weakened": [],
+            "blast_radius_delta": {
+              "0": 0,
+              "1": 0,
+              "2": -2,
+              "3": 0
+            }
+          }
+        ],
+        "safeguards_weakened": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "graph": {
+    "nodes": 109,
+    "edges": 4,
+    "node_types": {
+      "Human": 104,
+      "Resource": 2,
+      "Role": 3
+    },
+    "edge_kinds": {
+      "ASSIGNED": 2,
+      "GRANTS": 2
+    }
+  },
+  "result": {
+    "scope": "core submit and assessment; excludes approval ceremony, target execution and user waiting time",
+    "denominator": 100,
+    "unexpected": 0,
+    "unexpected_percent": 0,
+    "outcomes": {
+      "REQUIRE_APPROVAL": 100
+    },
+    "causes": {}
+  }
+}

@@ -7,38 +7,17 @@ import (
 	"strconv"
 
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
-	"github.com/sakararya43-web/Ratchet/internal/approval"
 )
 
 type Server struct {
-	store            *domain.Store
-	brokerToken      string
-	credStore        *approval.CredentialStore
-	approvalVerifier *approval.ApprovalVerifier
-	approvalHandler  *approval.Handler
+	store       *domain.Store
+	brokerToken string
 }
 
 func NewServer(store *domain.Store, brokerToken string) *Server {
-	if brokerToken == "" {
-		brokerToken = "sim-broker-secret"
-	}
-
-	credStore := approval.NewCredentialStore()
-	_ = approval.SeedDemoCredentials(credStore, "tenant-exchange-demo")
-
-	approvalVerifier, err := approval.NewApprovalVerifier(credStore, "localhost", []string{"http://localhost:3000", "http://localhost:8085"})
-	if err != nil {
-		panic(fmt.Sprintf("failed to init approval verifier: %v", err))
-	}
-
-	approvalHandler := approval.NewHandler(approvalVerifier, credStore)
-
 	return &Server{
-		store:            store,
-		brokerToken:      brokerToken,
-		credStore:        credStore,
-		approvalVerifier: approvalVerifier,
-		approvalHandler:  approvalHandler,
+		store:       store,
+		brokerToken: brokerToken,
 	}
 }
 
@@ -59,8 +38,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/business/finance-report/read", s.handleBusinessFinanceReport)
 	mux.HandleFunc("POST /api/v1/business/wallet/sign", s.handleBusinessWalletSign)
 
-	// Mount passkey Level 3 WebAuthn and simulated endpoints
-	mux.Handle("/api/v1/passkey/", http.StripPrefix("/api/v1/passkey", s.approvalHandler.Routes()))
+	// Passkeys are owned by the authenticated HTTPS core. The target has no
+	// seeded credential, simulated assertion or independent approval endpoint.
 
 	return mux
 }
@@ -170,16 +149,18 @@ func (s *Server) handleInjectDrift(w http.ResponseWriter, r *http.Request) {
 }
 
 type ExecuteRequest struct {
-	CommandID      string `json:"command_id"`
-	Action         string `json:"action"` // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
-	TargetIdentity string `json:"target_identity"`
-	ResourceOrRole string `json:"resource_or_role"`
+	CommandID              string `json:"command_id"`
+	Action                 string `json:"action"` // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
+	TargetIdentity         string `json:"target_identity"`
+	ResourceOrRole         string `json:"resource_or_role"`
+	TenantID               string `json:"tenant_id"`
+	ExpectedTargetRevision int64  `json:"expected_target_revision"`
 }
 
 func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	expected := "Bearer " + s.brokerToken
-	if authHeader != expected {
+	if s.brokerToken == "" || authHeader != expected {
 		http.Error(w, "unauthorized: broker credentials required", http.StatusUnauthorized)
 		return
 	}
@@ -190,60 +171,22 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := "broker:ratchet-connector"
-	var err error
-
-	switch req.Action {
-	case "ASSIGN_ROLE":
-		err = s.store.AssignRole(actorID, req.TargetIdentity, req.ResourceOrRole)
-	case "REVOKE_ROLE", "REMOVE_SERVICE_PERMISSION":
-		err = s.store.RevokeRole(actorID, req.TargetIdentity, req.ResourceOrRole)
-	case "TERMINATE_SESSION":
-		err = s.store.TerminateSession(actorID, req.ResourceOrRole)
-	case "RESTRICT_ACCOUNT":
-		err = s.store.RestrictAccount(actorID, req.TargetIdentity)
-	default:
-		http.Error(w, fmt.Sprintf("unsupported action %q", req.Action), http.StatusBadRequest)
-		return
-	}
-
+	receipt, err := s.store.Execute(domain.TargetCommand{CommandID: req.CommandID, TenantID: req.TenantID, Action: req.Action, TargetIdentity: req.TargetIdentity, ResourceOrRole: req.ResourceOrRole, ExpectedTargetRevision: req.ExpectedTargetRevision})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("execution failed: %v", err), http.StatusUnprocessableEntity)
 		return
 	}
 
-	state := s.store.GetState()
-	var currentRoles []string
-	for _, g := range state.Grants {
-		if g.IdentityID == req.TargetIdentity {
-			currentRoles = append(currentRoles, g.RoleID)
-		}
-	}
-
-	var activeSessions []string
-	for _, sess := range state.Sessions {
-		if sess.IdentityID == req.TargetIdentity && !sess.IsRevoked {
-			activeSessions = append(activeSessions, sess.SessionID)
-		}
-	}
-
-	isDisabled := false
-	for _, id := range state.Identities {
-		if id.ID == req.TargetIdentity {
-			isDisabled = id.IsDisabled
-			break
-		}
-	}
-
 	writeJSON(w, http.StatusOK, map[string]any{
 		"command_id": req.CommandID,
 		"success":    true,
-		"revision":   state.Revision,
+		"revision":   receipt.Revision,
+		"applied_at": receipt.AppliedAt,
 		"observed_state": map[string]any{
 			"target_identity": req.TargetIdentity,
-			"current_roles":   currentRoles,
-			"active_sessions": activeSessions,
-			"is_restricted":   isDisabled,
+			"current_roles":   receipt.CurrentRoles,
+			"active_sessions": receipt.ActiveSessions,
+			"is_restricted":   receipt.IsRestricted,
 		},
 	})
 }
@@ -353,4 +296,3 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
-

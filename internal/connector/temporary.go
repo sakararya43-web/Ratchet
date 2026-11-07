@@ -19,15 +19,16 @@ const (
 
 // TemporaryGrantRecord tracks a time-bounded grant subject to automated revocation upon expiry.
 type TemporaryGrantRecord struct {
-	GrantID    string     `json:"grant_id"`
-	TenantID   string     `json:"tenant_id"`
-	IdentityID string     `json:"identity_id"`
-	RoleID     string     `json:"role_id"`
-	GrantedAt  time.Time  `json:"granted_at"`
-	ExpiresAt  time.Time  `json:"expires_at"`
-	Status     string     `json:"status"` // ACTIVE, REVOKED, FAILED
-	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
-	FailReason string     `json:"fail_reason,omitempty"`
+	ExpectedTargetRevision int64      `json:"expected_target_revision"`
+	GrantID                string     `json:"grant_id"`
+	TenantID               string     `json:"tenant_id"`
+	IdentityID             string     `json:"identity_id"`
+	RoleID                 string     `json:"role_id"`
+	GrantedAt              time.Time  `json:"granted_at"`
+	ExpiresAt              time.Time  `json:"expires_at"`
+	Status                 string     `json:"status"` // ACTIVE, REVOKED, FAILED
+	RevokedAt              *time.Time `json:"revoked_at,omitempty"`
+	FailReason             string     `json:"fail_reason,omitempty"`
 }
 
 // TemporaryGrantManager schedules and enforces time-bounded grant lifecycles with read-back verification.
@@ -62,10 +63,25 @@ func (tgm *TemporaryGrantManager) ScheduleGrant(grant *TemporaryGrantRecord) err
 	tgm.mu.Lock()
 	defer tgm.mu.Unlock()
 
-	if grant.GrantID == "" || grant.IdentityID == "" || grant.RoleID == "" {
+	if grant == nil || grant.GrantID == "" || grant.IdentityID == "" || grant.RoleID == "" {
 		return fmt.Errorf("grant_id, identity_id, and role_id are required")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	source, err := tgm.adapter.FetchSnapshot(ctx)
+	if err != nil {
+		return err
+	}
+	if source == nil || !source.Complete || source.TenantID != grant.TenantID || source.SourceRevision < 1 {
+		return fmt.Errorf("complete tenant-bound target snapshot required")
+	}
+	if grant.ExpectedTargetRevision != 0 && grant.ExpectedTargetRevision != source.SourceRevision {
+		return fmt.Errorf("grant schedule target context changed")
+	}
+	grantCopy := *grant
+	grant = &grantCopy
+	grant.ExpectedTargetRevision = source.SourceRevision
 	if grant.Status == "" {
 		grant.Status = GrantStatusActive
 	}
@@ -96,17 +112,18 @@ func (tgm *TemporaryGrantManager) CheckAndRevokeExpired(ctx context.Context, now
 		if now.After(grant.ExpiresAt) || now.Equal(grant.ExpiresAt) {
 			// Time expired! Dispatch automated reduction command
 			cmd := &ExecCommand{
-				CommandID:      fmt.Sprintf("sched-revoke-%s-%d", grant.GrantID, now.Unix()),
-				TenantID:       grant.TenantID,
-				RequestID:      grant.GrantID,
-				Action:         "REVOKE_ROLE",
-				TargetIdentity: grant.IdentityID,
-				ResourceOrRole: grant.RoleID,
-				IsReduction:    true,
+				CommandID:              fmt.Sprintf("sched-revoke-%s", grant.GrantID),
+				ExpectedTargetRevision: grant.ExpectedTargetRevision,
+				TenantID:               grant.TenantID,
+				RequestID:              grant.GrantID,
+				Action:                 "REVOKE_ROLE",
+				TargetIdentity:         grant.IdentityID,
+				ResourceOrRole:         grant.RoleID,
+				IsReduction:            true,
 			}
 
 			execRes, err := tgm.adapter.Execute(ctx, cmd)
-			if err != nil || (execRes != nil && !execRes.Success) {
+			if err != nil || execRes == nil || !execRes.Success {
 				errMsg := "revocation execution failed"
 				if err != nil {
 					errMsg = err.Error()
@@ -138,7 +155,9 @@ func (tgm *TemporaryGrantManager) CheckAndRevokeExpired(ctx context.Context, now
 	}
 
 	if len(processed) > 0 && tgm.filePath != "" {
-		_ = tgm.saveToFile()
+		if err := tgm.saveToFile(); err != nil {
+			return nil, err
+		}
 	}
 
 	return processed, nil

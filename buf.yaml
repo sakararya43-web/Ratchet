@@ -3,8 +3,17 @@ modules:
   - path: proto
 lint:
   use:
-    - DEFAULT
+    - STANDARD
+  ignore_only:
+    # Preserve the peer's published DecisionRequest/DecisionResponse names.
+    RPC_REQUEST_STANDARD_NAME:
+      - proto/ratchet/v1/decision.proto
+    RPC_RESPONSE_STANDARD_NAME:
+      - proto/ratchet/v1/decision.proto
+    # Simulator and signed native admission intentionally preserve one shared
+    # decision/permit response contract, including its published field numbers.
+    RPC_REQUEST_RESPONSE_UNIQUE:
+      - proto/ratchet/v1/decision.proto
 breaking:
   use:
     - FILE
-

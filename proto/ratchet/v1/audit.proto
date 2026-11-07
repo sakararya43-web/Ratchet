@@ -2,11 +2,17 @@ syntax = "proto3";
 
 package ratchet.v1;
 
+import "ratchet/v1/common.proto";
+
 option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
 
 service AuditService {
   rpc QueryAuditEvents(QueryAuditEventsRequest) returns (QueryAuditEventsResponse);
   rpc ExportHashChain(ExportHashChainRequest) returns (ExportHashChainResponse);
+  rpc PrepareCheckpoint(PrepareCheckpointRequest) returns (PrepareCheckpointResponse);
+  rpc SubmitCheckpoint(SubmitCheckpointRequest) returns (SubmitCheckpointResponse);
+  rpc AcceptCheckpoint(AcceptCheckpointRequest) returns (AcceptCheckpointResponse);
+  rpc ListCheckpoints(ListCheckpointsRequest) returns (ListCheckpointsResponse);
 }
 
 message LedgerEvent {
@@ -15,8 +21,13 @@ message LedgerEvent {
   string event_type = 3;
   string event_payload_json = 4;
   string previous_event_hash = 5;
-  string event_hash = 6; // SHA-256(canonical(event_payload) || prev_hash)
+  string event_hash = 6; // SHA-256(raw previous hash || canonical content); see chain format.
   string recorded_at = 7;
+  uint32 format_version = 8;
+  bytes canonical_content = 9;
+  string stream_id = 10;
+  int64 stream_version = 11;
+  string event_id = 12;
 }
 
 message QueryAuditEventsRequest {
@@ -34,17 +45,67 @@ message QueryAuditEventsRequest {
 message QueryAuditEventsResponse {
   repeated LedgerEvent events = 1;
   string next_page_token = 2;
+  int64 snapshot_end_sequence = 3;
 }
 
 message ExportHashChainRequest {
   string tenant_id = 1;
   int64 start_sequence = 2;
   int64 end_sequence = 3;
+  int32 page_size = 4;
+  string page_token = 5;
 }
 
 message ExportHashChainResponse {
   string tenant_id = 1;
   repeated LedgerEvent chain = 2;
   string latest_checkpoint_digest = 3;
+  string next_page_token = 4;
+  int64 snapshot_end_sequence = 5;
+  string snapshot_end_hash = 6;
+  string export_profile = 7;
+  string page_previous_hash = 8;
 }
 
+message PrepareCheckpointRequest {
+  string tenant_id = 1;
+  int64 end_sequence = 2; // Zero captures a bounded range at the current tip.
+  MutationContext mutation = 3;
+}
+
+message PrepareCheckpointResponse {
+  bytes proposal_json = 1; // Frozen candidate and historical public registry proof.
+  string checkpoint_digest = 2;
+}
+
+message SubmitCheckpointRequest {
+  string tenant_id = 1;
+  string checkpoint_digest = 2;
+}
+
+message SubmitCheckpointResponse {
+  bytes authority_checkpoint_json = 1; // Submission result; not proof of acceptance.
+}
+
+message AcceptCheckpointRequest {
+  string tenant_id = 1;
+  bytes authority_checkpoint_json = 2; // Complete peer AuditCheckpoint with signatures.
+}
+
+message AcceptCheckpointResponse {
+  bytes checkpoint_record_json = 1;
+  int64 reference_sequence = 2;
+}
+
+message ListCheckpointsRequest {
+  string tenant_id = 1;
+  int64 snapshot_end_sequence = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListCheckpointsResponse {
+  repeated bytes checkpoint_records_json = 1;
+  int64 snapshot_end_sequence = 2;
+  string next_page_token = 3;
+}

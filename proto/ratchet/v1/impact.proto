@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package ratchet.v1;
 
+import "ratchet/v1/common.proto";
+
 option go_package = "github.com/sakararya43-web/Ratchet/proto/ratchet/v1;ratchetv1";
 
 service ImpactService {
@@ -24,6 +26,7 @@ message SafeguardSummary {
 message GraphRoute {
   repeated string node_ids = 1;
   repeated string edge_kinds = 2;
+  repeated string edge_ids = 3;
 }
 
 message ImpactDiff {
@@ -35,6 +38,7 @@ message ImpactDiff {
   repeated SafeguardSummary safeguards_weakened = 6;
   map<string, int32> blast_radius_delta = 7;
   int64 graph_version = 8;
+  repeated IdentityImpact affected_identities = 9;
 }
 
 message SimulateChangeRequest {
@@ -43,9 +47,27 @@ message SimulateChangeRequest {
   string target_identity = 3;
   string requested_access = 4;
   string requested_by = 5;
+  int64 min_graph_version = 6;
+  ExactChangeIntent intent = 7;
 }
 
 message SimulateChangeResponse {
   ImpactDiff impact = 1;
 }
 
+message IdentityImpact {
+  string identity_id = 1;
+  repeated ResourceSummary new_resources = 2;
+  repeated string new_controlled_identities = 3;
+  repeated GraphRoute new_tier0_routes = 4;
+  repeated SafeguardSummary safeguards_weakened = 5;
+  map<string, int32> blast_radius_delta = 6;
+  repeated AccessPower new_powers = 7;
+  repeated AccessPower removed_powers = 8;
+  repeated string removed_controlled_identities = 9;
+}
+
+message AccessPower {
+  string node_id = 1;
+  string action = 2;
+}

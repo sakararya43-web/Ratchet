@@ -1,3 +1,8 @@
+//go:build peerintegration
+
+// These original peer component journeys need its test signing fixtures. Core
+// acceptance uses the durable workflow suites; local quorum counting here is
+// not evidence that the core authorized a target command.
 package main_test
 
 import (
@@ -114,11 +119,12 @@ func TestD1_OrdinaryAccessJourney(t *testing.T) {
 	// 7. Connector applies grant via broker authentication
 	adapter := sim.NewAdapter(ts.URL, brokerToken, tenantID, "connector-sim-01")
 	cmd := &connector.ExecCommand{
-		CommandID:      "cmd-d1-001",
-		TenantID:       tenantID,
-		Action:         "ASSIGN_ROLE",
-		TargetIdentity: "user:rahul-assistant",
-		ResourceOrRole: "role:finance-analyst",
+		ExpectedTargetRevision: store.GetState().Revision,
+		CommandID:              "cmd-d1-001",
+		TenantID:               tenantID,
+		Action:                 "ASSIGN_ROLE",
+		TargetIdentity:         "user:rahul-assistant",
+		ResourceOrRole:         "role:finance-analyst",
 	}
 
 	execRes, err := adapter.Execute(ctx, cmd)

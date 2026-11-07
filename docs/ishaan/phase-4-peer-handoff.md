@@ -1,5 +1,13 @@
 # Phase 4 integration and continuation handoff
 
+Current-status note (2026-11-07): this is a historical handoff. Required negative
+passkey/session, simulator CAS/snapshot and checkpoint-verifier defects below
+are fixed and pass conformance on main; credential history is now durable and
+revoked IDs immutable. The remaining Ishaan orchestration/offline-package work
+and the peer CLI transport gate are still open. See the current
+[Phase 7 evidence and D1-D8 verdict](phase-7-completion.md). Sakar's branch/plan
+remain unchanged; the historical failures describe the original pinned peer.
+
 Prepared 2026-11-05. This records the unfinished **Phase 4** handoff on `main`.
 The user subsequently authorized Phase 5 while preserving these remaining tasks;
 see [the Phase 5 record](phase-5-progress.md). Phase 4 is not marked complete.

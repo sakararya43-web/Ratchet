@@ -1,0 +1,57 @@
+{
+  "tenant_id": "checkpoint-fixture",
+  "threshold_m": 2,
+  "total_n": 2,
+  "epoch": 1,
+  "members": [
+    {
+      "actor_id": "member-1",
+      "display_name": "",
+      "public_key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9URF5wmrp5vbFAMUiXltp1xLT/UMuiF90y0gkTL7u33wIsiTWx2FpRkdzG+Rx5Zn1BjpJRy2gO3hRRFsUz9eFA==",
+      "enrolled_at": "0001-01-01T00:00:00Z",
+      "is_active": true
+    },
+    {
+      "actor_id": "member-2",
+      "display_name": "",
+      "public_key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+j4QwVlAMp520a1sSRJgVJIaMx+waWBj1CWDmKl7xoGvPOJnPQnhaLNnRX07rtRM+R8mX7+mfQuoM/oBS4UgRQ==",
+      "enrolled_at": "0001-01-01T00:00:00Z",
+      "is_active": true
+    }
+  ],
+  "genesis_digest": [
+    91,
+    88,
+    148,
+    15,
+    159,
+    98,
+    35,
+    69,
+    206,
+    166,
+    220,
+    244,
+    246,
+    103,
+    116,
+    71,
+    77,
+    73,
+    144,
+    67,
+    121,
+    183,
+    31,
+    162,
+    96,
+    71,
+    235,
+    159,
+    75,
+    184,
+    48,
+    3
+  ],
+  "initialized_at": "2026-11-05T06:35:10.341218Z"
+}

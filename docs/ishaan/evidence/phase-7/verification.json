@@ -1,0 +1,467 @@
+{
+  "date": "2026-11-07",
+  "source_candidate": "7ddc8a9da7f8deac9c8b58fa846a916f393ba979",
+  "peer_source": "d823a106bb4a64b0fe54e366c41029ccbd8dfda8",
+  "ci": {
+    "databaseId": 42387565655,
+    "headSha": "7ddc8a9da7f8deac9c8b58fa846a916f393ba979",
+    "conclusion": "success",
+    "url": "https://github.com/sakararya43-web/Ratchet/actions/runs/42387565655"
+  },
+  "jobs": [
+    {
+      "name": "core-contracts",
+      "conclusion": "success",
+      "steps": [
+        {
+          "completedAt": "2026-11-07T15:41:10Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-07T15:41:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:11Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-11-07T15:41:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:20Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-go@v5",
+          "number": 3,
+          "startedAt": "2026-11-07T15:41:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:21Z",
+          "conclusion": "success",
+          "name": "Install local generators",
+          "number": 4,
+          "startedAt": "2026-11-07T15:41:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:22Z",
+          "conclusion": "success",
+          "name": "Run bufbuild/buf-setup-action@v1",
+          "number": 5,
+          "startedAt": "2026-11-07T15:41:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:22Z",
+          "conclusion": "success",
+          "name": "Lint and check compatibility with peer baseline",
+          "number": 6,
+          "startedAt": "2026-11-07T15:41:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:23Z",
+          "conclusion": "success",
+          "name": "Compare with previous main contracts when available",
+          "number": 7,
+          "startedAt": "2026-11-07T15:41:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:30Z",
+          "conclusion": "success",
+          "name": "Verify generated bindings",
+          "number": 8,
+          "startedAt": "2026-11-07T15:41:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:30Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-go@v5",
+          "number": 15,
+          "startedAt": "2026-11-07T15:41:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:30Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 16,
+          "startedAt": "2026-11-07T15:41:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:30Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-07T15:41:30Z",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "name": "core-tests",
+      "conclusion": "success",
+      "steps": [
+        {
+          "completedAt": "2026-11-07T15:41:38Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-07T15:41:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:40Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "number": 2,
+          "startedAt": "2026-11-07T15:41:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:41:49Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-go@v5",
+          "number": 3,
+          "startedAt": "2026-11-07T15:41:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:45:42Z",
+          "conclusion": "success",
+          "name": "Verify modules and core code",
+          "number": 4,
+          "startedAt": "2026-11-07T15:41:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:45:47Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 5,
+          "startedAt": "2026-11-07T15:45:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:45:56Z",
+          "conclusion": "success",
+          "name": "Verify actual embedded console build",
+          "number": 6,
+          "startedAt": "2026-11-07T15:45:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:47:15Z",
+          "conclusion": "success",
+          "name": "Build nonroot core image and verify its supply chain",
+          "number": 7,
+          "startedAt": "2026-11-07T15:45:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:47:17Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@v4",
+          "number": 8,
+          "startedAt": "2026-11-07T15:47:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:47:21Z",
+          "conclusion": "success",
+          "name": "Core lint",
+          "number": 9,
+          "startedAt": "2026-11-07T15:47:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:47:23Z",
+          "conclusion": "success",
+          "name": "Policy decisions and authorization regressions",
+          "number": 10,
+          "startedAt": "2026-11-07T15:47:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:47:24Z",
+          "conclusion": "success",
+          "name": "Start real local dependencies",
+          "number": 11,
+          "startedAt": "2026-11-07T15:47:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:47:33Z",
+          "conclusion": "success",
+          "name": "Compose PostgreSQL and JetStream",
+          "number": 12,
+          "startedAt": "2026-11-07T15:47:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:51:30Z",
+          "conclusion": "success",
+          "name": "Durable storage acceptance",
+          "number": 13,
+          "startedAt": "2026-11-07T15:47:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:51:33Z",
+          "conclusion": "success",
+          "name": "New-process persistence and readiness smoke",
+          "number": 14,
+          "startedAt": "2026-11-07T15:51:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:51:45Z",
+          "conclusion": "success",
+          "name": "Measure P1 workloads without race instrumentation",
+          "number": 15,
+          "startedAt": "2026-11-07T15:51:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:51:47Z",
+          "conclusion": "success",
+          "name": "Preserve P1 measurements",
+          "number": 16,
+          "startedAt": "2026-11-07T15:51:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:51:51Z",
+          "conclusion": "success",
+          "name": "Independent graph and adversarial workflow properties",
+          "number": 17,
+          "startedAt": "2026-11-07T15:51:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:55:11Z",
+          "conclusion": "success",
+          "name": "Domain boundaries, dependencies and malformed payloads",
+          "number": 18,
+          "startedAt": "2026-11-07T15:51:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:55:11Z",
+          "conclusion": "skipped",
+          "name": "Actual Authority checkpoint HTTP and restart when integrated",
+          "number": 19,
+          "startedAt": "2026-11-07T15:55:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:55:14Z",
+          "conclusion": "success",
+          "name": "Actual connector conformance when peer code is integrated",
+          "number": 20,
+          "startedAt": "2026-11-07T15:55:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:21Z",
+          "conclusion": "success",
+          "name": "Pinned peer scenarios and combined checkout compatibility",
+          "number": 21,
+          "startedAt": "2026-11-07T15:55:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:21Z",
+          "conclusion": "skipped",
+          "name": "Dependency diagnostics on failure",
+          "number": 22,
+          "startedAt": "2026-11-07T15:59:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:22Z",
+          "conclusion": "success",
+          "name": "Stop only this job's containers",
+          "number": 23,
+          "startedAt": "2026-11-07T15:59:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:22Z",
+          "conclusion": "success",
+          "name": "Post Core lint",
+          "number": 43,
+          "startedAt": "2026-11-07T15:59:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:23Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 44,
+          "startedAt": "2026-11-07T15:59:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:23Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-go@v5",
+          "number": 45,
+          "startedAt": "2026-11-07T15:59:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:24Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "number": 46,
+          "startedAt": "2026-11-07T15:59:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-07T15:59:24Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 47,
+          "startedAt": "2026-11-07T15:59:24Z",
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "explicit_peer_checks_passed": [
+    "peer-scenarios",
+    "combined-ordinary-race",
+    "actual-authority-checkpoint",
+    "database-backup-restore"
+  ],
+  "actual_peer_cli": {
+    "source_candidate": "7ddc8a9da7f8deac9c8b58fa846a916f393ba979",
+    "peer_source": "d823a106bb4a64b0fe54e366c41029ccbd8dfda8",
+    "scope": "Actual peer CLI on the same checkpoint-only public core fixture representation used by conformance; no browser approval package claim",
+    "results": [
+      {
+        "case": "valid",
+        "command": [
+          "ratchetctl",
+          "audit",
+          "verify",
+          "--export-file=docs/ishaan/evidence/phase-7/checkpoint-cli/valid-bundle.json",
+          "--genesis-file=docs/ishaan/evidence/phase-7/checkpoint-cli/pinned-genesis.json",
+          "--expected-tip=922579326823e9e5c6f44c6d7fc9ec8f23dc052215b0a88bc9b9d30b089e0523",
+          "--expected-checkpoint=1fb0a7b1d0b6aefb0e9a75c83eb3e02989d84b161d8cef7ee26c570f8cb5f3e1",
+          "--json"
+        ],
+        "exit_code": 0,
+        "valid": true,
+        "events_verified": 7,
+        "checkpoints_verified": 2
+      },
+      {
+        "case": "tampered",
+        "command": [
+          "ratchetctl",
+          "audit",
+          "verify",
+          "--export-file=docs/ishaan/evidence/phase-7/checkpoint-cli/tampered-bundle.json",
+          "--genesis-file=docs/ishaan/evidence/phase-7/checkpoint-cli/pinned-genesis.json",
+          "--expected-tip=922579326823e9e5c6f44c6d7fc9ec8f23dc052215b0a88bc9b9d30b089e0523",
+          "--expected-checkpoint=1fb0a7b1d0b6aefb0e9a75c83eb3e02989d84b161d8cef7ee26c570f8cb5f3e1",
+          "--json"
+        ],
+        "exit_code": 3,
+        "valid": false,
+        "events_verified": 0,
+        "checkpoints_verified": 0
+      }
+    ]
+  },
+  "native_tests_seconds": {
+    "TestNativeActualKindComparisonCodec": 106.34,
+    "TestNativeActualKindAdmissionApprovalReadBackAndOutage": 788.48,
+    "TestPeerKubernetesSnapshotConformance": 34.68,
+    "TestPeerKubernetesAdapterObservesActualKindRole": 22.88,
+    "TestPeerKubernetesAdmissionConformance": 0.07,
+    "TestActualKindGraphFitsLedgerAndReplays": 29.38
+  },
+  "native_instrumentation": "real Windows test executable, no race instrumentation; main and peer Linux suites run with -race",
+  "source_tree_sha256_excluding_docs_and_ishaan_plan": "78191f7b284d128c9efb3a0d90653126c5584654283b501af8cd43fa16c165de",
+  "source_tree_hash_definition": "SHA256 of git ls-tree -rz SOURCE entries, preserving order/NUL delimiters; exclude docs/ and ISHAAN_IMPLEMENTATION_PLAN.md only",
+  "raw_merge_conflicts": [
+    ".gitignore",
+    "buf.yaml",
+    "cmd/ratchet-k8s-webhook/main.go",
+    "cmd/ratchet-sim/d1_d2_integration_test.go",
+    "cmd/ratchet-sim/domain/model.go",
+    "cmd/ratchet-sim/domain/seed.go",
+    "cmd/ratchet-sim/domain/store.go",
+    "cmd/ratchet-sim/domain/store_test.go",
+    "cmd/ratchet-sim/main_test.go",
+    "cmd/ratchet-sim/server/server.go",
+    "e2e/scenarios/hardening/hardening_test.go",
+    "e2e/scenarios/k6_attacks/k6_attacks_test.go",
+    "go.mod",
+    "go.sum",
+    "internal/approval/handlers.go",
+    "internal/approval/store.go",
+    "internal/approval/verifier.go",
+    "internal/audit/verifier.go",
+    "internal/connector/k8s/adapter.go",
+    "internal/connector/k8s/k8s_test.go",
+    "internal/connector/k8s/model.go",
+    "internal/connector/k8s/webhook.go",
+    "internal/connector/priority.go",
+    "internal/connector/sim/adapter.go",
+    "internal/connector/sim/adapter_test.go",
+    "internal/connector/temporary.go",
+    "internal/connector/types.go",
+    "internal/connector/watch.go",
+    "internal/connector/watch_test.go",
+    "internal/trust/model.go",
+    "internal/trust/store.go",
+    "proto/ratchet/v1/audit.proto",
+    "proto/ratchet/v1/change.proto",
+    "proto/ratchet/v1/connector.proto",
+    "proto/ratchet/v1/containment.proto",
+    "proto/ratchet/v1/decision.proto",
+    "proto/ratchet/v1/graph.proto",
+    "proto/ratchet/v1/impact.proto",
+    "proto/ratchet/v1/incident.proto",
+    "web/index.html",
+    "web/src/App.tsx",
+    "web/src/index.css",
+    "web/src/lib/api.ts",
+    "web/vite.config.ts"
+  ],
+  "full_product_signoff": false,
+  "release_gaps": [
+    "Phase 4 confirmed four-action containment orchestration/incident recovery",
+    "non-role restoration increase contracts",
+    "complete offline browser-approval evidence package",
+    "real peer CLI signed command/result transport",
+    "joint D1-D8/browser/human-latency acceptance"
+  ],
+  "files_sha256": {
+    ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+    "actual-kind.json": "19e1b5711e3d41b2bfafc29d0ba06e03b0e62bb942c3cafea24bfeedbb6407ed",
+    "backup-restore.json": "b7537bb97ff09cd24fc2bce7ca26c15e0ab6981ff3866bb8ef42c30b5fd92ff1",
+    "benign-replay.json": "3a643dbd6a97c6ef71030fdfe3a3a61187189333113522ad4dfd010fa7ce6c5c",
+    "checkpoint-cli/pinned-genesis.json": "9dbc42a723aa828aa023149114651bc6a7ddee0bed92e5be578d909f9dc141dd",
+    "checkpoint-cli/results.json": "9f303082c77d739868c8899e79c90ceaa4795ed8b1a543b75c3455ffe6871cbf",
+    "checkpoint-cli/tampered-bundle.json": "98d27befd8107a2158171e95d427f3fe499a6893d033edad9d4a233dbcae0032",
+    "checkpoint-cli/tampered-report.json": "f518ac8906730d340f266858e2fab49d84fa6d367596f885b06909f8404cc083",
+    "checkpoint-cli/valid-bundle.json": "94b2e168b2e6416c2bbc47630b8aa288aeeefeb1b4a405c0597a4041879e39fe",
+    "checkpoint-cli/valid-report.json": "e42f9c761810a8242afcf0347b3a2f22ebca131d4d3edf0078aaa64c9b9b5313",
+    "core.spdx.json": "f8ad0958923c4918931506b350628767555b9a4a9f1d27dd557ee26657d3028a",
+    "image-verification.json": "ea2ee58a8cf44d810179618b9904e298fecfb5d988db6b974d34c60d28e60747",
+    "performance.json": "ad28ddeaae0d218b24b8448d29c489b512b37f53d8b215087be0f19c44c07c48",
+    "README.md": "d36a07688fa33c667bafeecb759ced9989ccd95ae7d657acce0aa5edaa774b7a",
+    "signer.pub": "21940e8c247a056c5332f2e7054bb0562a4eed3fe03605eeaa707e642a07e2b1",
+    "summary.json": "6246458e184a512f961be8eb269fe9e2234d6995335b6db86af664fbe52695b8"
+  }
+}

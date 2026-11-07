@@ -6,11 +6,28 @@
 - Commit useful increments without Codex/ChatGPT co-author trailers.
 - Preserve Sakar's branch and `SAKAR_IMPLEMENTATION_PLAN.md`. The user explicitly
   authorized fixing the Kubernetes connector on `main` for Phase 6 acceptance.
+  The user also authorized required passkey/simulator/audit integration fixes on
+  main for Phase 7, without changing that branch or plan.
 - Shared contracts require peer agreement; a compiled proposal is not a frozen contract.
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Phase 7 - in progress (2026-11-07)
+## Phase 7 - hardening/check/evidence delivered; release exit open (2026-11-07)
+
+- Completed tasks 8 and 9 on source `7ddc8a9`: both hosted jobs pass, including
+  full main integration/race, whole-main lint/vet, generators/Buf, 19 OPA tests,
+  properties, fuzz, dependency/domain checks, actual connector conformance,
+  pinned peer scenarios/combined race, actual Authority restart and Compose
+  persistence/restore. Live kind comparison, inventory/storage and complete
+  admission/approval/read-back/outage/drift/incident acceptance pass on that same
+  source. Final local restore matches all 30 tables/120,257 rows.
+- Attached exact public SBOM/signing outputs and current measurements: inline
+  p99 6.56 ms, 100k-edge impact p99 21.54 ms, 0/100 unexpected core assessments.
+  Actual existing peer audit CLI verifies seven events/two checkpoints and
+  refuses a tampered event with exit 3. The joint report records P1/R6/P2/native
+  scope and the 44 raw merge conflicts, without marking older Phase 4 work or
+  full browser/target/offline-approval acceptance complete. No runtime code is
+  changed by evidence publication; no private key or database dump is retained.
 
 - Hosted full integration found that the outer IP limiter pooled authenticated
   users behind one NAT. Resolve real session identity inside the global body/

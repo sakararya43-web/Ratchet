@@ -1,0 +1,2 @@
+
+[{"critical":{"identity":{"docker-reference":"127.0.0.1:48319/ratchet-core@sha256:dc7c9fc59d90729f4f1b99fff4ac51d88dc0a3b1ba9069b7b0e1f8625ca6568c"},"image":{"docker-manifest-digest":"sha256:dc7c9fc59d90729f4f1b99fff4ac51d88dc0a3b1ba9069b7b0e1f8625ca6568c"},"type":"https://sigstore.dev/cosign/sign/v1"},"optional":{"sbom-sha256":"f8ad0958923c4918931506b350628767555b9a4a9f1d27dd557ee26657d3028a"}}]

@@ -1,0 +1,1 @@
+{"actual_api_server":true,"api_write_ms":2532.6388,"approved":1,"approved_drift":"CORRELATED_APPROVED_COMMAND","dependency_refusals":1,"executed":"EXECUTED","incident_get_list_stream":true,"mutual_tls":true,"one_use_admissions":1,"policy_refusals":1,"unapproved_drift":"HELD_FOR_REVIEW","webhook_ms":1934.3943}

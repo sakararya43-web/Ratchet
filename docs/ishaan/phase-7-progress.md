@@ -1,8 +1,10 @@
 # Phase 7 hardening record
 
 Started 2026-11-07 on main. Work follows the nine original tasks sequentially.
-Phase 7 is not signed off. Earlier Phase 4 and peer integration gates remain
-required; the final peer is d823a10, not an assumed corrected implementation.
+All nine hardening/check/evidence tasks are delivered. Final required checks
+pass on `7ddc8a9`; [completion evidence and open release gates](phase-7-completion.md).
+The Phase 7 exit/full product sign-off remain open because earlier Phase 4
+operations and integrated D1-D8 acceptance remain required. The peer stays d823a10.
 
 1. Failure handling: added real TCP disconnect/recovery checks for PostgreSQL
    atomic writes and NATS durable outbox publication. Broker and Authority-source
@@ -11,13 +13,14 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    policy/registry changes, credential revocation and slow Authority handling
    retain their existing negative tests. The targeted Linux race/integration
    batch passes. This is local single-instance recovery, not HA. Actual peer
-   connector and passkey acceptance must still be checked, not inferred.
+   connector and passkey conformance now pass in the final required checks.
 2. Restart/replay, migrations and backup/restore: the real `recover --tenant`
    command verifies chain/schema, replays public graph facts and reconstructs
    change/audit projections without privacy keys or execution. A new-process
    test repairs a damaged audit projection and compares graph/chain commitments.
    A custom-format PostgreSQL dump restores into an owned scratch database;
-   all 28 core/River table counts and ordered SHA-256 row commitments match.
+   all 30 core/River table counts and ordered SHA-256 row commitments match in
+   the final schema-15 restore (120,257 local rows; earlier sample had 28 tables).
    The original database is never a restore/drop target. Historical checkpoint
    verification retains its existing signed-history tests.
 3. Privacy key deletion and sensitive access: real external-key creation/load/
@@ -38,7 +41,8 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    dependency checks pass. Updated advisory-bearing compress/crypto versions;
    govulncheck v1.9.0 now reports no vulnerabilities. CI enforces these checks.
    Reproduced five real passkey conformance failures in the unchanged final peer
-   overlay; these remain failures, not expected-failure tests or bypassed gates.
+   overlay. The authorized corrections in task 5 close them; final conformance
+   asserts the required behavior directly, without expected-failure inversion.
 5. Selectable runtime roles: console supports `--roles api,worker,relay`; graph
    supports `--roles api,ingest,relay`. Individual/composed roles are validated,
    and combined and separated real PostgreSQL/JetStream/TLS runtime tests pass.
@@ -64,7 +68,7 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    reserved, and missing assets return 404. Combined and separated real TLS
    runtime tests pass, including self-only visibility and authenticated API 404.
    All 15 TypeScript canonicalization tests pass; npm audit finds no advisories.
-7. Containers, SBOM, signatures and core runbooks: actual 37,216,687-byte
+7. Containers, SBOM, signatures and core runbooks: final 37,220,177-byte
    distroless image runs as 65532:65532 with read-only root/capabilities dropped.
    Pinned Syft generated an SPDX SBOM with 112 packages. Pinned Cosign signed and
    verified the actual OCI image digest with the SBOM hash; wrong key and wrong
@@ -72,8 +76,17 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    public transparency or production identity claim. CI reproduces and uploads
    the evidence. Core role/configuration, readiness, build and recovery procedures
    are in [core-runtime.md](core-runtime.md) and [core-recovery.md](core-recovery.md).
-8. Full final-candidate checks including actual peer conformance: pending.
-9. Joint D1-D8 evidence and release limitations: pending.
+8. Complete: both hosted jobs passed on `7ddc8a9`, including full main race/
+   integration, whole-main lint/vet, properties/fuzz, nonempty OPA tests, Buf/
+   generators, actual conformance, real Compose process smoke and pinned peer
+   scenarios/combined race/actual Authority/restore. Real kind comparison,
+   inventory/storage and admission/approval/outage/drift/incident checks also
+   pass on that candidate. The IP-pooling defect found in CI is fixed without
+   increasing rates or weakening authentication; all guards retain regressions.
+9. Complete: [joint evidence report](phase-7-completion.md) attaches current
+   D1-D8 scope, actual peer scenario/CLI results, exact public artifacts, measured
+   performance/benign outcomes, P1 status, native boundaries and R6/P2 limits.
+   It explicitly retains unfinished Phase 4 and full integrated release gates.
 
 Docker Desktop's D-drive bind mount is unavailable in this session. The
 `scripts/core-check.py` runner uploads only source into an owned temporary Linux

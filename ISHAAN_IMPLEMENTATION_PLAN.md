@@ -2,7 +2,7 @@
 
 **Prepared:** 2026-11-03  
 **Owner:** Ishaan / Half A  
-**Status:** Phase 6's five core tasks and selected real-kind acceptance are complete on `main`; see [Phase 6 evidence](docs/ishaan/phase-6-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 7 hardening is implemented and its final validation and completion evidence are in progress; see [Phase 7 record](docs/ishaan/phase-7-progress.md). Phase 5's core implementation is complete, while its joint acceptance and earlier trust/target gates remain open. Phase 4's unfinished own work and joint gates remain required and are not marked complete. No requirement was removed or shortened.
+**Status:** Phase 6's five core tasks and selected real-kind acceptance are complete on `main`; see [Phase 6 evidence](docs/ishaan/phase-6-progress.md) and [Ishaan changelog](docs/ishaan/changelog.md). Phase 7's nine hardening/check/evidence tasks are delivered and all required checks pass on source 7ddc8a9; its exit/full product sign-off remain open because earlier Phase 4 operations and joint D1-D8 acceptance are unfinished. See [Phase 7 evidence](docs/ishaan/phase-7-completion.md). Phase 5's core implementation is complete, while its joint acceptance and earlier trust/target gates remain open. Phase 4's unfinished own work and joint gates remain required and are not marked complete. No requirement was removed or shortened.
 **Sources read in full:** [PRD](PRD.md), [product concept](RATCHET_Full_Idea_Document.md), [architecture](RATCHET_Architecture.md).  
 **Companion:** [Sakar's implementation plan](SAKAR_IMPLEMENTATION_PLAN.md).
 
@@ -276,15 +276,15 @@ Phase 7 and earlier joint release gates are not marked complete.
 
 ### Ishaan's work
 
-- [ ] Exercise database, NATS, graph lag, Authority unavailability and connector outage independently. Prove durable queues/reconciliation, fail-closed grants and honest degraded status. Do not claim HA from a single local instance.
-- [ ] Rebuild graphs/read models from events after restart and compare them with pre-restart results. Validate snapshot integrity, replay checkpoints, migrations and local backup/restore for the core database.
-- [ ] Finish privacy-key deletion and sensitive-record access checks; demonstrate that retained chain verification survives deletion of separate personal data. Keep required non-personal replay facts available.
-- [ ] Complete rate limits, request-size limits, malformed-payload fuzzing, dependency checks and concurrency testing for core-owned code. Enforce inward dependencies so domain logic stays free of I/O.
-- [ ] Make `ratchetd` roles selectable without code changes; test the supported combined and separated-role configurations locally. Preserve tenant fields and isolation checks without building a production cell router or multi-tenant SaaS.
-- [ ] Embed the peer's actual built web assets through the agreed artifact path and same-origin API routes. Verify SPA fallback does not intercept `/api` errors; no placeholder index page may replace a missing build.
-- [ ] Contribute core container builds, non-root/distroless settings, SBOM generation and image-signature verification checks to reviewed shared build files. Complete core configuration/readiness/restore documentation; do not write the peer's component runbooks.
-- [ ] Run required checks: `go vet`, `golangci-lint`, `go test -race ./...`, property tests/fuzz regressions, `opa test`, Buf lint/breaking, actual connector conformance and real local Compose smoke integration. Whole-repository failures are routed to their owner instead of fixed across the boundary.
-- [ ] Attach core evidence to the joint D1-D8 report, including known R6/P2 limits, retained/deferred P1 scope, selected Kubernetes scope, latency results, benign false-positive results and preserved business activities. Reference Sakar's scenario/CLI results instead of duplicating their implementation.
+- [x] Exercise database, NATS, graph lag, Authority unavailability and connector outage independently. Prove durable queues/reconciliation, fail-closed grants and honest degraded status. Do not claim HA from a single local instance.
+- [x] Rebuild graphs/read models from events after restart and compare them with pre-restart results. Validate snapshot integrity, replay checkpoints, migrations and local backup/restore for the core database.
+- [x] Finish privacy-key deletion and sensitive-record access checks; demonstrate that retained chain verification survives deletion of separate personal data. Keep required non-personal replay facts available.
+- [x] Complete rate limits, request-size limits, malformed-payload fuzzing, dependency checks and concurrency testing for core-owned code. Enforce inward dependencies so domain logic stays free of I/O.
+- [x] Make `ratchetd` roles selectable without code changes; test the supported combined and separated-role configurations locally. Preserve tenant fields and isolation checks without building a production cell router or multi-tenant SaaS.
+- [x] Embed the peer's actual built web assets through the agreed artifact path and same-origin API routes. Verify SPA fallback does not intercept `/api` errors; no placeholder index page may replace a missing build.
+- [x] Contribute core container builds, non-root/distroless settings, SBOM generation and image-signature verification checks to reviewed shared build files. Complete core configuration/readiness/restore documentation; do not write the peer's component runbooks.
+- [x] Run required checks: `go vet`, `golangci-lint`, `go test -race ./...`, property tests/fuzz regressions, `opa test`, Buf lint/breaking, actual connector conformance and real local Compose smoke integration. Whole-repository failures are routed to their owner instead of fixed across the boundary.
+- [x] Attach core evidence to the joint D1-D8 report, including known R6/P2 limits, retained/deferred P1 scope, selected Kubernetes scope, latency results, benign false-positive results and preserved business activities. Reference Sakar's scenario/CLI results instead of duplicating their implementation.
 
 **Exit:** Every selected core operation is implemented, every relevant check passes on the same candidate commit, no unfinished runtime substitute remains, and failures/limitations are stated accurately. A green build alone is not product completion.
 

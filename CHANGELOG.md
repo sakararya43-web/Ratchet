@@ -238,5 +238,6 @@
   - `internal/trust` (passed)
 - **Web Console**: `npm test` (15/15 golden vectors passed) and `npm run build` (0 TypeScript errors).
 - **Public Documentation**: `README.md` published and synced with `origin/sakar`, featuring all required hackathon sections: *At a Glance*, *The Problem*, *Why RATCHET?*, *How It Works*, *System Architecture*, *Repo Layout*, *Test and Quality*, *Tech Stack*, *Honest Limits*, DataNova 2026 Devpost badge, and Hackathon Submission Details table.
+- **Pull Request**: Opened PR #1 (`sakar` $\to$ `main`) at https://github.com/sakararya43-web/Ratchet/pull/1 for manual review and merge.
 
 

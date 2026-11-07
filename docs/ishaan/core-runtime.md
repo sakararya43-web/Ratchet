@@ -50,6 +50,14 @@ an operational dependency report, not a reason to disable guards. Console APIs
 are under `/api/` with secure sessions and CSRF; graph ingress uses its separate
 mutual-TLS identity. Health, metrics and API errors never fall back to SPA HTML.
 
+Request guards bound bodies and total in-flight work before session lookup.
+Verified sessions use actor-and-tenant rate buckets, so users behind one NAT do
+not share an anonymous IP budget. Identification for limiting grants no route or
+CSRF authorization. Per-actor burst/refill and concurrency remain 60/10 per second
+and 8; total active work is capped at 64 and bodies at 1 MiB. Unauthenticated peers
+or verified transport certificates retain their own buckets; Forwarded headers
+are not identity.
+
 Build and check artifacts sequentially:
 
 ```text
@@ -64,6 +72,10 @@ all capabilities dropped and `no-new-privileges`; mount only required private
 configuration read-only. Key creation/destruction is an explicit operator action
 outside a read-only service container. This is a build/test procedure, not a
 deployment blueprint.
+
+Private mounted configuration and keys must be readable by UID/GID 65532, with
+ownership or the narrow filesystem ACL set explicitly. A host-only 0600 file
+owned by a different UID will correctly fail inside the non-root container.
 
 The supply check runs the actual image under those restrictions, generates an
 SPDX SBOM using pinned Syft, signs its immutable OCI digest plus the SBOM hash

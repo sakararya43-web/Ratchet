@@ -12,6 +12,14 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Hosted full integration found that the outer IP limiter pooled authenticated
+  users behind one NAT. Resolve real session identity inside the global body/
+  capacity bound and use actor+tenant buckets, without changing rate/capacity
+  values. Identification stays private to limiting; route authentication, CSRF,
+  session revocation and passkey context remain enforced. Real-session same-IP/
+  cross-tenant and 64-distinct-actor capacity regressions pass, as do combined and
+  separated real console-runtime checks. Final full CI rerun remains required.
+
 - Hosted CI confirmed the contract/generator job and ordinary main race suite,
   then exposed one lone carriage return from Vite's CRLF input transformation.
   Normalizing the actual HTML source before building now yields the exact Linux

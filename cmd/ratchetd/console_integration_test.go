@@ -300,7 +300,9 @@ func testConsoleRuntime(t *testing.T, separate bool) {
 			if time.Now().After(deadline) {
 				t.Fatal("assessment did not complete")
 			}
-			time.Sleep(20 * time.Millisecond)
+			// Functional polling respects the real ten-request/second budget.
+			// Burst/concurrency rejection has its own explicit regressions.
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 	requesterView := wait()

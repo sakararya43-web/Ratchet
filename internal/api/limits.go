@@ -28,6 +28,17 @@ func NewRequestLimits() *RequestLimits {
 	return &RequestLimits{buckets: map[[32]byte]*requestBucket{}, active: make(chan struct{}, 64)}
 }
 func (l *RequestLimits) Wrap(next http.Handler) http.Handler {
+	return l.capacity(l.identities(next))
+}
+
+// WrapSessions resolves a real session within the global work/body bound before
+// assigning its rate bucket. Successful users behind one NAT must not share an
+// anonymous peer bucket. Identification grants no route or CSRF authorization.
+func (l *RequestLimits) WrapSessions(sessions *Sessions, next http.Handler) http.Handler {
+	return l.capacity(sessions.identify(l.identities(next)))
+}
+
+func (l *RequestLimits) capacity(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if r.ContentLength > RequestBodyLimit {
@@ -35,8 +46,28 @@ func (l *RequestLimits) Wrap(next http.Handler) http.Handler {
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, RequestBodyLimit)
+		select {
+		case l.active <- struct{}{}:
+			defer func() { <-l.active }()
+		default:
+			refuseCapacity(w)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func refuseCapacity(w http.ResponseWriter) {
+	w.Header().Set("Retry-After", "1")
+	http.Error(w, "request capacity exceeded", http.StatusTooManyRequests)
+}
+
+func (l *RequestLimits) identities(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := "peer:"
 		if p, ok := SessionPrincipal(r.Context()); ok {
+			key = "actor:" + p.TenantID + ":" + p.ActorID
+		} else if p, ok := identifiedPrincipal(r); ok {
 			key = "actor:" + p.TenantID + ":" + p.ActorID
 		} else if r.TLS != nil && len(r.TLS.VerifiedChains) > 0 {
 			key = "certificate:" + string(r.TLS.VerifiedChains[0][0].Raw)
@@ -49,17 +80,6 @@ func (l *RequestLimits) Wrap(next http.Handler) http.Handler {
 		}
 		hash := sha256.Sum256([]byte(key))
 		now := time.Now()
-		refuse := func() {
-			w.Header().Set("Retry-After", "1")
-			http.Error(w, "request capacity exceeded", http.StatusTooManyRequests)
-		}
-		select {
-		case l.active <- struct{}{}:
-			defer func() { <-l.active }()
-		default:
-			refuse()
-			return
-		}
 		l.mu.Lock()
 		bucket := l.buckets[hash]
 		if bucket == nil {
@@ -72,7 +92,7 @@ func (l *RequestLimits) Wrap(next http.Handler) http.Handler {
 			}
 			if len(l.buckets) >= 10000 {
 				l.mu.Unlock()
-				refuse()
+				refuseCapacity(w)
 				return
 			}
 			bucket = &requestBucket{tokens: 60, at: now}
@@ -82,7 +102,7 @@ func (l *RequestLimits) Wrap(next http.Handler) http.Handler {
 		bucket.at = now
 		if bucket.tokens < 1 || bucket.active >= 8 {
 			l.mu.Unlock()
-			refuse()
+			refuseCapacity(w)
 			return
 		}
 		bucket.tokens--

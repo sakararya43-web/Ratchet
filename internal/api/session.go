@@ -29,6 +29,22 @@ type Principal struct {
 	ActorID  string `json:"actor_id"`
 }
 type principalKey struct{}
+type identifiedKey struct{}
+type identifiedSession struct {
+	principal Principal
+	tokenHash [32]byte
+}
+
+// Identification is private rate-limit context, not authenticated/CSRF-approved
+// route context. Bind it to the same cookie to prevent middleware token swaps.
+func identifiedPrincipal(r *http.Request) (Principal, bool) {
+	identified, ok := r.Context().Value(identifiedKey{}).(identifiedSession)
+	cookie, err := r.Cookie(sessionCookie)
+	if !ok || err != nil || identified.tokenHash != sha256.Sum256([]byte(cookie.Value)) {
+		return Principal{}, false
+	}
+	return identified.principal, true
+}
 
 func SessionPrincipal(ctx context.Context) (Principal, bool) {
 	p, ok := ctx.Value(principalKey{}).(Principal)
@@ -230,6 +246,30 @@ func (s *Sessions) login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode, MaxAge: int(s.ttl.Seconds()), Expires: expires})
 	authJSON(w, 200, map[string]any{"principal": Principal{in.TenantID, in.ActorID}, "csrf_token": s.csrf(token), "expires_at": expires})
 }
+func (s *Sessions) lookup(ctx context.Context, tenant, token string) (Principal, error) {
+	hash := sha256.Sum256([]byte(token))
+	p := Principal{TenantID: tenant}
+	err := authTx(ctx, s.pool, tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT s.actor_id FROM ratchet.console_sessions s JOIN ratchet.console_users u USING(tenant_id,actor_id) WHERE s.tenant_id=$1 AND s.token_hash=$2 AND s.expires_at>clock_timestamp() AND NOT u.disabled`, tenant, hash[:]).Scan(&p.ActorID)
+	})
+	return p, err
+}
+
+func (s *Sessions) identify(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie(sessionCookie)
+		if r.TLS != nil && err == nil && len(cookie.Value) <= 200 {
+			tenant, _, ok := strings.Cut(cookie.Value, ".")
+			if ok && tenantSyntax.MatchString(tenant) {
+				if p, err := s.lookup(r.Context(), tenant, cookie.Value); err == nil {
+					r = r.WithContext(context.WithValue(r.Context(), identifiedKey{}, identifiedSession{p, sha256.Sum256([]byte(cookie.Value))}))
+				}
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Sessions) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.TLS == nil {
@@ -252,11 +292,10 @@ func (s *Sessions) Require(next http.Handler) http.Handler {
 				return
 			}
 		}
-		hash := sha256.Sum256([]byte(cookie.Value))
-		p := Principal{TenantID: tenant}
-		err = authTx(r.Context(), s.pool, tenant, func(tx pgx.Tx) error {
-			return tx.QueryRow(r.Context(), `SELECT s.actor_id FROM ratchet.console_sessions s JOIN ratchet.console_users u USING(tenant_id,actor_id) WHERE s.tenant_id=$1 AND s.token_hash=$2 AND s.expires_at>clock_timestamp() AND NOT u.disabled`, tenant, hash[:]).Scan(&p.ActorID)
-		})
+		p, identified := identifiedPrincipal(r)
+		if !identified {
+			p, err = s.lookup(r.Context(), tenant, cookie.Value)
+		}
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				http.Error(w, "session expired or revoked", http.StatusUnauthorized)

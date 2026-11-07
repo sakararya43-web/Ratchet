@@ -54,7 +54,15 @@ func TestRealPasswordSessionsCSRFRevocationAndTenantBinding(t *testing.T) {
 		principal, _ := api.SessionPrincipal(r.Context())
 		_ = json.NewEncoder(w).Encode(principal)
 	})))
-	server := httptest.NewTLSServer(mux)
+	mux.HandleFunc("/identified-only", func(w http.ResponseWriter, r *http.Request) {
+		if _, _, err := sessions.PasskeyPrincipal(r); err == nil {
+			t.Error("rate-limit identification bypassed route/CSRF authentication")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	server := httptest.NewTLSServer(api.NewRequestLimits().WrapSessions(sessions, mux))
 	defer server.Close()
 	client := server.Client()
 	post := func(path, body, csrf string, cookie *http.Cookie, requestOrigin string) *http.Response {
@@ -150,5 +158,68 @@ func TestRealPasswordSessionsCSRFRevocationAndTenantBinding(t *testing.T) {
 	_ = response.Body.Close()
 	if response.StatusCode != 401 {
 		t.Fatal("expired session accepted")
+	}
+
+	// Exercise the actual session/outer-limit chain with two real tenants behind
+	// one TLS peer. Exhausting one verified actor must not exhaust another actor
+	// or cause an anonymous request to inherit that actor's identity.
+	first := post("/auth/login", string(body), "", nil, origin)
+	if first.StatusCode != http.StatusOK {
+		t.Fatal("fresh first session", first.StatusCode)
+	}
+	firstCookie := first.Cookies()[0]
+	other := api.Principal{TenantID: "session_" + uuid.NewString(), ActorID: p.ActorID}
+	if err := api.ProvisionUser(ctx, admin, other, password); err != nil {
+		t.Fatal(err)
+	}
+	otherBody, err := json.Marshal(map[string]string{"tenant_id": other.TenantID, "actor_id": other.ActorID, "password": password})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := post("/auth/login", string(otherBody), "", nil, origin)
+	if second.StatusCode != http.StatusOK {
+		t.Fatal("second tenant session", second.StatusCode)
+	}
+	get := func(path string, cookie *http.Cookie) int {
+		t.Helper()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cookie != nil {
+			req.AddCookie(cookie)
+		}
+		req.Header.Set("X-Actor-ID", p.ActorID)
+		res, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := res.Body.Close(); err != nil {
+			t.Fatal(err)
+		}
+		return res.StatusCode
+	}
+	if status := get("/identified-only", firstCookie); status != http.StatusNoContent {
+		t.Fatal("identification promoted into passkey authorization", status)
+	}
+	exhausted := false
+	for range 200 {
+		status := get("/identity", firstCookie)
+		if status == http.StatusTooManyRequests {
+			exhausted = true
+			break
+		}
+		if status != http.StatusOK {
+			t.Fatal("unexpected actor response", status)
+		}
+	}
+	if !exhausted {
+		t.Fatal("verified actor burst was unbounded")
+	}
+	if status := get("/identity", second.Cookies()[0]); status != http.StatusOK {
+		t.Fatal("verified actor limit crossed tenant/peer boundary", status)
+	}
+	if status := get("/identity", nil); status != http.StatusUnauthorized {
+		t.Fatal("anonymous request inherited an authenticated actor budget", status)
 	}
 }

@@ -477,7 +477,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		}
 	})
 	start(func() error {
-		return serveTransport(ctx, *listen, api.NewRequestLimits().Wrap(surface), out, &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}})
+		return serveTransport(ctx, *listen, api.NewRequestLimits().WrapSessions(sessions, surface), out, &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}})
 	})
 	select {
 	case <-parent.Done():

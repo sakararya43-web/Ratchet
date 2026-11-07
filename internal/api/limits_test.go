@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -67,6 +68,32 @@ func TestRequestConcurrencyAndSizeAreBounded(t *testing.T) {
 		if w.Code != 413 {
 			t.Fatal("oversized fixed or streamed payload accepted", length, w.Code)
 		}
+	}
+}
+
+func TestTransportCapacityBoundsWorkAcrossDistinctActors(t *testing.T) {
+	entered := make(chan struct{}, 64)
+	release := make(chan struct{})
+	var workers sync.WaitGroup
+	h := NewRequestLimits().Wrap(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		entered <- struct{}{}
+		<-release
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	for i := range 64 {
+		workers.Go(func() {
+			h.ServeHTTP(httptest.NewRecorder(), limitedRequest(fmt.Sprint(i), "tenant"))
+		})
+	}
+	for range 64 {
+		<-entered
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, limitedRequest("another-actor", "tenant"))
+	close(release)
+	workers.Wait()
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatal("global capacity was split across actor buckets", w.Code)
 	}
 }
 func FuzzAuthenticationDecoder(f *testing.F) {

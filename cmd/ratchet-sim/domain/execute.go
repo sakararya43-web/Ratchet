@@ -11,12 +11,13 @@ import (
 var ErrRevision = errors.New("target revision conflict")
 
 type TargetCommand struct {
-	CommandID              string `json:"command_id"`
-	TenantID               string `json:"tenant_id"`
-	Action                 string `json:"action"`
-	TargetIdentity         string `json:"target_identity"`
-	ResourceOrRole         string `json:"resource_or_role"`
-	ExpectedTargetRevision int64  `json:"expected_target_revision"`
+	Deadline               time.Time `json:"deadline,omitempty"`
+	CommandID              string    `json:"command_id"`
+	TenantID               string    `json:"tenant_id"`
+	Action                 string    `json:"action"`
+	TargetIdentity         string    `json:"target_identity"`
+	ResourceOrRole         string    `json:"resource_or_role"`
+	ExpectedTargetRevision int64     `json:"expected_target_revision"`
 }
 type CommandReceipt struct {
 	Command        TargetCommand `json:"command"`
@@ -46,6 +47,9 @@ func (s *Store) Execute(command TargetCommand) (CommandReceipt, error) {
 			return CommandReceipt{}, errors.New("command identity reused with different intent")
 		}
 		return old.clone(), nil
+	}
+	if !command.Deadline.IsZero() && !time.Now().Before(command.Deadline) {
+		return CommandReceipt{}, errors.New("command deadline elapsed")
 	}
 	if command.ExpectedTargetRevision < 1 || command.ExpectedTargetRevision != s.state.Revision {
 		return CommandReceipt{}, ErrRevision
@@ -106,6 +110,9 @@ func (s *Store) Execute(command TargetCommand) (CommandReceipt, error) {
 		candidate.state.CommandReceipts = map[string]CommandReceipt{}
 	}
 	candidate.state.CommandReceipts[command.CommandID] = receipt
+	if !command.Deadline.IsZero() && !time.Now().Before(command.Deadline) {
+		return CommandReceipt{}, errors.New("command deadline elapsed before commit")
+	}
 	previous := s.state
 	s.state = candidate.state
 	if s.filePath != "" {

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestCommandCASDurableReceiptAndFailedPersistence(t *testing.T) {
@@ -71,5 +72,19 @@ func TestCompetingCommandsUseSingleTargetCAS(t *testing.T) {
 	}
 	if accepted != 1 || store.GetState().Revision != 1001 {
 		t.Fatal("competing stale commands both applied", accepted)
+	}
+}
+
+func TestTargetRefusesExpiredCommandWithoutMutation(t *testing.T) {
+	store, err := NewStore(filepath.Join(t.TempDir(), "state.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := TargetCommand{CommandID: "expired", TenantID: store.GetState().TenantID, Action: "ASSIGN_ROLE", TargetIdentity: "user:rahul-assistant", ResourceOrRole: "role:exchange-admin", ExpectedTargetRevision: 1000, Deadline: time.Now().Add(-time.Second)}
+	if _, err = store.Execute(command); err == nil {
+		t.Fatal("expired target command executed")
+	}
+	if state := store.GetState(); state.Revision != 1000 || len(state.CommandReceipts) != 0 {
+		t.Fatal("deadline refusal changed target")
 	}
 }

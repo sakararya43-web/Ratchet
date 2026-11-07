@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
 )
@@ -149,12 +150,13 @@ func (s *Server) handleInjectDrift(w http.ResponseWriter, r *http.Request) {
 }
 
 type ExecuteRequest struct {
-	CommandID              string `json:"command_id"`
-	Action                 string `json:"action"` // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
-	TargetIdentity         string `json:"target_identity"`
-	ResourceOrRole         string `json:"resource_or_role"`
-	TenantID               string `json:"tenant_id"`
-	ExpectedTargetRevision int64  `json:"expected_target_revision"`
+	Deadline               time.Time `json:"deadline,omitempty"`
+	CommandID              string    `json:"command_id"`
+	Action                 string    `json:"action"` // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
+	TargetIdentity         string    `json:"target_identity"`
+	ResourceOrRole         string    `json:"resource_or_role"`
+	TenantID               string    `json:"tenant_id"`
+	ExpectedTargetRevision int64     `json:"expected_target_revision"`
 }
 
 func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +173,7 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	receipt, err := s.store.Execute(domain.TargetCommand{CommandID: req.CommandID, TenantID: req.TenantID, Action: req.Action, TargetIdentity: req.TargetIdentity, ResourceOrRole: req.ResourceOrRole, ExpectedTargetRevision: req.ExpectedTargetRevision})
+	receipt, err := s.store.Execute(domain.TargetCommand{Deadline: req.Deadline, CommandID: req.CommandID, TenantID: req.TenantID, Action: req.Action, TargetIdentity: req.TargetIdentity, ResourceOrRole: req.ResourceOrRole, ExpectedTargetRevision: req.ExpectedTargetRevision})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("execution failed: %v", err), http.StatusUnprocessableEntity)
 		return

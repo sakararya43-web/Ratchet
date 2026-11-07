@@ -7,6 +7,7 @@ import (
 	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
 )
@@ -56,14 +57,15 @@ type GraphDelta struct {
 
 // ExecCommand represents an authorized IAM modification to apply on the target.
 type ExecCommand struct {
-	CommandID              string `json:"command_id"`
-	TenantID               string `json:"tenant_id"`
-	RequestID              string `json:"request_id"`
-	Action                 string `json:"action"` // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
-	TargetIdentity         string `json:"target_identity"`
-	ResourceOrRole         string `json:"resource_or_role"`
-	ExpectedTargetRevision int64  `json:"expected_target_revision"`
-	IsReduction            bool   `json:"is_reduction"`
+	Deadline               time.Time `json:"deadline,omitempty"`
+	CommandID              string    `json:"command_id"`
+	TenantID               string    `json:"tenant_id"`
+	RequestID              string    `json:"request_id"`
+	Action                 string    `json:"action"` // ASSIGN_ROLE, REVOKE_ROLE, TERMINATE_SESSION, RESTRICT_ACCOUNT
+	TargetIdentity         string    `json:"target_identity"`
+	ResourceOrRole         string    `json:"resource_or_role"`
+	ExpectedTargetRevision int64     `json:"expected_target_revision"`
+	IsReduction            bool      `json:"is_reduction"`
 }
 
 // ObservedState represents the independently verified target IAM state.

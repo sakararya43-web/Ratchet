@@ -152,6 +152,7 @@ func (a *Adapter) FetchDelta(ctx context.Context, fromRevision int64) (*connecto
 // Execute applies an authorized IAM command to the simulator via broker authentication.
 func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*connector.ExecResult, error) {
 	payload, err := json.Marshal(map[string]any{
+		"deadline":                 cmd.Deadline,
 		"command_id":               cmd.CommandID,
 		"tenant_id":                cmd.TenantID,
 		"expected_target_revision": cmd.ExpectedTargetRevision,
@@ -184,7 +185,6 @@ func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*con
 			CommandID:    cmd.CommandID,
 			Success:      false,
 			ErrorMessage: fmt.Sprintf("target returned HTTP %d: %v", resp.StatusCode, errResp),
-			AppliedAt:    time.Now().UTC().Format(time.RFC3339),
 		}, nil
 	}
 

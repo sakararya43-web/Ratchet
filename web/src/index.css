@@ -50,3 +50,8 @@ code { overflow-wrap:anywhere; font-size:12px; } details { margin:12px 0; }
   background: #3b82f6;
 }
 
+
+.review { border-color:#60a5fa; } .notice { color:#bbf7d0; } h4 { margin:16px 0 8px; font-weight:600; }
+dl { display:grid; grid-template-columns:minmax(120px,1fr) 3fr; gap:10px; } dt { color:#94a3b8; } dd { overflow-wrap:anywhere; }
+.impact { padding:8px 0; } .impact ul { padding-left:24px; list-style:disc; } .impact li { margin:5px 0; } .impact code { margin-left:8px; }
+@media (max-width:650px) { header { flex-direction:column; gap:12px; } main { padding:16px; } dl { grid-template-columns:1fr; } dd { margin-bottom:10px; } form label,form input { width:100%; } table { display:block; overflow:auto; } }

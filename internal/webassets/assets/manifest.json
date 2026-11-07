@@ -1,19 +1,22 @@
 {
   "files": {
-    "assets/index-B4rCunzB.css": "42a67417a5c2480870209c4c435525b2fcbdf5ca7d57e555f55c8adf3a8b4979",
-    "assets/index-DjUz5FGF.js": "40ab656b2126fbcd3a536cd688745aac7744f03f6803c0fb491b5220d4280ed2",
-    "index.html": "6449515d4e3beb4355b0dcccb2f63c194d064c58b6826efe66fa495f08806475"
+    "assets/__vite-browser-external-BIHI7g3E.js": "82507b0bb9ac4affaeb17c40968d830cbd6d14a2ffa04d8994faf1a78e58e1b5",
+    "assets/index-iQbKPy9r.js": "6d24f82d2adf22370d45ca5147d279a6c16e2858b9590f7feb6f0f49a0402946",
+    "assets/index-l67yc5Rj.css": "176be6b6461f0ff75f50ccbc10ca2a5c4000de75b6fdce1be26a62e5506d17f9",
+    "index.html": "0484142cfe3340de887fdc5b2b054a1e5fa9e36c80399633595c5dc8ec840d54"
   },
   "sources": {
     "index.html": "05e2e2e0a8b999b6e4e955b52d4dbd758cc332b6763159aa24edd7966faddbdc",
     "package-lock.json": "7ef3283b32349a33135a07a4039adcfbc2d2baa6d61a3edc73232eeb92c74662",
-    "package.json": "ee471f346a0bc561b19b819a641b58d688c5a28fc514683f4fc1971cde8ecca7",
+    "package.json": "0d75b6da0481069e390354d0a6a0675acf6b5680b8141311892d343964c824dc",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
-    "src/App.tsx": "838d219b643022790d8aa7307b91a8b9cf307b88ee94c9d3df5745e63460d5ff",
-    "src/index.css": "fbddf9a6c8c87eb50cec7817565e984a48ba6f065d5153f96d30b6ea3f3a2fb9",
-    "src/lib/api.ts": "2fc3510d482fe8f9aa1fcfbecb44403e7a9d67220cb35557ee8d2ed7678678be",
+    "src/App.tsx": "4e446431f47d91d78f62b9808ed9bcf8c5341d49ecc2751e36334bd151a19f42",
+    "src/index.css": "c0fce240bdb530b66aae3a5e4ae948613c95a38c0805e289819532f1020ac50b",
+    "src/lib/api.ts": "364b81546377d0dffe4fc2e55473a68786868029d66e8b495b2e74cc99e7c3f9",
     "src/lib/canon.test.ts": "86cc1be84119c7a46501fb5de0f91e6c25f24b60590e656e21f528f68643a1bd",
     "src/lib/canon.ts": "e122af480e4a75ba3efa2307d72ef64a510253c314990701988415bf494b94bf",
+    "src/lib/envelope.test.ts": "02ff7c09c64f67e4d014f3ab4db069550a71668fce1891b0505ffd6dd4df35f7",
+    "src/lib/envelope.ts": "542b419fce42144e9c626892159d3c2424486d0be06f0698da88695e2cf84097",
     "src/lib/utils.ts": "d4f2acad50ab5a9dc97e0c075bea97906a9a3cb937e65387edc635897127a15f",
     "src/main.tsx": "0e269a4c347bfd2b637e25bdae490f78196fe907c3d4842b4e9763f4735afafc",
     "tailwind.config.js": "2ae0925f590ba7fb1ed38d67c641bc4e459358adf7f449ffb370b0527ebc3895",

@@ -189,6 +189,7 @@ func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*con
 	}
 
 	var simResult struct {
+		AppliedAt     string `json:"applied_at"`
 		CommandID     string `json:"command_id"`
 		Success       bool   `json:"success"`
 		Revision      int64  `json:"revision"`
@@ -207,7 +208,7 @@ func (a *Adapter) Execute(ctx context.Context, cmd *connector.ExecCommand) (*con
 	return &connector.ExecResult{
 		CommandID:           cmd.CommandID,
 		Success:             simResult.Success,
-		AppliedAt:           time.Now().UTC().Format(time.RFC3339),
+		AppliedAt:           simResult.AppliedAt,
 		TargetRevisionAfter: simResult.Revision,
 		ObservedState: connector.ObservedState{
 			TenantID:         cmd.TenantID,

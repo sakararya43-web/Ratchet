@@ -12,6 +12,14 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Fixed the reproduced simulator stale-write contract on main. Target CAS,
+  mutation and durable duplicate receipt share the target lock/atomic file;
+  failed persistence rolls back visible IAM state. Competing commands, altered
+  idempotency intent, restart/retry and real adapter read-back checks pass.
+  Callers now supply explicit tenant/revision; original examples adopt that
+  contract. The simulator delegates passkeys to the authenticated core and has
+  no seeded/simulated assertion surface or fallback broker secret.
+
 - Corrected the reproduced offline checkpoint metadata/linkage defect in the
   pinned peer verifier on main: recompute signed metadata commitments, enforce
   contiguous checkpoint history and refuse empty anchored/truncated-head exports.

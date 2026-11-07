@@ -54,7 +54,16 @@ required; the final peer is d823a10, not an assumed corrected implementation.
    starvation during approval. A complete WebAuthn registration/assertion using
    real cryptography passes with wrong-session/replay/revocation/restart checks.
    There is no simulated assertion endpoint or seeded production credential.
-6. Actual peer web artifact embedding: pending.
+6. Actual peer web artifact embedding: peer React/Vite source is reused from
+   d823a10, with the authorized integration fixes replacing mock requests,
+   simulated assertions and browser broker credentials with authenticated core
+   APIs and actual browser WebAuthn ceremonies. The actual built assets and
+   source/output SHA-256 manifest live in `internal/webassets/assets`; the build
+   script and CI reproduce them. `serve_web` mounts the console on the HTTPS
+   core origin. Missing/corrupt builds fail startup, API/health/metrics are
+   reserved, and missing assets return 404. Combined and separated real TLS
+   runtime tests pass, including self-only visibility and authenticated API 404.
+   All 15 TypeScript canonicalization tests pass; npm audit finds no advisories.
 7. Containers, SBOM, signatures and core runbooks: pending.
 8. Full final-candidate checks including actual peer conformance: pending.
 9. Joint D1-D8 evidence and release limitations: pending.

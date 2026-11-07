@@ -31,10 +31,12 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/telemetry"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
+	"github.com/sakararya43-web/Ratchet/internal/webassets"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
 
 type consoleConfig struct {
+	ServeWeb                bool             `json:"serve_web"`
 	Origin                  string           `json:"origin"`
 	SessionKey              string           `json:"session_key_hex"`
 	GraphKey                string           `json:"graph_key_hex"`
@@ -307,6 +309,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	apiMux := http.NewServeMux()
+	apiMux.Handle("/console/bootstrap", api.ConsoleBootstrap(service, graphKey))
 	apiMux.Handle("/ratchet.v1.ChangeService/", changes)
 	apiMux.Handle("/ratchet.v1.OverviewService/", changes)
 	apiMux.Handle("/ratchet.v1.GraphService/", graphs)
@@ -384,7 +387,16 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		}
 		return nil
 	}}.Handler()
-	mux.Handle("/", health)
+	mux.Handle("/livez", health)
+	mux.Handle("/readyz", health)
+	mux.Handle("/readyz/", health)
+	if config.ServeWeb && roles["api"] {
+		web, err := api.NewSPA(webassets.Files())
+		if err != nil {
+			return err
+		}
+		mux.Handle("/", web)
+	}
 	var surface http.Handler = mux
 	if !roles["api"] {
 		surface = health

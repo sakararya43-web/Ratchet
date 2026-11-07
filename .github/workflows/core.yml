@@ -58,6 +58,15 @@ jobs:
           go mod verify
           go vet ./...
           go test -race ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.16.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Verify actual embedded console build
+        run: |
+          python3 scripts/core-web-build.py
+          git diff --exit-code -- internal/webassets/assets
       - name: Core lint
         uses: golangci/golangci-lint-action@v9
         with:

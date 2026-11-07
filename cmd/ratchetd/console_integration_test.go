@@ -149,6 +149,7 @@ func testConsoleRuntime(t *testing.T, separate bool) {
 	}
 	config := map[string]any{"origin": origin, "session_key_hex": hex.EncodeToString(bytes.Repeat([]byte{41}, 32)), "graph_key_hex": hex.EncodeToString(key), "cursor_key_hex": hex.EncodeToString(bytes.Repeat([]byte{42}, 32)), "server_cert": cert, "server_key": keyPath, "nats_url": natsURL, "tenants": []map[string]string{{"tenant_id": tenant, "authority_file": authorityFile, "genesis_digest": genesis.GenesisDigest.String(), "bundle_file": bundlePath}}}
 	config["containment_costs"] = map[string]int64{"ROLE_REVOKE": 1, "RESTRICT_ACCOUNT": 100}
+	config["serve_web"] = true
 	configRaw, err := json.Marshal(config)
 	if err != nil {
 		t.Fatal(err)
@@ -202,6 +203,19 @@ func testConsoleRuntime(t *testing.T, separate bool) {
 		}
 	}
 	base := "https://" + host
+	for _, path := range []string{"/", "/changes/review"} {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
+		req.Header.Set("Accept", "text/html")
+		response, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := io.ReadAll(response.Body)
+		_ = response.Body.Close()
+		if err != nil || response.StatusCode != 200 || !bytes.Contains(raw, []byte("/assets/index-")) {
+			t.Fatal("real embedded console not served", path, response.StatusCode, err)
+		}
+	}
 	login := func(actor string) *http.Client {
 		t.Helper()
 		body, _ := json.Marshal(map[string]string{"tenant_id": tenant, "actor_id": actor, "password": password})
@@ -234,6 +248,29 @@ func testConsoleRuntime(t *testing.T, separate bool) {
 	}
 	requester := login("user:requester")
 	owner := login("user:owner")
+	response, err := requester.Get(base + "/api/console/bootstrap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var projection struct {
+		Scope string `json:"scope"`
+		Nodes []struct {
+			ID string `json:"id"`
+		} `json:"nodes"`
+	}
+	decodeErr := json.NewDecoder(response.Body).Decode(&projection)
+	_ = response.Body.Close()
+	if decodeErr != nil || response.StatusCode != 200 || projection.Scope != "SELF" || len(projection.Nodes) != 1 || projection.Nodes[0].ID != "user:requester" {
+		t.Fatal("bootstrap leaked another identity", projection, decodeErr, response.StatusCode)
+	}
+	response, err = requester.Get(base + "/api/does-not-exist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != 404 {
+		t.Fatal("SPA intercepted authenticated API error", response.StatusCode)
+	}
 	changes := ratchetv1connect.NewChangeServiceClient(requester, base+"/api")
 	reviews := ratchetv1connect.NewChangeServiceClient(owner, base+"/api")
 	mutation := func(revision int64) *v1.MutationContext {
@@ -544,7 +581,7 @@ func testConsoleRuntime(t *testing.T, separate bool) {
 	if err != nil || reach.Msg.ReachByTier["2"] != 0 {
 		t.Fatal("pending request changed graph", err)
 	}
-	response, err := client.Get(base + "/readyz")
+	response, err = client.Get(base + "/readyz")
 	if err != nil {
 		t.Fatal(err)
 	}

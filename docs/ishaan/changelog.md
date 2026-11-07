@@ -12,6 +12,14 @@
 
 ## Phase 7 - in progress (2026-11-07)
 
+- Reused the actual pinned peer React/Vite source, removed mock workflow state,
+  simulated passkeys and browser target credentials, and wired same-origin core
+  APIs plus real browser passkey creation/assertion. Embedded the actual build
+  with source/output commitments; CI reproduces the artifact. Missing/corrupt
+  builds fail closed. SPA/asset/reserved-route tests and combined/separated TLS
+  runtime tests pass, including self-only visibility and API 404 isolation.
+  Web canonicalization tests and npm dependency audit pass.
+
 - Added selectable console/graph API, worker, ingestion and relay roles, and
   exercised combined/separated real TLS/DB/broker runtimes. API-only preserves
   queued ingestion; backend roles expose no browser API. Added actual signed

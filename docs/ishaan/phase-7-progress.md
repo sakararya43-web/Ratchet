@@ -1,0 +1,28 @@
+# Phase 7 hardening record
+
+Started 2026-11-07 on main. Work follows the nine original tasks sequentially.
+Phase 7 is not signed off. Earlier Phase 4 and peer integration gates remain
+required; the final peer is d823a10, not an assumed corrected implementation.
+
+1. Failure handling: added real TCP disconnect/recovery checks for PostgreSQL
+   atomic writes and NATS durable outbox publication. Broker and Authority-source
+   availability now appear separately in decision readiness, and expired
+   execution capabilities degrade workflow readiness. Graph lag/quarantine,
+   policy/registry changes, credential revocation and slow Authority handling
+   retain their existing negative tests. The targeted Linux race/integration
+   batch passes. This is local single-instance recovery, not HA. Actual peer
+   connector and passkey acceptance must still be checked, not inferred.
+2. Restart/replay, migrations and backup/restore: pending.
+3. Privacy key deletion and sensitive access: pending.
+4. Resource limits, fuzzing, dependencies and domain boundaries: pending.
+5. Selectable runtime roles: pending.
+6. Actual peer web artifact embedding: pending.
+7. Containers, SBOM, signatures and core runbooks: pending.
+8. Full final-candidate checks including actual peer conformance: pending.
+9. Joint D1-D8 evidence and release limitations: pending.
+
+Docker Desktop's D-drive bind mount is unavailable in this session. The
+`scripts/core-check.py` runner uploads only source into an owned temporary Linux
+container, passes dependency credentials via environment, and cleans up that
+container. It excludes .local and Git credentials. Existing dependencies are not
+stopped by fault injection or runner cleanup.

@@ -331,7 +331,21 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 			}
 		}
 		return nil
-	}, PolicyBundle: service.PolicyReady, Workflow: service.Ready}.Handler())
+	}, PolicyBundle: service.PolicyReady, Workflow: service.Ready, Broker: broker.Ready, Authority: func(ctx context.Context) error {
+		for _, source := range policySources {
+			for _, path := range []string{source.AuthorityFile, source.BundleFile} {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				file, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				_ = file.Close()
+			}
+		}
+		return nil
+	}}.Handler())
 	var wg sync.WaitGroup
 	defer func() { cancel(); wg.Wait() }()
 	failures := make(chan error, 1)

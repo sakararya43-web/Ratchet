@@ -10,6 +10,14 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Phase 7 - in progress (2026-11-07)
+
+- Added real per-client PostgreSQL/NATS network outage and recovery tests, explicit
+  broker/Authority-source readiness and expired execution capability refusal.
+  The focused Linux race/integration batch passes. Added a source-upload check
+  runner for unavailable Docker Desktop drive mounts and excluded private .local
+  artifacts from Git. No peer boundary is declared fixed by these core checks.
+
 ## Phase 6 - core complete, selected kind acceptance verified (2026-11-06)
 
 - Closed the five original Phase 6 core tasks with real API-server mutual-TLS

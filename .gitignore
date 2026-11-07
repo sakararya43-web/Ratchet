@@ -11,6 +11,7 @@ build/
 
 # Go
 *.out
+.local/
 
 # Simulator state files (local runtime data)
 sim_data.json*

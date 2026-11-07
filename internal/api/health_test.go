@@ -34,3 +34,18 @@ func TestReadinessDoesNotLeakDependencyErrors(t *testing.T) {
 		t.Fatal(r.Body.String())
 	}
 }
+
+func TestBrokerAndAuthorityDegradeDecisionReadinessIndependently(t *testing.T) {
+	ok := func(context.Context) error { return nil }
+	failed := func(context.Context) error { return errors.New("private dependency address") }
+	for _, dependency := range []string{"broker", "authority_source"} {
+		h := api.Health{Database: ok, Migrations: ok, RuntimeRole: ok, Graph: ok, PolicyBundle: ok, Workflow: ok, Broker: ok, Authority: ok}
+		if dependency == "broker" { h.Broker = failed } else { h.Authority = failed }
+		for _, path := range []string{"/livez", "/readyz/storage", "/readyz"} {
+			r := httptest.NewRecorder()
+			h.Handler().ServeHTTP(r, httptest.NewRequest(http.MethodGet, path, nil))
+			want := 200; if path == "/readyz" { want = 503 }
+			if r.Code != want || strings.Contains(r.Body.String(), "private") { t.Fatal(dependency, path, r.Code, r.Body.String()) }
+		}
+	}
+}

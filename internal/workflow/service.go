@@ -160,6 +160,11 @@ func (s *Service) Ready(ctx context.Context) error {
 	if s.approvals == nil || len(s.executions) != len(s.tenants) {
 		return ErrDependency
 	}
+	for _, execution := range s.executions {
+		if !time.Now().Before(execution.capability.Expires) {
+			return ErrDependency
+		}
+	}
 	return s.PolicyReady(ctx)
 }
 func (s *Service) PolicyReady(ctx context.Context) error {

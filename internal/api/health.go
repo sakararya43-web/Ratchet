@@ -17,6 +17,8 @@ type Health struct {
 	Graph        Probe
 	PolicyBundle Probe
 	Workflow     Probe
+	Broker       Probe
+	Authority    Probe
 }
 
 type DependencyStatus struct {
@@ -44,6 +46,12 @@ func (h Health) ready(storageOnly bool) http.HandlerFunc {
 			probes["policy_bundle"] = h.PolicyBundle
 			if h.Workflow != nil {
 				probes["workflow"] = h.Workflow
+			}
+			if h.Broker != nil {
+				probes["broker"] = h.Broker
+			}
+			if h.Authority != nil {
+				probes["authority_source"] = h.Authority
 			}
 		}
 		status := make(map[string]DependencyStatus, len(probes))

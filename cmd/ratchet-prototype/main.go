@@ -37,7 +37,7 @@ func main() {
 }
 func run() error {
 	if len(os.Args) < 2 {
-		return errors.New("usage: ratchet-prototype init|invite|export|health")
+		return errors.New("usage: ratchet-prototype init|invite|export|health|renew-tls")
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ContinueOnError)
 	root := fs.String("root", "/data", "private operator volume root")
@@ -62,6 +62,9 @@ func run() error {
 		}
 		_, err = os.Stdout.Write(raw)
 		return err
+	}
+	if os.Args[1] == "renew-tls" {
+		return certificateFiles(filepath.Join(*root, "core"))
 	}
 	dsn := os.Getenv("RATCHET_MIGRATION_DSN")
 	if dsn == "" {

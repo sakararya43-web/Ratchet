@@ -25,6 +25,9 @@ func TestLocalCertificateVerifiesStableOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(cert.AuthorityKeyId) == 0 {
+		t.Fatal("leaf must identify its issuer for strict X.509 clients")
+	}
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM(raw) {
 		t.Fatal("CA")

@@ -17,6 +17,7 @@
 - Isolated Playwright test targets: scoped `web/playwright.prototype.config.ts` with explicit `testMatch: /prototype\.spec\.ts$/` to prevent Playwright from automatically executing `authority.spec.ts` against the prototype server (which prematurely consumed one-time enrollment tickets and triggered 429 login rate limiting).
 - Added `web/playwright.authority.config.ts` dedicated configuration for `authority.spec.ts` in `scripts/completion-a-browser.py`.
 - Replaced hardcoded `python` subprocess call with `sys.executable` in `scripts/prototype-foundation.py` to ensure reliable container restart execution across Linux/Ubuntu CI environments.
+- Rebuilt embedded console assets and synchronized `internal/webassets/assets/manifest.json` with new web sources so `git diff --exit-code -- internal/webassets/assets` passes identically in CI.
 
 ## Core lint & staticcheck quickfix hardening
 

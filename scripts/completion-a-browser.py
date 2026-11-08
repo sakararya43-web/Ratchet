@@ -21,7 +21,7 @@ def main():
 
     print('Running Phase A Authority browser acceptance suite...')
     result = subprocess.run(
-        [node, str(ROOT / 'web/node_modules/playwright/cli.js'), 'test', 'e2e/authority.spec.ts'],
+        [node, str(ROOT / 'web/node_modules/playwright/cli.js'), 'test', '-c', 'playwright.authority.config.ts'],
         cwd=ROOT / 'web',
         env=environment,
         capture_output=True,

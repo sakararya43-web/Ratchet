@@ -3,6 +3,7 @@ import hashlib
 import http.cookiejar
 import json
 import ssl
+import sys
 import urllib.request
 import urllib.error
 
@@ -28,7 +29,7 @@ def snapshot():
 
 def main():
     before=snapshot()
-    run(['python','scripts/prototype.py','restart','--no-build'])
+    run([sys.executable, 'scripts/prototype.py', 'restart', '--no-build'])
     after=snapshot()
     if before!=after:raise RuntimeError('restart changed trusted identity, source cut or graph')
     # A stopped database must never remain a healthy decision service.

@@ -12,6 +12,12 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Core CI test isolation & browser acceptance hardening
+
+- Isolated Playwright test targets: scoped `web/playwright.prototype.config.ts` with explicit `testMatch: /prototype\.spec\.ts$/` to prevent Playwright from automatically executing `authority.spec.ts` against the prototype server (which prematurely consumed one-time enrollment tickets and triggered 429 login rate limiting).
+- Added `web/playwright.authority.config.ts` dedicated configuration for `authority.spec.ts` in `scripts/completion-a-browser.py`.
+- Replaced hardcoded `python` subprocess call with `sys.executable` in `scripts/prototype-foundation.py` to ensure reliable container restart execution across Linux/Ubuntu CI environments.
+
 ## Core lint & staticcheck quickfix hardening
 
 - Fixed staticcheck QF1003 (tagged switch recommendation) in `internal/workflow/incident.go`: converted event type conditional checks to a tagged switch statement with explicit default integrity error.

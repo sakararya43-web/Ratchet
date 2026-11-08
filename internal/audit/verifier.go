@@ -165,7 +165,7 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 		}
 
 		// Verify Approval Assertion if required or present on event
-		isApprovalEvent := evt.EventType == EventApprovalRecorded || evt.EventType == EventContainmentExecuted ||
+		isApprovalEvent := evt.EventType == EventApprovalRecorded ||
 			evt.Action == "APPROVE_CHANGE" || evt.Action == "EXECUTE_CONTAINMENT" || evt.Action == "CONFIRM_CONTAINMENT"
 		if isApprovalEvent && evt.ApprovalAssertion == nil {
 			report.OffendingSequence = evt.Sequence

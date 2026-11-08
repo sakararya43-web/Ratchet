@@ -223,11 +223,12 @@ func TestContainRahul_ClickToVerifiedRevocation(t *testing.T) {
 
 	credHistory := []audit.StoredCredentialRecord{
 		{
-			TenantID:   tenantID,
-			ActorID:    "user:sec-lead-1",
-			PublicKey:  alicePKIX,
-			EnrolledAt: time.Now().Add(-24 * time.Hour),
-			IsRevoked:  false,
+			TenantID:     tenantID,
+			ActorID:      "user:sec-lead-1",
+			CredentialID: []byte("cred-lead-1"),
+			PublicKey:    alicePKIX,
+			EnrolledAt:   time.Now().Add(-24 * time.Hour),
+			IsRevoked:    false,
 		},
 	}
 

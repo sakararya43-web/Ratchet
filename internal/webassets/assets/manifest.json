@@ -1,8 +1,8 @@
 {
   "files": {
-    "assets/index-Cc4pJ1Lo.js": "8ca4f88a4cfb06f6ea1f9062b797c979cd5ca1564484af74466ce7b02866d3d6",
+    "assets/index-B_m13cJf.js": "ac62abf64d474b00ae1d1658830b114876c5f8ff279182c2b5b9315c590e5c58",
     "assets/index-DJhsHzLC.css": "e50c59c4955fcd1b368dc5c4410c27ecc6bcf0f9528486e4b9fbaaddc953fd7f",
-    "index.html": "960e62cde8a81414ffad0ceca3a68f00894ec3d0e04f100e398d01af887e0544"
+    "index.html": "38a6beba3e717600b311e346854075f5bed86e4613fdd3ebb4051def620ad368"
   },
   "sources": {
     "e2e/authority.spec.ts": "11c5ce838329242fffad3cb2caaf061aaaaa7bd32938534328f2215096d15a64",
@@ -14,7 +14,7 @@
     "playwright.authority.config.ts": "382868a7daa59453f1ea46f3d5d5d3a0c92e8458a983edf46f8c5a0ddec9e16e",
     "playwright.prototype.config.ts": "5e95a08fc8999823643722d47757b529c749a4804516d082a5d2d63b91f421cf",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
-    "src/App.tsx": "d164ea536a3364317ea6468f9cb5996ecfb7b2f350d020dbc2cb37f4c923c35b",
+    "src/App.tsx": "781f1b4d925ff62233f84f33a7ac00060046f45d886a2243f8c0dd133359ab6e",
     "src/AuthorityPanel.tsx": "1785cd6b94ade1c9bf594c09f478b74d7219a2bc564c766c1ca66337ecff4e28",
     "src/index.css": "c0fce240bdb530b66aae3a5e4ae948613c95a38c0805e289819532f1020ac50b",
     "src/lib/api.ts": "66b5c5200e58fda1ed7db4a21ff9f258c04695123de3698ae46fa38f7af664c7",

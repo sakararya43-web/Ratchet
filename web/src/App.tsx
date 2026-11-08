@@ -196,7 +196,7 @@ export function App() {
             <details><summary>Canonical Plan Evidence</summary><Data value={plan} /></details>
             <button disabled={busy} onClick={() => void work(async () => {
               const res = await executeContainment({ planId: plan.planId as string, planDigest: plan.planDigest as string }, tenantId!);
-              setNotice('Containment executed with native passkey assertion and verified zero tier-0 reach.');
+              setNotice('Containment dispatched via priority stream with native passkey assertion. Awaiting target verification.');
               setResult(res);
               await load();
             })}>Execute containment with passkey confirmation</button>

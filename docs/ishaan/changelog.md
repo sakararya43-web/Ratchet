@@ -50,6 +50,12 @@
 
 ## Project completion - Phase A: live governance, verified containment and restoration
 
+- A2 (Exact-plan containment authorization, target preconditions & durable idempotency):
+  - Fixed containment target preconditions in `internal/workflow/containment.go`: retrieves actual connector source revision and resync quarantine status from `ratchet.graph_sources` rather than using merged graph version.
+  - Implemented sequential expected revisions for multi-action containment plans.
+  - Enforced durable idempotency: exact re-submission of an authorized plan returns existing incident ID and pending execution status, while conflicting execution attempts fail closed.
+  - Corrected execution semantics: reports dispatched actions as pending rather than prematurely claiming target execution completion, and updated UI to show dispatched state awaiting read-back verification.
+
 - A1 (Live Authority wire contracts, native candidate enrollment & gateway validation):
   - Aligned Authority client state in `web/src/lib/authority.ts` with serialized Go model (`persistedAuthorityData` under `authority.genesis`, `authority.proposals`, `authority.registry_proposals`, and `authority.active_bundle`), eliminating false initialization before genesis.
   - Corrected native passkey enrollment in `web/src/AuthorityPanel.tsx`: enforces active candidate status (`is_active: true`), binds pinned origin (`origins: [window.location.origin]`) and RP ID (`rp_id: window.location.hostname`), and sets `expected_epoch: 0` for pre-genesis. Added credential selection when multiple passkeys exist.

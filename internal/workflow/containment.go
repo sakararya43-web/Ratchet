@@ -58,6 +58,7 @@ type ExecuteContainmentInput struct {
 
 type ContainmentExecutionResult struct {
 	Executed          bool
+	Pending           bool
 	IncidentID        string
 	VerifiedLatencyMs int64
 	ExecutionResults  []ContainmentActionResult
@@ -164,7 +165,6 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 	if actor.ID != input.ResponderID {
 		return result, ErrPermission
 	}
-	startTime := time.Now()
 
 	err := s.Store.WithTenantTx(ctx, actor.TenantID, func(tx pgx.Tx, now time.Time) error {
 		snapshot, active, err := s.context(ctx, tx, actor, "containment_execute", nil)
@@ -269,6 +269,45 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 			return ErrDependency
 		}
 
+		var connectorRevision int64
+		var sourceRaw []byte
+		var quarantine bool
+		if err := tx.QueryRow(ctx, `SELECT source_revision,public_graph,needs_resync FROM ratchet.graph_sources WHERE tenant_id=$1 AND connector_id=$2`, actor.TenantID, execution.Connector).Scan(&connectorRevision, &sourceRaw, &quarantine); err != nil {
+			return err
+		}
+		if quarantine {
+			return ErrDependency
+		}
+
+		// Durable idempotency: exact replay returns existing dispatch, conflicting attempt fails
+		priorEvents, err := s.Store.StreamWithin(ctx, tx, actor.TenantID, "containment:"+proposal.Body.ID)
+		if err == nil {
+			for _, ev := range priorEvents {
+				if ev.Type == "ContainmentDispatched" {
+					var content struct {
+						Payload json.RawMessage `json:"payload"`
+					}
+					var payload struct {
+						Facts json.RawMessage `json:"facts"`
+					}
+					if json.Unmarshal(ev.Entry.Canonical, &content) == nil && json.Unmarshal(content.Payload, &payload) == nil {
+						var priorCmd PreparedCommand
+						if json.Unmarshal(payload.Facts, &priorCmd) == nil {
+							if len(priorCmd.Approvals) > 0 && priorCmd.Approvals[0].ActorID == actor.ID && priorCmd.IncidentReference == incidentID {
+								result.Executed = false
+								result.Pending = true
+								result.IncidentID = incidentID
+								result.VerifiedLatencyMs = 0
+								return nil
+							}
+							return eventstore.ErrIdempotencyConflict
+						}
+					}
+				}
+			}
+		}
+
+		currentSeqRevision := connectorRevision
 		for i, action := range proposal.Body.Plan.Actions {
 			actionCmdID := uuid.NewSHA1(input.CommandID, []byte(fmt.Sprintf("contain-action-%d", i))).String()
 			actionReqID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(proposal.Body.ID+fmt.Sprintf(":%d", i))).String()
@@ -314,6 +353,9 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				expectedRoles = slices.DeleteFunc(expectedRoles, func(r string) bool { return r == action.Access })
 			}
 
+			actionExpectedRevision := currentSeqRevision
+			currentSeqRevision++
+
 			prepCmd := PreparedCommand{
 				SchemaVersion:     1,
 				Tenant:            actor.TenantID,
@@ -322,7 +364,7 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				RequestID:         actionReqID,
 				CorrelationID:     input.CorrelationID,
 				MessageID:         actionCmdID,
-				ExpectedRevision:  snapshot.Version(),
+				ExpectedRevision:  actionExpectedRevision,
 				Envelope:          env,
 				EnvelopeDigest:    envDigest,
 				BeforeRoles:       beforeRoles,
@@ -359,7 +401,7 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				return err
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO ratchet.execution_attempts(tenant_id,command_id,request_id,connector_id,source_revision,envelope_digest,expected_roles,deadline,command_payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-				actor.TenantID, actionCmdID, actionReqID, execution.Connector, snapshot.Version(), envDigest.Bytes(), rolesJSON, prepCmd.Deadline, rawCmd); err != nil {
+				actor.TenantID, actionCmdID, actionReqID, execution.Connector, actionExpectedRevision, envDigest.Bytes(), rolesJSON, prepCmd.Deadline, rawCmd); err != nil {
 				return err
 			}
 
@@ -386,15 +428,15 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				TargetIdentity:      action.Target,
 				Success:             false,
 				AppliedAt:           time.Time{},
-				TargetRevisionAfter: snapshot.Version(),
+				TargetRevisionAfter: actionExpectedRevision,
 				ReadBackVerified:    false,
 			})
 		}
 
-		durationMs := time.Since(startTime).Milliseconds()
-		result.Executed = true
+		result.Executed = false
+		result.Pending = true
 		result.IncidentID = incidentID
-		result.VerifiedLatencyMs = durationMs
+		result.VerifiedLatencyMs = 0
 		return nil
 	})
 

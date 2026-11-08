@@ -2,10 +2,49 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/sakararya43-web/Ratchet/internal/domain"
 
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
+
+func ConsoleApprovalReview(service *workflow.Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			http.Error(w, "GET required", http.StatusMethodNotAllowed)
+			return
+		}
+		principal, ok := SessionPrincipal(r.Context())
+		if !ok {
+			http.Error(w, "session required", http.StatusUnauthorized)
+			return
+		}
+		request := r.URL.Query().Get("request_id")
+		if id, err := uuid.Parse(request); err != nil || id == uuid.Nil {
+			http.Error(w, "request required", http.StatusBadRequest)
+			return
+		}
+		review, err := service.ApprovalReview(r.Context(), workflow.Actor{TenantID: principal.TenantID, ID: principal.ActorID}, request)
+		if err != nil {
+			code := http.StatusServiceUnavailable
+			switch {
+			case errors.Is(err, workflow.ErrPermission):
+				code = http.StatusForbidden
+			case errors.Is(err, pgx.ErrNoRows):
+				code = http.StatusNotFound
+			case errors.Is(err, domain.ErrContextChanged):
+				code = http.StatusConflict
+			}
+			http.Error(w, "authorized current request review unavailable; refresh or reassess", code)
+			return
+		}
+		writeJSON(w, http.StatusOK, review)
+	})
+}
 
 // ConsoleBootstrap is an authenticated display projection, never an alternate
 // authorization/decision API. Ordinary users receive an explicitly self-only cut.

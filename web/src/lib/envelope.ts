@@ -1,4 +1,4 @@
-import { canonicalizeJSON, digestJSON } from './canon.ts';
+import { canonicalizeJSON, digestJSON, digest } from './canon.ts';
 
 export interface EnvelopeView {
  tenantId: string; requestId: string; kind: string; targetIdentity: string;
@@ -32,4 +32,11 @@ export async function verifyChallenge(tenant: string, actor: string, digest: str
  const expected = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
  const actual = Uint8Array.from(atob(challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
  if (actual.length !== expected.length || actual.some((b, i) => b !== expected[i])) throw new Error('Passkey challenge is not bound to this exact envelope and actor');
+}
+
+export async function verifyImpact(impact: unknown, envelope: ApprovalEnvelope): Promise<void> {
+ const bound = envelope.impact_digest;
+ if (!Array.isArray(bound) || bound.length !== 32 || bound.some(b => !Number.isInteger(b) || b < 0 || b > 255)) throw new Error('Invalid bound impact digest');
+ const expected = bound.map(b => b.toString(16).padStart(2, '0')).join('');
+ if (await digest(impact) !== expected) throw new Error('Review impact digest mismatch; no passkey requested');
 }

@@ -310,6 +310,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	}
 	apiMux := http.NewServeMux()
 	apiMux.Handle("/console/bootstrap", api.ConsoleBootstrap(service, graphKey))
+	apiMux.Handle("/console/approval-review", api.ConsoleApprovalReview(service))
 	apiMux.Handle("/ratchet.v1.ChangeService/", changes)
 	apiMux.Handle("/ratchet.v1.OverviewService/", changes)
 	apiMux.Handle("/ratchet.v1.GraphService/", graphs)

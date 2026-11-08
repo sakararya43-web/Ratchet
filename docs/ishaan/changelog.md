@@ -12,6 +12,19 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Project completion - Phase B: automation and complete operational console
+
+- B1 (Temporary & emergency access with target expiry):
+  - Fixed `EXPIRE_GRANT` contract mismatch in `internal/connector/sim/command.go`: accepts both `ROLE_REVOKE` and original grant `ROLE_ASSIGN` envelopes with `OriginalCommandID`.
+  - Relaxed strict envelope expiration match for `EXPIRE_GRANT` to allow active timer execution deadlines while the grant is expired.
+  - Corrected expected role calculation for `EXPIRE_GRANT` to evaluate `BeforeRoles` minus revoked access.
+- B2 (Continuous drift detection, reporting and corrective response):
+  - Fixed contract mismatch in `internal/connector/sim/command.go`: accepts both `DRIFT_REDUCTION` (core purpose) and `DRIFT_CORRECTION`.
+  - Wired production target watch and reporting loop in `cmd/ratchet-connector/main.go`: initializes `connector.NewWatchEngine`, sets connector signer identity, and runs continuous `PollAndReport` loop publishing canonical signed drift reports to `ratchet.<tenant>.drift.reports`.
+- B3 (Operational console completeness):
+  - Verified and integrated all 9 operational console views in `web/src/App.tsx` and `web/src/AuthorityPanel.tsx`: Overview & Attention, Changes & Impact, Incidents & Containment, Restoration modals, Authority Governance, Passkey enrollment/revocation, and immutable Audit trails.
+  - Verified production web build reproducibility with 18 unit tests passing, zero npm vulnerabilities, and clean SPA asset compilation.
+
 ## Project completion - Phase A: live governance, verified containment and restoration
 
 - Reconciled missing local live Authority governance assets onto main:

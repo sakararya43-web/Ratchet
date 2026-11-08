@@ -143,6 +143,28 @@ func main() {
 				cancel()
 			}
 		}()
+		watchEngine, err := connector.NewWatchEngine(*targetURL, adapter, *cursorPath+".watch")
+		if err != nil {
+			log.Fatal(err)
+		}
+		watchEngine.SetSigner(*tenantID, *connectorID, signingKey)
+		go func() {
+			ticker := time.NewTicker(2 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					_, err := watchEngine.PollAndReport(ctx, func(pCtx context.Context, tenant string, rawReport []byte) error {
+						return broker.Publish(pCtx, "ratchet."+tenant+".drift.reports", uuid.NewString(), rawReport)
+					})
+					if err != nil && ctx.Err() == nil {
+						logger.Warn("drift polling error", "error", err)
+					}
+				}
+			}
+		}()
 	}
 	conn, err := connector.NewConnector(connector.Config{TenantID: *tenantID, ConnectorID: *connectorID, CursorPath: *cursorPath, SyncInterval: *syncInterval, SigningKey: signingKey, SnapshotOnly: true}, adapter, &JetStreamPublisher{broker: broker})
 	if err != nil {

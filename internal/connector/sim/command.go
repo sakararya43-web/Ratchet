@@ -97,10 +97,10 @@ func authenticateCommand(raw []byte, tenant, connector string, public ed25519.Pu
 		}
 	case "EXPIRE_GRANT":
 		// Phase B1 timer expiry
-		if e.Intent.Kind != "ROLE_REVOKE" || c.OriginalCommandID == "" || c.Kubernetes != nil {
+		if (e.Intent.Kind != "ROLE_REVOKE" && e.Intent.Kind != "ROLE_ASSIGN") || c.OriginalCommandID == "" || c.Kubernetes != nil {
 			return invalid()
 		}
-	case "DRIFT_CORRECTION":
+	case "DRIFT_REDUCTION", "DRIFT_CORRECTION":
 		// Phase B2 drift correction
 		if e.Intent.Kind != "ROLE_REVOKE" || c.SourceDrift == "" || c.IncidentReference == "" || c.ReductionDigest.IsZero() || c.Kubernetes != nil {
 			return invalid()
@@ -108,7 +108,10 @@ func authenticateCommand(raw []byte, tenant, connector string, public ed25519.Pu
 	default:
 		return invalid()
 	}
-	if c.DispatchedAt.IsZero() || c.DispatchedAt.After(now.Add(time.Minute)) || !c.Deadline.After(c.DispatchedAt) || !c.Deadline.Equal(e.ExpiresAt) {
+	if c.DispatchedAt.IsZero() || c.DispatchedAt.After(now.Add(time.Minute)) || !c.Deadline.After(c.DispatchedAt) {
+		return invalid()
+	}
+	if c.Purpose != "EXPIRE_GRANT" && !c.Deadline.Equal(e.ExpiresAt) {
 		return invalid()
 	}
 	// Reconciliation is permitted after the deadline, but can never issue a write.
@@ -124,12 +127,12 @@ func authenticateCommand(raw []byte, tenant, connector string, public ed25519.Pu
 			return invalid()
 		}
 		expected := slices.Clone(c.BeforeRoles)
-		if e.Intent.Kind == "ROLE_ASSIGN" {
+		if c.Purpose == "EXPIRE_GRANT" || e.Intent.Kind == "ROLE_REVOKE" {
+			expected = slices.DeleteFunc(expected, func(role string) bool { return role == e.Intent.Access })
+		} else {
 			if !slices.Contains(expected, e.Intent.Access) {
 				expected = append(expected, e.Intent.Access)
 			}
-		} else {
-			expected = slices.DeleteFunc(expected, func(role string) bool { return role == e.Intent.Access })
 		}
 		slices.Sort(expected)
 		if !slices.Equal(expected, c.ExpectedRoles) {

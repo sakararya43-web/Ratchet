@@ -121,25 +121,42 @@ func (s *Service) incidentWithin(ctx context.Context, tx pgx.Tx, tenant, id stri
 		switch event.Type {
 		case "IncidentCorrectionVerified", "IncidentCorrectionFailed", "IncidentContained", "IncidentResidualReviewRequired":
 			var next Incident
-			if incident.Origin != "DRIFT" || json.Unmarshal(payload.Facts, &next) != nil || next.ID != incident.ID || next.Tenant != tenant || next.Revision != incident.Revision+1 || event.StreamVersion != next.Revision || next.CorrectiveRequest != incident.CorrectiveRequest || next.SourceDrift != incident.SourceDrift || next.Identity != incident.Identity || !next.OpenedAt.Equal(incident.OpenedAt) {
+			if json.Unmarshal(payload.Facts, &next) != nil || next.ID != incident.ID || next.Tenant != tenant || next.Revision != incident.Revision+1 || event.StreamVersion != next.Revision || next.Identity != incident.Identity || !next.OpenedAt.Equal(incident.OpenedAt) {
 				return incident, eventstore.ErrIntegrity
 			}
-			c, err := s.Store.ChangeAtWithin(ctx, tx, tenant, next.CorrectiveRequest, event.Sequence)
-			if err != nil {
-				return incident, err
-			}
-			if c.IncidentReference != id || c.SourceDrift != incident.SourceDrift {
-				return incident, eventstore.ErrIntegrity
-			}
-			if event.Type == "IncidentCorrectionFailed" {
-				if c.State != domain.Failed || next.Status != "OPEN" {
+			if incident.Origin == "DRIFT" {
+				if next.CorrectiveRequest != incident.CorrectiveRequest || next.SourceDrift != incident.SourceDrift {
 					return incident, eventstore.ErrIntegrity
 				}
-			} else if c.State != domain.Executed || next.CorrectiveVerifiedAt.IsZero() || next.CorrectiveVerifiedAt.After(event.RecordedAt) || next.ObservedRevision < 1 {
-				return incident, eventstore.ErrIntegrity
-			}
-			if event.Type == "IncidentContained" && (next.Status != "CONTAINED" || next.ContainedAt.Before(next.CorrectiveVerifiedAt) || next.ContainedAt.After(event.RecordedAt)) {
-				return incident, eventstore.ErrIntegrity
+				c, err := s.Store.ChangeAtWithin(ctx, tx, tenant, next.CorrectiveRequest, event.Sequence)
+				if err != nil {
+					return incident, err
+				}
+				if c.IncidentReference != id || c.SourceDrift != incident.SourceDrift {
+					return incident, eventstore.ErrIntegrity
+				}
+				if event.Type == "IncidentCorrectionFailed" {
+					if c.State != domain.Failed || next.Status != "OPEN" {
+						return incident, eventstore.ErrIntegrity
+					}
+				} else if c.State != domain.Executed || next.CorrectiveVerifiedAt.IsZero() || next.CorrectiveVerifiedAt.After(event.RecordedAt) || next.ObservedRevision < 1 {
+					return incident, eventstore.ErrIntegrity
+				}
+				if event.Type == "IncidentContained" && (next.Status != "CONTAINED" || next.ContainedAt.Before(next.CorrectiveVerifiedAt) || next.ContainedAt.After(event.RecordedAt)) {
+					return incident, eventstore.ErrIntegrity
+				}
+			} else {
+				if event.Type == "IncidentContained" {
+					if next.Status != "CONTAINED" || next.ContainedAt.IsZero() || next.ContainedAt.After(event.RecordedAt) || next.PlanID != incident.PlanID || next.PlanDigest != incident.PlanDigest {
+						return incident, eventstore.ErrIntegrity
+					}
+				} else if event.Type == "IncidentResidualReviewRequired" {
+					if next.Status != "OPEN" && next.Status != "REVIEW" {
+						return incident, eventstore.ErrIntegrity
+					}
+				} else {
+					return incident, eventstore.ErrIntegrity
+				}
 			}
 			incident = next
 		case "IncidentDriftOpened":
@@ -174,7 +191,13 @@ func (s *Service) incidentWithin(ctx context.Context, tx pgx.Tx, tenant, id stri
 			if err != nil {
 				return incident, err
 			}
-			if change.ID == "" || change.Intent.IncidentID != id || change.Intent.Kind != "ROLE_ASSIGN" || change.CorrelationID != restoration.CorrelationID {
+			validKinds := map[string]bool{
+				"ROLE_ASSIGN":                true,
+				"ENABLE_ACCOUNT":             true,
+				"RESTORE_SERVICE_PERMISSION": true,
+				"ISSUE_SESSION":              true,
+			}
+			if change.ID == "" || change.Intent.IncidentID != id || !validKinds[change.Intent.Kind] || change.CorrelationID != restoration.CorrelationID {
 				return incident, eventstore.ErrIntegrity
 			}
 			incident.RestorationRequests = append(incident.RestorationRequests, restoration.Request)
@@ -213,21 +236,38 @@ func (s *Service) validateRestoration(ctx context.Context, tx pgx.Tx, actor Acto
 		if err != nil {
 			return err
 		}
-		if proposal.Digest != incident.PlanDigest || intent.Kind != "ROLE_ASSIGN" {
+		if proposal.Digest != incident.PlanDigest {
 			return domain.ErrInvalid
 		}
 		for _, action := range proposal.Body.Plan.Actions {
-			if action.Kind == "ROLE_REVOKE" && action.Target == intent.Target && action.Access == intent.Access {
-				permitted = true
+			switch action.Kind {
+			case "ROLE_REVOKE":
+				if intent.Kind == "ROLE_ASSIGN" && action.Target == intent.Target && action.Access == intent.Access {
+					permitted = true
+				}
+			case "RESTRICT_ACCOUNT":
+				if intent.Kind == "ENABLE_ACCOUNT" && action.Target == intent.Target {
+					permitted = true
+				}
+			case "REMOVE_SERVICE_PERMISSION":
+				if intent.Kind == "RESTORE_SERVICE_PERMISSION" && action.Target == intent.Target && action.Access == intent.Access {
+					permitted = true
+				}
+			case "TERMINATE_SESSION":
+				if intent.Kind == "ISSUE_SESSION" && action.Target == intent.Target {
+					permitted = true
+				}
 			}
 		}
 	}
 	if !permitted {
 		return domain.ErrInvalid
 	}
-	for _, edge := range snapshot.Data().Edges {
-		if edge.Kind == "ASSIGNED" && edge.Source == intent.Target && edge.Target == intent.Access {
-			return domain.ErrTransition
+	if intent.Kind == "ROLE_ASSIGN" {
+		for _, edge := range snapshot.Data().Edges {
+			if edge.Kind == "ASSIGNED" && edge.Source == intent.Target && edge.Target == intent.Access {
+				return domain.ErrTransition
+			}
 		}
 	}
 	return nil

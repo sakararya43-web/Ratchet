@@ -31,7 +31,28 @@ func Challenge(tenantID, actorID string, changeDigest ports.Digest, nonce []byte
 	return h.Sum(nil)
 }
 
+func ContainmentChallenge(tenantID, actorID string, planDigest ports.Digest, nonce []byte) []byte {
+	h := sha256.New()
+	h.Write([]byte("RATCHET_CONTAINMENT_V1:"))
+	h.Write([]byte(tenantID))
+	h.Write([]byte(":"))
+	h.Write([]byte(actorID))
+	h.Write([]byte(":"))
+	h.Write(planDigest[:])
+	h.Write([]byte(":"))
+	h.Write(nonce)
+	return h.Sum(nil)
+}
+
 func Verify(ctx context.Context, sub ports.ApprovalSubmission, changeDigest ports.Digest, publicKey []byte, rpID string, origins []string) (ports.VerifiedApproval, error) {
+	return verifyWithChallenge(ctx, sub, changeDigest, Challenge(sub.TenantID, sub.ActorID, changeDigest, sub.ChallengeNonce), publicKey, rpID, origins)
+}
+
+func VerifyContainment(ctx context.Context, sub ports.ApprovalSubmission, planDigest ports.Digest, publicKey []byte, rpID string, origins []string) (ports.VerifiedApproval, error) {
+	return verifyWithChallenge(ctx, sub, planDigest, ContainmentChallenge(sub.TenantID, sub.ActorID, planDigest, sub.ChallengeNonce), publicKey, rpID, origins)
+}
+
+func verifyWithChallenge(ctx context.Context, sub ports.ApprovalSubmission, changeDigest ports.Digest, expectedChallenge []byte, publicKey []byte, rpID string, origins []string) (ports.VerifiedApproval, error) {
 	if err := ctx.Err(); err != nil {
 		return ports.VerifiedApproval{}, err
 	}
@@ -44,9 +65,6 @@ func Verify(ctx context.Context, sub ports.ApprovalSubmission, changeDigest port
 	if changeDigest.IsZero() {
 		return ports.VerifiedApproval{}, fmt.Errorf("cannot verify approval for zero change digest")
 	}
-
-	// 1. Recompute and verify the cryptographic challenge binding
-	expectedChallenge := Challenge(sub.TenantID, sub.ActorID, changeDigest, sub.ChallengeNonce)
 
 	var clientData protocol.CollectedClientData
 	if err := json.Unmarshal(sub.ClientDataJSON, &clientData); err != nil {

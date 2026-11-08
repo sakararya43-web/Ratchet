@@ -49,7 +49,7 @@ func (s *Snapshot) RevocationDelta(a Revocation) (Delta, error) {
 		}
 		d := Delta{}
 		for _, e := range s.edges {
-			if e.Source == a.Target && e.Kind == "GRANTS" && e.Properties["grant_id"] == a.Access {
+			if e.Source == a.Target && (e.Kind == "GRANTS" || e.Kind == "ASSIGNED") && e.Properties["grant_id"] == a.Access {
 				if e.Properties["protected"] == "true" || e.Properties["removable"] == "false" {
 					return Delta{}, ErrInvalid
 				}
@@ -71,7 +71,20 @@ func (s *Snapshot) RevocationDelta(a Revocation) (Delta, error) {
 			n.Properties = map[string]string{}
 		}
 		n.Properties["disabled"] = "true"
-		return Delta{NodesAdded: []Node{n}}, nil
+		d := Delta{NodesAdded: []Node{n}}
+		if a.Kind == "RESTRICT_ACCOUNT" {
+			for _, node := range s.nodes {
+				if node.Type == "Session" && node.Properties["owner"] == a.Target && node.Properties["disabled"] != "true" {
+					sess := cloneNode(node)
+					if sess.Properties == nil {
+						sess.Properties = map[string]string{}
+					}
+					sess.Properties["disabled"] = "true"
+					d.NodesAdded = append(d.NodesAdded, sess)
+				}
+			}
+		}
+		return d, nil
 	default:
 		return Delta{}, fmt.Errorf("%w: unsupported revocation", ErrInvalid)
 	}

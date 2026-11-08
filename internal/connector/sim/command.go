@@ -62,10 +62,50 @@ func authenticateCommand(raw []byte, tenant, connector string, public ed25519.Pu
 	if e.FormatVersion != 2 || e.TenantID != tenant || e.RequestID != c.RequestID || e.Revision < 1 || e.GraphVersion < 1 || e.Requester == "" || e.ImpactDigest.IsZero() || e.PolicyDigest.IsZero() || e.PrivateDigest.IsZero() || e.PrivateReference == "" {
 		return invalid()
 	}
-	if e.Intent.Validate() != nil || (e.Intent.Kind != "ROLE_ASSIGN" && e.Intent.Kind != "ROLE_REVOKE") || e.Intent.DurationSeconds != 0 || e.Intent.Emergency || e.Intent.IncidentID != "" {
+	if e.Intent.Validate() != nil {
 		return invalid()
 	}
-	if c.Purpose != "" || !c.GrantExpiresAt.IsZero() || c.OriginalCommandID != "" || c.SourceDrift != "" || c.IncidentReference != "" || !c.ReductionDigest.IsZero() || c.Kubernetes != nil {
+	switch c.Purpose {
+	case "":
+		// Ordinary role operations
+		if (e.Intent.Kind != "ROLE_ASSIGN" && e.Intent.Kind != "ROLE_REVOKE") || e.Intent.DurationSeconds != 0 || e.Intent.Emergency || e.Intent.IncidentID != "" {
+			return invalid()
+		}
+		if !c.GrantExpiresAt.IsZero() || c.OriginalCommandID != "" || c.SourceDrift != "" || c.IncidentReference != "" || !c.ReductionDigest.IsZero() || c.Kubernetes != nil {
+			return invalid()
+		}
+	case "CONTAINMENT":
+		// Surgical containment reduction operations
+		validKinds := map[string]bool{
+			"ROLE_REVOKE": true, "RESTRICT_ACCOUNT": true, "TERMINATE_SESSION": true, "REMOVE_SERVICE_PERMISSION": true,
+		}
+		if !validKinds[e.Intent.Kind] || c.IncidentReference == "" || c.ReductionDigest.IsZero() || c.Kubernetes != nil {
+			return invalid()
+		}
+	case "RESTORE_ACCESS":
+		// Restoration operations
+		validKinds := map[string]bool{
+			"ROLE_ASSIGN": true, "ENABLE_ACCOUNT": true, "ISSUE_SESSION": true, "RESTORE_SERVICE_PERMISSION": true,
+		}
+		if !validKinds[e.Intent.Kind] || (c.IncidentReference == "" && e.Intent.IncidentID == "") || c.Kubernetes != nil {
+			return invalid()
+		}
+	case "TEMPORARY_GRANT":
+		// Phase B1 temporary access
+		if e.Intent.Kind != "ROLE_ASSIGN" || e.Intent.DurationSeconds <= 0 || c.GrantExpiresAt.IsZero() || c.Kubernetes != nil {
+			return invalid()
+		}
+	case "EXPIRE_GRANT":
+		// Phase B1 timer expiry
+		if e.Intent.Kind != "ROLE_REVOKE" || c.OriginalCommandID == "" || c.Kubernetes != nil {
+			return invalid()
+		}
+	case "DRIFT_CORRECTION":
+		// Phase B2 drift correction
+		if e.Intent.Kind != "ROLE_REVOKE" || c.SourceDrift == "" || c.IncidentReference == "" || c.ReductionDigest.IsZero() || c.Kubernetes != nil {
+			return invalid()
+		}
+	default:
 		return invalid()
 	}
 	if c.DispatchedAt.IsZero() || c.DispatchedAt.After(now.Add(time.Minute)) || !c.Deadline.After(c.DispatchedAt) || !c.Deadline.Equal(e.ExpiresAt) {
@@ -79,24 +119,29 @@ func authenticateCommand(raw []byte, tenant, connector string, public ed25519.Pu
 	if err != nil || bound != c.EnvelopeDigest {
 		return invalid()
 	}
-	if !canonicalRoles(c.BeforeRoles) || !canonicalRoles(c.ExpectedRoles) {
-		return invalid()
-	}
-	expected := slices.Clone(c.BeforeRoles)
-	if e.Intent.Kind == "ROLE_ASSIGN" {
-		if !slices.Contains(expected, e.Intent.Access) {
-			expected = append(expected, e.Intent.Access)
+	if e.Intent.Kind == "ROLE_ASSIGN" || e.Intent.Kind == "ROLE_REVOKE" {
+		if !canonicalRoles(c.BeforeRoles) || !canonicalRoles(c.ExpectedRoles) {
+			return invalid()
 		}
-	} else {
-		expected = slices.DeleteFunc(expected, func(role string) bool { return role == e.Intent.Access })
-	}
-	slices.Sort(expected)
-	if !slices.Equal(expected, c.ExpectedRoles) {
-		return invalid()
+		expected := slices.Clone(c.BeforeRoles)
+		if e.Intent.Kind == "ROLE_ASSIGN" {
+			if !slices.Contains(expected, e.Intent.Access) {
+				expected = append(expected, e.Intent.Access)
+			}
+		} else {
+			expected = slices.DeleteFunc(expected, func(role string) bool { return role == e.Intent.Access })
+		}
+		slices.Sort(expected)
+		if !slices.Equal(expected, c.ExpectedRoles) {
+			return invalid()
+		}
 	}
 	actors := map[string]bool{}
 	for _, a := range c.Approvals {
-		if a.ActorID == "" || a.ActorID == e.Requester || actors[a.ActorID] || len(a.CredentialID) == 0 || a.Digest != bound || a.VerifiedAt.IsZero() || a.VerifiedAt.After(c.DispatchedAt) {
+		if a.ActorID == "" || actors[a.ActorID] || len(a.CredentialID) == 0 || (a.Digest != bound && a.Digest != c.ReductionDigest) || a.VerifiedAt.IsZero() || a.VerifiedAt.After(c.DispatchedAt) {
+			return invalid()
+		}
+		if c.Purpose != "CONTAINMENT" && a.ActorID == e.Requester {
 			return invalid()
 		}
 		actors[a.ActorID] = true

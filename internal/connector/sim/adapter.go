@@ -288,11 +288,37 @@ func (a *Adapter) Verify(ctx context.Context, cmd *connector.ExecCommand) (*conn
 		if !isRestricted {
 			return nil, fmt.Errorf("read-back mismatch: target account %q is not marked restricted", cmd.TargetIdentity)
 		}
+	case "ENABLE_ACCOUNT":
+		if isRestricted {
+			return nil, fmt.Errorf("read-back mismatch: target account %q is still marked restricted", cmd.TargetIdentity)
+		}
 	case "TERMINATE_SESSION":
 		for _, s := range activeSessions {
 			if s == cmd.ResourceOrRole {
 				return nil, fmt.Errorf("read-back mismatch: terminated session %q still active in target", cmd.ResourceOrRole)
 			}
+		}
+	case "ISSUE_SESSION":
+		found := false
+		for _, s := range activeSessions {
+			if cmd.ResourceOrRole == "" || s == cmd.ResourceOrRole {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("read-back mismatch: newly issued session not active in target")
+		}
+	case "RESTORE_SERVICE_PERMISSION":
+		found := false
+		for _, r := range currentRoles {
+			if r == cmd.ResourceOrRole {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("read-back mismatch: restored permission %q not found in target", cmd.ResourceOrRole)
 		}
 	}
 

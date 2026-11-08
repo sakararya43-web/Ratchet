@@ -84,6 +84,12 @@ func (s *Store) Execute(command TargetCommand) (CommandReceipt, error) {
 		err = candidate.TerminateSession(actor, command.ResourceOrRole)
 	case "RESTRICT_ACCOUNT":
 		err = candidate.RestrictAccount(actor, command.TargetIdentity)
+	case "ENABLE_ACCOUNT":
+		err = candidate.EnableAccount(actor, command.TargetIdentity)
+	case "ISSUE_SESSION":
+		err = candidate.IssueSession(actor, command.TargetIdentity, command.ResourceOrRole)
+	case "RESTORE_SERVICE_PERMISSION":
+		err = candidate.RestoreServicePermission(actor, command.TargetIdentity, command.ResourceOrRole)
 	default:
 		err = fmt.Errorf("unsupported action %q", command.Action)
 	}

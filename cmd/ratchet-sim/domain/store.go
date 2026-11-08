@@ -338,6 +338,101 @@ func (s *Store) RestrictAccount(actorID, targetIdentity string) error {
 	return nil
 }
 
+// EnableAccount un-restricts an identity. It NEVER resurrects previously revoked sessions.
+func (s *Store) EnableAccount(actorID, targetIdentity string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	found := false
+	for i, id := range s.state.Identities {
+		if id.ID == targetIdentity {
+			s.state.Identities[i].IsDisabled = false
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("identity %q not found", targetIdentity)
+	}
+
+	now := time.Now().UTC()
+	s.state.Revision++
+	s.state.AuditLog = append(s.state.AuditLog, TargetAuditEntry{
+		Revision:    s.state.Revision,
+		Timestamp:   now,
+		ActorID:     actorID,
+		Action:      "ENABLE_ACCOUNT",
+		Target:      targetIdentity,
+		BeforeState: "disabled",
+		AfterState:  "enabled",
+	})
+
+	if s.filePath != "" {
+		return s.saveToFile()
+	}
+	return nil
+}
+
+// IssueSession issues a new active session for an identity.
+func (s *Store) IssueSession(actorID, targetIdentity, sessionID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	found := false
+	for _, id := range s.state.Identities {
+		if id.ID == targetIdentity {
+			if id.IsDisabled {
+				return fmt.Errorf("cannot issue session for disabled identity %q", targetIdentity)
+			}
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("identity %q not found", targetIdentity)
+	}
+
+	if sessionID == "" {
+		sessionID = fmt.Sprintf("session:%s-%d", targetIdentity, time.Now().UnixNano())
+	}
+	for _, sess := range s.state.Sessions {
+		if sess.SessionID == sessionID && !sess.IsRevoked {
+			return nil // idempotent
+		}
+	}
+
+	now := time.Now().UTC()
+	s.state.Sessions = append(s.state.Sessions, Session{
+		SessionID:  sessionID,
+		IdentityID: targetIdentity,
+		IsRevoked:  false,
+		CreatedAt:  now,
+	})
+	s.state.Revision++
+	s.state.AuditLog = append(s.state.AuditLog, TargetAuditEntry{
+		Revision:    s.state.Revision,
+		Timestamp:   now,
+		ActorID:     actorID,
+		Action:      "ISSUE_SESSION",
+		Target:      sessionID,
+		BeforeState: "none",
+		AfterState:  "active",
+		Details: map[string]string{
+			"identity_id": targetIdentity,
+		},
+	})
+
+	if s.filePath != "" {
+		return s.saveToFile()
+	}
+	return nil
+}
+
+// RestoreServicePermission re-grants a role or permission.
+func (s *Store) RestoreServicePermission(actorID, targetIdentity, roleOrGrantID string) error {
+	return s.AssignRole(actorID, targetIdentity, roleOrGrantID)
+}
+
 func (s *Store) getGrantsForIdentity(identityID string) []string {
 	var roles []string
 	for _, g := range s.state.Grants {

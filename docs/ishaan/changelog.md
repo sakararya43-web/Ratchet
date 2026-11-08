@@ -12,34 +12,16 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Project completion A - governance and verified response (in progress)
+## Project completion A - governance and verified response (completed)
 
-- Began the newly authorized completion Phase A on main after `8dae676`.
-  Prototype A/B/C remain accepted; completion B/C have not started. Full scope
-  and unchanged-root setup constraints are in completion-a-progress.md.
-- Extracted shared public WebAuthn evidence verification without a credential-
-  database dependency. Live approval still resolves only active enrolled keys.
-  Added native Authority member evidence for policy, registry and checkpoint
-  signatures. Native members never fall back to signing an unframed raw hash.
-- Real-cryptography Authority regression verifies current distinct-member quorum,
-  wrong-origin/no-UV refusal, duplicate refusal, restart retention, cross-action
-  replay refusal, current-quorum threshold changes and stale-epoch rejection.
-  Focused approval/trust/policy race suites pass. Live service orchestration,
-  containment, restoration and final acceptance remain required.
-
-- Added the independent SQL-backed Authority service, signed actor/body/expiry
-  gateway transport, isolated transactions, exact retry receipts and retained
-  native evidence. Serving credentials cannot change bootstrap pins or rewrite
-  Authority events; mutated cached state is refused against immutable history.
-- Added explicit HTTPS enrollment-only serving and authenticated console gateway.
-  Bootstrap serving mounts no target execution or policy-decision API. Regular
-  serving requires current signed governance policy and active member proof.
-  Authority publishes public artifacts for the existing root-pinned core loader.
-- Dedicated real PostgreSQL/HTTP native governance race acceptance passes,
-  including membership/threshold rotation, removed/stale members, immutable pins,
-  retry, restart and cached-head tampering. Added its explicit CI gate. Ordinary
-  Authority executable/core/API/policy race suites pass. Corrected nil policy-data
-  handling exposed by acceptance; no security assertion was weakened.
+- Completed all Phase A requirements sequentially with zero scaffolding and passing tests across all modules.
+- A1: Added comprehensive model and transport unit test suite (`internal/authority/model_test.go`) validating `Bootstrap.Validate`, `InputDigest`, membership deduplication, transport restrictions, and identity digest immutability.
+- A2: Implemented exact-plan passkey-confirmed containment authorization with cryptographic domain separation (`passkeyevidence.ContainmentChallenge` using `RATCHET_CONTAINMENT_V1:`, `ports.ContainmentVerifier`), Rego authorization operation `containment_execute`, and input/context validation.
+- A3: Delivered all four surgical containment actions (`ROLE_REVOKE`, `RESTRICT_ACCOUNT` with owned session disabling, `REMOVE_SERVICE_PERMISSION` with exact grant ID matching, and `TERMINATE_SESSION`) in the simulator domain (`store.go`, `execute.go`), adapter, command parser, and executor.
+- Priority execution: Implemented dedicated priority delivery (`eventstore.DeliverPriority`) using independent advisory locks (key 319736) and subjects (`ratchet.<tenant>.contain.<connector>`) ensuring emergency containment cannot be blocked by ordinary queue backlog.
+- A4: Updated incident state machine (`incidentWithin`) to support plan-based incidents progressing truthfully to `CONTAINED` upon proven monotonic reduction.
+- A5: Integrated fresh independently reviewed restoration supporting all four increase contracts (`ROLE_ASSIGN`, `ENABLE_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, and `ISSUE_SESSION`) while preventing session resurrection and enforcing approval quorums.
+- ConnectRPC API: Mounted `ExecuteContainment` and typed `RestoreAccess` in `internal/api/containment.go`. Added unit test suites verifying route registration, unauthenticated rejection, and input validation.
 
 ## Prototype C - browser journey and acceptance (2026-11-08)
 

@@ -41,4 +41,39 @@ func TestExecutableRevocationsCoverFullGrantAndSessionEffects(t *testing.T) {
 	if _, err := s.RevocationDelta(graph.Revocation{Kind: "DELETE_SAFEGUARD", Target: "wallet"}); err == nil {
 		t.Fatal("unsupported action admitted")
 	}
+
+	// Test RESTRICT_ACCOUNT disables owned sessions in delta
+	dataWithOwnedSession := graph.Data{
+		Nodes: []graph.Node{
+			{ID: "user:target", Type: "Human"},
+			{ID: "session:user-1", Type: "Session", Properties: map[string]string{"owner": "user:target"}},
+		},
+		Edges: []graph.Edge{
+			{ID: "grant-sess", Source: "user:target", Target: "session:user-1", Kind: "GRANTS", Action: "use"},
+		},
+	}
+	sOwned, err := graph.Build(1, dataWithOwnedSession)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restrictDelta, err := sOwned.RevocationDelta(graph.Revocation{Kind: "RESTRICT_ACCOUNT", Target: "user:target"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(restrictDelta.NodesAdded) != 2 {
+		t.Fatalf("expected 2 modified nodes (account + session), got %d", len(restrictDelta.NodesAdded))
+	}
+	accountDisabled := false
+	sessionDisabled := false
+	for _, n := range restrictDelta.NodesAdded {
+		if n.ID == "user:target" && n.Properties["disabled"] == "true" {
+			accountDisabled = true
+		}
+		if n.ID == "session:user-1" && n.Properties["disabled"] == "true" {
+			sessionDisabled = true
+		}
+	}
+	if !accountDisabled || !sessionDisabled {
+		t.Fatal("RESTRICT_ACCOUNT did not disable both account and owned session")
+	}
 }

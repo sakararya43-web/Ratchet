@@ -411,6 +411,7 @@ func main() {
 		return
 	}
 	port := flag.Int("port", 8086, "Authority HTTP listen port")
+	listen := flag.String("listen", "", "Authority HTTP listen address (e.g. 0.0.0.0:8086)")
 	stateFile := flag.String("state", "authority_state.json", "Authority storage file")
 	flag.Parse()
 
@@ -421,6 +422,9 @@ func main() {
 
 	srv := NewServer(store)
 	addr := fmt.Sprintf(":%d", *port)
+	if *listen != "" {
+		addr = *listen
+	}
 	log.Printf("Starting ratchet-authority on %s", addr)
 	if err := http.ListenAndServe(addr, srv.Routes()); err != nil {
 		log.Fatalf("authority server failed: %v", err)

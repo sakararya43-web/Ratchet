@@ -1,11 +1,11 @@
 {
   "files": {
-    "assets/index-BA3ggHht.css": "a86361a0b5735524786c10bd237bca11092224ce66b2c2e368a3aedb947e6192",
-    "assets/index-qlnSCmHj.js": "a7ccc0f096fdd04697337324ac8c9828382c690b997b4105032849f1e19f42f9",
-    "index.html": "65f7c50d28faf64adb4a6ce02bb8ed36fb844a8d2d801a5f58485aa2e6da9ea1"
+    "assets/index-Cc4pJ1Lo.js": "8ca4f88a4cfb06f6ea1f9062b797c979cd5ca1564484af74466ce7b02866d3d6",
+    "assets/index-DJhsHzLC.css": "e50c59c4955fcd1b368dc5c4410c27ecc6bcf0f9528486e4b9fbaaddc953fd7f",
+    "index.html": "960e62cde8a81414ffad0ceca3a68f00894ec3d0e04f100e398d01af887e0544"
   },
   "sources": {
-    "e2e/authority.spec.ts": "9bd612068e12737fc18c7832a83206afb3de225e0007b9578b5b82482f0759b8",
+    "e2e/authority.spec.ts": "11c5ce838329242fffad3cb2caaf061aaaaa7bd32938534328f2215096d15a64",
     "e2e/prototype.helpers.ts": "cf47396d0c13bf0e44cec170cf8013fd3b5fe5c48d83c7b019ba8f41c3ed3e8f",
     "e2e/prototype.spec.ts": "7003269e0d277bc3c3a924120cb6b4d0833d02dee53358e0fcd7763cc43c2d2c",
     "index.html": "05e2e2e0a8b999b6e4e955b52d4dbd758cc332b6763159aa24edd7966faddbdc",
@@ -15,10 +15,10 @@
     "playwright.prototype.config.ts": "5e95a08fc8999823643722d47757b529c749a4804516d082a5d2d63b91f421cf",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
     "src/App.tsx": "d164ea536a3364317ea6468f9cb5996ecfb7b2f350d020dbc2cb37f4c923c35b",
-    "src/AuthorityPanel.tsx": "2ea175b7c056cdda2a6a1d57b83d0aa60718e5f74e34525d71b7fd19018ebce1",
+    "src/AuthorityPanel.tsx": "1785cd6b94ade1c9bf594c09f478b74d7219a2bc564c766c1ca66337ecff4e28",
     "src/index.css": "c0fce240bdb530b66aae3a5e4ae948613c95a38c0805e289819532f1020ac50b",
     "src/lib/api.ts": "66b5c5200e58fda1ed7db4a21ff9f258c04695123de3698ae46fa38f7af664c7",
-    "src/lib/authority.ts": "da8a6f43fad3015c55bfe143a27565341f36d1c1a22481264101949e8ea1a52b",
+    "src/lib/authority.ts": "8789f0155334c4548c50f478b16f29a666dc2ea5aa8613e466620371fda7aa61",
     "src/lib/canon.test.ts": "86cc1be84119c7a46501fb5de0f91e6c25f24b60590e656e21f528f68643a1bd",
     "src/lib/canon.ts": "5b82922ed74335b497a95518c763904327e1018428c819cfd38876da6884e8e8",
     "src/lib/envelope.test.ts": "90602a82fb28424b878b34b2c0f768be034b2d9c09bdf8e8384127b1100eaf65",

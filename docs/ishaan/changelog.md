@@ -50,6 +50,14 @@
 
 ## Project completion - Phase A: live governance, verified containment and restoration
 
+- A1 (Live Authority wire contracts, native candidate enrollment & gateway validation):
+  - Aligned Authority client state in `web/src/lib/authority.ts` with serialized Go model (`persistedAuthorityData` under `authority.genesis`, `authority.proposals`, `authority.registry_proposals`, and `authority.active_bundle`), eliminating false initialization before genesis.
+  - Corrected native passkey enrollment in `web/src/AuthorityPanel.tsx`: enforces active candidate status (`is_active: true`), binds pinned origin (`origins: [window.location.origin]`) and RP ID (`rp_id: window.location.hostname`), and sets `expected_epoch: 0` for pre-genesis. Added credential selection when multiple passkeys exist.
+  - Implemented pre-signature challenge verification in `web/src/lib/authority.ts`: independently verifies canonical preview signing digest and domain-separated WebAuthn challenge before calling `navigator.credentials.get`.
+  - Added policy bundle proposal, signing, and activation UI alongside registry proposals in `web/src/AuthorityPanel.tsx`.
+  - Hardened Authority gateway listener in `cmd/ratchet-authority/secure.go`: allows loopback or unspecified interfaces (`0.0.0.0`) for containerized deployments, and added `--listen` flag parsing support in `cmd/ratchet-authority/main.go`.
+  - Rebuilt embedded console assets via `scripts/core-web-build.py` with synchronized reproducible integrity manifest.
+
 - Reconciled missing local live Authority governance assets onto main:
   - Added `web/src/lib/authority.ts`: TypeScript client for AuthorityGateway (`/api/authority/state`, `credentials`, `prepare`, `apply`, with passkey assertion signing).
   - Added `web/src/AuthorityPanel.tsx`: Security Policy screen with epoch status, M-of-N quorum threshold, candidate passkey enrollment, and proposal signing/activation.

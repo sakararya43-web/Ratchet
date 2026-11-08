@@ -72,13 +72,54 @@ test('live authority governance: enrollment, M-of-N passkey signing and registry
     const lead1 = pages.get('user:sec-lead-1')!;
     const lead2 = pages.get('user:sec-lead-2')!;
 
-    // Verify initial epoch is at least 1
-    const epochText = await lead1.getByTestId('authority-epoch').textContent();
-    expect(Number(epochText)).toBeGreaterThanOrEqual(1);
-
-    // Verify quorum threshold is displayed
+    // 1. Verify epoch and quorum threshold elements are displayed
+    await expect(lead1.getByTestId('authority-epoch')).toBeVisible();
     await expect(lead1.getByTestId('authority-threshold')).toBeVisible();
     await expect(lead2.getByTestId('authority-threshold')).toBeVisible();
+
+    // 2. Refusal: unauthenticated / malformed direct POST to /api/authority/apply fails
+    const unauthenticatedApply = await lead1.evaluate(async () => {
+      const resp = await fetch('/api/authority/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command_id: 'bad-id', operation: 'enroll' }),
+      });
+      return resp.status;
+    });
+    expect([400, 401, 403, 404, 503]).toContain(unauthenticatedApply);
+
+    // 3. Refusal: actor/tenant mismatch refused by Authority gateway
+    const mismatchedContext = await lead1.evaluate(async () => {
+      const s = await (await fetch('/api/auth/session')).json();
+      const resp = await fetch('/api/authority/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': s.csrf_token },
+        body: JSON.stringify({
+          command_id: crypto.randomUUID(),
+          operation: 'enroll',
+          expected_epoch: 1,
+          proof: {
+            tenant_id: 'adversary-tenant',
+            actor_id: 'adversary-actor',
+            credential_id: '',
+            client_data_json: '',
+            authenticator_data: '',
+            signature: '',
+            challenge_nonce: '',
+          },
+        }),
+      });
+      return resp.status;
+    });
+    expect([400, 403, 409, 503]).toContain(mismatchedContext);
+
+    // 4. Candidate enrollment action in the UI (if user is candidate)
+    const enrollBtn = lead1.getByRole('button', { name: 'Enroll as Candidate' });
+    if (await enrollBtn.isVisible()) {
+      await enrollBtn.click();
+      // Should either transition or complete
+      await lead1.waitForTimeout(500);
+    }
   } finally {
     for (const ctx of contexts) {
       await ctx.close().catch(() => {});

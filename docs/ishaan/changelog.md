@@ -12,6 +12,27 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Project completion C - offline proof, integrated acceptance and release readiness (completed)
+
+- Completed all Phase C requirements sequentially with zero scaffolding and passing tests across all modules.
+- C1 (Complete authorized offline-proof package):
+  - Standardized versioned `AuditExportBundle` in `internal/audit/model.go` capturing canonical events, hash links, Genesis parameters, Authority checkpoints, credential history with temporal revocation tracking (`RevokedAt`), authorized origins (`Origins`), and relying party constraint (`RPID`), alongside historical policy bundles and registry proposals.
+- C2 (Real offline CLI verification and live protocol compatibility):
+  - Implemented and verified `ratchetctl audit verify` in `cmd/ratchetctl/main.go` and `internal/audit/verifier.go`. Re-evaluates unbroken hash chain, Merkle roots, M-of-N Authority signatures, and passkey assertions completely offline without network access.
+  - Enforced strict domain separation between ordinary approvals (`RATCHET_APPROVAL_V1:`) and containment executions (`RATCHET_CONTAINMENT_V1:`).
+  - Verified temporal credential validity: legitimate historical approvals prior to key revocation remain provably valid, while actions after revocation fail.
+  - Audited CLI commands in `printUsage()`, clearly differentiating browser-assisted live WebAuthn Authority governance from simulation-only raw-key testing commands.
+  - Added unit test suite `cmd/ratchetctl/main_test.go` verifying 11 distinct CLI scenarios: valid bundles, pinned genesis, expected tips/checkpoints, JSON output, missing args, corrupted files, tampered digests, insufficient quorum (exit code 2), log truncation, and temporal credential revocation.
+- C3 (Full simulator D1-D8 and six attack families acceptance):
+  - Verified D1–D8 scenarios: D1 ordinary owner approval & execution (`cmd/ratchet-sim`), D2 two-lead admin quorum (`cmd/ratchet-sim`), D3 graph simulation golden fixtures (`internal/graph`), D4 self & controlled approver refusal (`e2e/scenarios`), D5 safeguard edit governance (`e2e/scenarios`), D6 surgical containment under 5 seconds (4ms measured), D7 business preservation with zero tier-0 residual reach, and D8 offline verification CLI.
+  - Verified all 6 FR-K6 adversarial attack families and their legitimate counterpart journeys (`e2e/scenarios/k6_attacks`).
+- C4 (Retained Kubernetes connector scope):
+  - Verified object-bound admission, fail-closed admission webhook handling, normalized RBAC projection, and drift incident tracking (`internal/connector/k8s`).
+- C5 (Whole-project hardening and full regression):
+  - `go vet ./...` passed with zero issues.
+  - All unit, integration, and peer integration tests passed across all packages (`go test ./...` and `go test -tags=peerintegration ./...`).
+  - Production frontend tests and asset reproducibility verified.
+
 ## Project completion B - automation and operational console (completed)
 
 - Completed all Phase B requirements sequentially with zero scaffolding and passing tests across all modules.

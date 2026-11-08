@@ -1,6 +1,7 @@
 package audit
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -29,19 +30,21 @@ type VerifyOptions struct {
 
 // VerificationReport contains structured evidence of the offline audit verification.
 type VerificationReport struct {
-	Valid               bool         `json:"valid"`
-	TenantID            string       `json:"tenant_id"`
-	EventsVerified      int          `json:"events_verified"`
-	SequenceStart       int64        `json:"sequence_start"`
-	SequenceEnd         int64        `json:"sequence_end"`
-	TipDigest           ports.Digest `json:"tip_digest"`
-	CheckpointsVerified int          `json:"checkpoints_verified"`
-	ApprovalsVerified   int          `json:"approvals_verified"`
-	OffendingSequence   int64        `json:"offending_sequence,omitempty"`
-	OffendingReference  string       `json:"offending_reference,omitempty"`
-	Errors              []string     `json:"errors,omitempty"`
-	Warnings            []string     `json:"warnings,omitempty"`
-	VerifiedAt          time.Time    `json:"verified_at"`
+	Valid                     bool         `json:"valid"`
+	TenantID                  string       `json:"tenant_id"`
+	EventsVerified            int          `json:"events_verified"`
+	SequenceStart             int64        `json:"sequence_start"`
+	SequenceEnd               int64        `json:"sequence_end"`
+	TipDigest                 ports.Digest `json:"tip_digest"`
+	CheckpointsVerified       int          `json:"checkpoints_verified"`
+	ApprovalsVerified         int          `json:"approvals_verified"`
+	PoliciesVerified          int          `json:"policies_verified,omitempty"`
+	RegistryProposalsVerified int          `json:"registry_proposals_verified,omitempty"`
+	OffendingSequence         int64        `json:"offending_sequence,omitempty"`
+	OffendingReference        string       `json:"offending_reference,omitempty"`
+	Errors                    []string     `json:"errors,omitempty"`
+	Warnings                  []string     `json:"warnings,omitempty"`
+	VerifiedAt                time.Time    `json:"verified_at"`
 }
 
 // OfflineVerifier executes cryptographically independent verification over exported audit bundles.
@@ -303,6 +306,64 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 		}
 	}
 
+	// 5. Verify Policy History if present
+	for _, pb := range bundle.PolicyHistory {
+		if pb == nil {
+			continue
+		}
+		payload := map[string]any{
+			"bundle_version": pb.BundleVersion,
+			"data":           pb.Data,
+			"description":    pb.Description,
+			"epoch":          pb.Epoch,
+			"modules":        pb.Modules,
+			"tenant_id":      pb.TenantID,
+		}
+		compDigest, err := v.digester.Digest(payload)
+		if err != nil || compDigest != pb.BundleDigest {
+			report.OffendingReference = pb.ProposalID
+			report.Errors = append(report.Errors, fmt.Sprintf("policy bundle %s digest mismatch: computed %s, recorded %s",
+				pb.ProposalID, compDigest.String(), pb.BundleDigest.String()))
+			return report, nil
+		}
+		if len(pb.Signatures) < genesis.ThresholdM {
+			report.OffendingReference = pb.ProposalID
+			report.Errors = append(report.Errors, fmt.Sprintf("policy bundle %s has insufficient signatures: got %d, required %d",
+				pb.ProposalID, len(pb.Signatures), genesis.ThresholdM))
+			return report, nil
+		}
+		report.PoliciesVerified++
+	}
+
+	// 6. Verify Registry History if present
+	for _, rp := range bundle.RegistryHistory {
+		if rp == nil {
+			continue
+		}
+		payload := map[string]any{
+			"current_epoch":    rp.CurrentEpoch,
+			"proposed_m":       rp.ProposedM,
+			"proposed_members": rp.ProposedMembers,
+			"proposed_n":       rp.ProposedN,
+			"target_epoch":     rp.TargetEpoch,
+			"tenant_id":        rp.TenantID,
+		}
+		compDigest, err := v.digester.Digest(payload)
+		if err != nil || compDigest != rp.ProposalDigest {
+			report.OffendingReference = rp.ProposalID
+			report.Errors = append(report.Errors, fmt.Sprintf("registry proposal %s digest mismatch: computed %s, recorded %s",
+				rp.ProposalID, compDigest.String(), rp.ProposalDigest.String()))
+			return report, nil
+		}
+		if len(rp.Signatures) < genesis.ThresholdM {
+			report.OffendingReference = rp.ProposalID
+			report.Errors = append(report.Errors, fmt.Sprintf("registry proposal %s has insufficient signatures: got %d, required %d",
+				rp.ProposalID, len(rp.Signatures), genesis.ThresholdM))
+			return report, nil
+		}
+		report.RegistryProposalsVerified++
+	}
+
 	report.Valid = true
 	return report, nil
 }
@@ -321,10 +382,11 @@ func (v *OfflineVerifier) verifyApprovalAssertion(evt AuditEvent, credHistory []
 		if rec.TenantID == evt.TenantID && rec.ActorID == sub.ActorID {
 			// Check temporal validity: must be enrolled on or before event timestamp
 			if !rec.EnrolledAt.After(evt.Timestamp) {
-				// If revoked, must NOT be revoked before event timestamp
+				// If revoked, must NOT have been revoked before or at the event timestamp
 				if rec.IsRevoked {
-					// We treat actively revoked credentials as invalid for subsequent events
-					continue
+					if rec.RevokedAt == nil || !rec.RevokedAt.After(evt.Timestamp) {
+						continue
+					}
 				}
 				credRecord = rec
 				break
@@ -353,9 +415,9 @@ func (v *OfflineVerifier) verifyApprovalAssertion(evt AuditEvent, credHistory []
 		changeDigest = cd
 	}
 
-	// 3. Verify challenge binding
+	// 3. Verify challenge binding with strict domain separation
 	var expectedChallenge []byte
-	if evt.Action == "CONFIRM_CONTAINMENT" || evt.EventType == EventContainmentExecuted {
+	if evt.Action == "CONFIRM_CONTAINMENT" || evt.Action == "EXECUTE_CONTAINMENT" || evt.EventType == EventContainmentExecuted {
 		expectedChallenge = trust.ComputeContainmentChallenge(evt.TenantID, sub.ActorID, changeDigest, sub.ChallengeNonce)
 	} else {
 		expectedChallenge = approval.ComputeApprovalChallenge(evt.TenantID, sub.ActorID, changeDigest, sub.ChallengeNonce)
@@ -364,6 +426,20 @@ func (v *OfflineVerifier) verifyApprovalAssertion(evt AuditEvent, credHistory []
 	var clientData protocol.CollectedClientData
 	if err := json.Unmarshal(sub.ClientDataJSON, &clientData); err != nil {
 		return fmt.Errorf("malformed clientDataJSON: %w", err)
+	}
+
+	// Verify authorized origins if constrained in credential record
+	if len(credRecord.Origins) > 0 {
+		originMatch := false
+		for _, o := range credRecord.Origins {
+			if o == clientData.Origin {
+				originMatch = true
+				break
+			}
+		}
+		if !originMatch {
+			return fmt.Errorf("clientData origin %q not in authorized origins %v", clientData.Origin, credRecord.Origins)
+		}
 	}
 
 	decodedChallenge, err := base64.RawURLEncoding.DecodeString(clientData.Challenge)
@@ -378,9 +454,15 @@ func (v *OfflineVerifier) verifyApprovalAssertion(evt AuditEvent, credHistory []
 		return fmt.Errorf("challenge mismatch: passkey assertion does not bind to change digest %s", changeDigest.String())
 	}
 
-	// 4. Verify AuthenticatorData user presence
+	// 4. Verify AuthenticatorData user presence and RP ID
 	if len(sub.AuthenticatorData) < 37 {
 		return fmt.Errorf("authenticatorData too short (< 37 bytes)")
+	}
+	if credRecord.RPID != "" {
+		expectedRPHash := sha256.Sum256([]byte(credRecord.RPID))
+		if !bytes.Equal(sub.AuthenticatorData[:32], expectedRPHash[:]) {
+			return fmt.Errorf("authenticatorData rpIdHash does not match expected RPID %q", credRecord.RPID)
+		}
 	}
 	flags := sub.AuthenticatorData[32]
 	if (flags & 0x01) == 0 {
@@ -449,6 +531,12 @@ func FormatReportText(rep *VerificationReport) string {
 	_, _ = fmt.Fprintf(&sb, "Chain Tip:            %s\n", rep.TipDigest.String())
 	_, _ = fmt.Fprintf(&sb, "Approvals Verified:   %d\n", rep.ApprovalsVerified)
 	_, _ = fmt.Fprintf(&sb, "Checkpoints Verified: %d\n", rep.CheckpointsVerified)
+	if rep.PoliciesVerified > 0 {
+		_, _ = fmt.Fprintf(&sb, "Policies Verified:    %d\n", rep.PoliciesVerified)
+	}
+	if rep.RegistryProposalsVerified > 0 {
+		_, _ = fmt.Fprintf(&sb, "Registry Proposals:   %d\n", rep.RegistryProposalsVerified)
+	}
 
 	if len(rep.Warnings) > 0 {
 		sb.WriteString("\nWarnings:\n")

@@ -106,7 +106,14 @@ func main() {
 func printUsage() {
 	fmt.Println(`ratchetctl — Operational CLI for RATCHET Security Control Plane
 
-Usage:
+Live Governance:
+  Native Authority administration is conducted via the browser-assisted Security Policy Console
+  at https://<authority-host>/security-policy using hardware-bound WebAuthn passkey assertions.
+
+Offline Verification:
+  ratchetctl audit verify --export-file=<path> [--genesis-file=<path>] [--expected-tip=<hex>] [--expected-checkpoint=<hex>] [--json]
+
+Simulation & Test Fixtures Only (not supported for live administration):
   ratchetctl genesis --tenant=<id> --m=<threshold> --members-file=<path> [--authority-url=<url>]
   ratchetctl policy propose --bundle-file=<path> --version=<v> [--authority-url=<url>]
   ratchetctl policy sign --proposal=<id> --actor=<actor_id> --key-file=<key.pem> [--authority-url=<url>]
@@ -118,9 +125,7 @@ Usage:
   ratchetctl registry propose --members-file=<path> --m=<threshold> [--authority-url=<url>]
   ratchetctl registry sign --proposal=<id> --actor=<actor_id> --key-file=<key.pem> [--authority-url=<url>]
   ratchetctl registry activate --proposal=<id> [--authority-url=<url>]
-  ratchetctl registry history [--authority-url=<url>]
-
-  ratchetctl audit verify --export-file=<path> [--genesis-file=<path>] [--expected-tip=<hex>] [--expected-checkpoint=<hex>] [--json]`)
+  ratchetctl registry history [--authority-url=<url>]`)
 }
 
 func runGenesis(args []string) {
@@ -596,29 +601,36 @@ func parsePrivateKey(keyPath string) (*ecdsa.PrivateKey, error) {
 
 
 func runAuditVerify(args []string) {
-	fs := flag.NewFlagSet("audit verify", flag.ExitOnError)
+	os.Exit(executeAuditVerify(args, os.Stdout, os.Stderr))
+}
+
+func executeAuditVerify(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("audit verify", flag.ContinueOnError)
+	fs.SetOutput(stderr)
 	exportFile := fs.String("export-file", "", "Path to the exported audit bundle JSON file (required)")
 	genesisFile := fs.String("genesis-file", "", "Path to the pinned Genesis JSON file (optional)")
 	expectedTip := fs.String("expected-tip", "", "Expected chain tip digest in hexadecimal (optional)")
 	expectedCheckpoint := fs.String("expected-checkpoint", "", "Expected checkpoint digest in hexadecimal (optional)")
 	jsonOutput := fs.Bool("json", false, "Output verification report in JSON format")
-	_ = fs.Parse(args)
+	if err := fs.Parse(args); err != nil {
+		return ExitBadArgs
+	}
 
 	if *exportFile == "" {
-		fmt.Println("Error: --export-file is required")
-		os.Exit(ExitBadArgs)
+		fmt.Fprintln(stderr, "Error: --export-file is required")
+		return ExitBadArgs
 	}
 
 	bundleBytes, err := os.ReadFile(*exportFile)
 	if err != nil {
-		fmt.Printf("Failed to read export bundle file %s: %v\n", *exportFile, err)
-		os.Exit(ExitBadArgs)
+		fmt.Fprintf(stderr, "Failed to read export bundle file %s: %v\n", *exportFile, err)
+		return ExitBadArgs
 	}
 
 	var bundle audit.AuditExportBundle
 	if err := json.Unmarshal(bundleBytes, &bundle); err != nil {
-		fmt.Printf("Invalid export bundle JSON: %v\n", err)
-		os.Exit(ExitBadArgs)
+		fmt.Fprintf(stderr, "Invalid export bundle JSON: %v\n", err)
+		return ExitBadArgs
 	}
 
 	var opts audit.VerifyOptions
@@ -626,13 +638,13 @@ func runAuditVerify(args []string) {
 	if *genesisFile != "" {
 		genBytes, err := os.ReadFile(*genesisFile)
 		if err != nil {
-			fmt.Printf("Failed to read genesis file %s: %v\n", *genesisFile, err)
-			os.Exit(ExitBadArgs)
+			fmt.Fprintf(stderr, "Failed to read genesis file %s: %v\n", *genesisFile, err)
+			return ExitBadArgs
 		}
 		var pinnedGen trust.GenesisState
 		if err := json.Unmarshal(genBytes, &pinnedGen); err != nil {
-			fmt.Printf("Invalid genesis JSON: %v\n", err)
-			os.Exit(ExitBadArgs)
+			fmt.Fprintf(stderr, "Invalid genesis JSON: %v\n", err)
+			return ExitBadArgs
 		}
 		opts.PinnedGenesis = &pinnedGen
 	}
@@ -640,8 +652,8 @@ func runAuditVerify(args []string) {
 	if *expectedTip != "" {
 		tipD, err := ports.DigestFromHex(*expectedTip)
 		if err != nil {
-			fmt.Printf("Invalid --expected-tip hex digest: %v\n", err)
-			os.Exit(ExitBadArgs)
+			fmt.Fprintf(stderr, "Invalid --expected-tip hex digest: %v\n", err)
+			return ExitBadArgs
 		}
 		opts.ExpectedTipDigest = &tipD
 	}
@@ -649,8 +661,8 @@ func runAuditVerify(args []string) {
 	if *expectedCheckpoint != "" {
 		chkD, err := ports.DigestFromHex(*expectedCheckpoint)
 		if err != nil {
-			fmt.Printf("Invalid --expected-checkpoint hex digest: %v\n", err)
-			os.Exit(ExitBadArgs)
+			fmt.Fprintf(stderr, "Invalid --expected-checkpoint hex digest: %v\n", err)
+			return ExitBadArgs
 		}
 		opts.ExpectedCheckpointDigest = &chkD
 	}
@@ -658,27 +670,27 @@ func runAuditVerify(args []string) {
 	verifier := audit.NewOfflineVerifier()
 	report, err := verifier.VerifyBundle(&bundle, opts)
 	if err != nil {
-		fmt.Printf("Verifier error: %v\n", err)
-		os.Exit(ExitSigFailed)
+		fmt.Fprintf(stderr, "Verifier error: %v\n", err)
+		return ExitSigFailed
 	}
 
 	if *jsonOutput {
 		out, _ := json.MarshalIndent(report, "", "  ")
-		fmt.Println(string(out))
+		fmt.Fprintln(stdout, string(out))
 	} else {
-		fmt.Print(audit.FormatReportText(report))
+		fmt.Fprint(stdout, audit.FormatReportText(report))
 	}
 
 	if !report.Valid {
 		for _, e := range report.Errors {
 			if containsInsensitive(e, "insufficient signatures") || containsInsensitive(e, "quorum") {
-				os.Exit(ExitQuorum)
+				return ExitQuorum
 			}
 		}
-		os.Exit(ExitSigFailed)
+		return ExitSigFailed
 	}
 
-	os.Exit(ExitSuccess)
+	return ExitSuccess
 }
 
 func containsInsensitive(s, substr string) bool {

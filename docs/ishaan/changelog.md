@@ -50,6 +50,11 @@
 
 ## Project completion - Phase A: live governance, verified containment and restoration
 
+- A4 (Distinct action tracking and residual reach verification before containment):
+  - In `internal/workflow/execution.go`: replaced raw count verification with distinct per-action tracking (`verifiedReqIDs`) keyed by deterministic request ID (`uuid.NewSHA1(uuid.NameSpaceOID, proposal.Body.ID + ":" + index)`), preventing duplicate events for a single action from prematurely satisfying a multi-action containment plan.
+  - Added source connector quarantine check against `ratchet.graph_sources.needs_resync` to ensure un-resynced connectors cannot verify containment.
+  - Implemented real graph residual reach verification (`currentSnapshot.PathsTo(incident.Identity, ...)`) ensuring incident transitions to `CONTAINED` only after live graph confirms zero remaining reach to tier-0 assets.
+
 - A3 (All four containment actions & unblocked priority execution):
   - Removed global mutex in `internal/connector/sim/executor.go`: implemented per-command locking (`cmdLocks sync.Map`) so concurrent and emergency priority commands never block waiting for unrelated slow or ordinary target I/O.
   - Enforced strict semantics for all four containment actions (`ROLE_REVOKE`, `RESTRICT_ACCOUNT`, `REMOVE_SERVICE_PERMISSION`, `TERMINATE_SESSION`):

@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 	"time"
@@ -523,13 +524,50 @@ func (s *Service) recordContainmentResult(ctx context.Context, tenant string, r 
 		if err != nil {
 			return err
 		}
-		verifiedCount := 0
+		verifiedReqIDs := make(map[string]bool)
 		for _, ev := range events {
 			if ev.Type == "ContainmentActionVerified" {
-				verifiedCount++
+				var content struct {
+					Payload json.RawMessage `json:"payload"`
+				}
+				var payload struct {
+					Facts json.RawMessage `json:"facts"`
+				}
+				if json.Unmarshal(ev.Entry.Canonical, &content) == nil && json.Unmarshal(content.Payload, &payload) == nil {
+					var result ExecutionResult
+					if json.Unmarshal(payload.Facts, &result) == nil && result.Success && result.ReadBackVerified {
+						verifiedReqIDs[result.RequestID] = true
+					}
+				}
 			}
 		}
-		if verifiedCount >= len(proposal.Body.Plan.Actions) {
+
+		allActionsVerified := len(proposal.Body.Plan.Actions) > 0
+		for i := range proposal.Body.Plan.Actions {
+			actionReqID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(proposal.Body.ID+fmt.Sprintf(":%d", i))).String()
+			if !verifiedReqIDs[actionReqID] {
+				allActionsVerified = false
+				break
+			}
+		}
+
+		if allActionsVerified {
+			// Check connector source is not in resync quarantine
+			var sourceQuarantine bool
+			_ = tx.QueryRow(ctx, `SELECT needs_resync FROM ratchet.graph_sources WHERE tenant_id=$1 AND connector_id=$2`, tenant, command.Connector).Scan(&sourceQuarantine)
+			if sourceQuarantine {
+				return nil
+			}
+
+			// Verify current residual reach is zero before transitioning incident to CONTAINED
+			currentSnapshot, _, err := s.context(ctx, tx, Actor{TenantID: tenant, ID: "containment-verifier"}, "containment_verify", nil)
+			if err == nil && currentSnapshot != nil {
+				paths, err := currentSnapshot.PathsTo(incident.Identity, 1000, 1_000_000)
+				if err == nil && len(paths.Routes) > 0 {
+					return nil // Residual reach remains on current graph
+				}
+			}
+
 			containedIncident := Incident{
 				ID:              incident.ID,
 				Tenant:          tenant,

@@ -13,17 +13,17 @@ import (
 
 // AuditCheckpoint represents an Authority-signed Merkle checkpoint over an event sequence range.
 type AuditCheckpoint struct {
-	CheckpointID            string            `json:"checkpoint_id"`
-	TenantID                string            `json:"tenant_id"`
-	Epoch                   int64             `json:"epoch"`
-	FromSequence            int64             `json:"from_sequence"`
-	ToSequence              int64             `json:"to_sequence"`
-	MerkleRoot              ports.Digest      `json:"merkle_root"`
-	PriorCheckpointDigest   ports.Digest      `json:"prior_checkpoint_digest"`
-	Algorithm               string            `json:"algorithm"` // e.g. "SHA-256"
-	CheckpointDigest        ports.Digest      `json:"checkpoint_digest"`
-	Signatures              []MemberSignature `json:"signatures"`
-	SignedAt                time.Time         `json:"signed_at"`
+	CheckpointID          string            `json:"checkpoint_id"`
+	TenantID              string            `json:"tenant_id"`
+	Epoch                 int64             `json:"epoch"`
+	FromSequence          int64             `json:"from_sequence"`
+	ToSequence            int64             `json:"to_sequence"`
+	MerkleRoot            ports.Digest      `json:"merkle_root"`
+	PriorCheckpointDigest ports.Digest      `json:"prior_checkpoint_digest"`
+	Algorithm             string            `json:"algorithm"` // e.g. "SHA-256"
+	CheckpointDigest      ports.Digest      `json:"checkpoint_digest"`
+	Signatures            []MemberSignature `json:"signatures"`
+	SignedAt              time.Time         `json:"signed_at"`
 }
 
 // ComputeCheckpointSigningDigest produces a domain-separated hash binding the checkpoint to RATCHET_CHECKPOINT_V1:.
@@ -95,13 +95,13 @@ func (s *Store) CreateCheckpoint(
 	merkleRoot := ComputeMerkleRoot(eventDigests)
 
 	payload := map[string]any{
-		"algorithm":                 "SHA-256",
-		"epoch":                     s.genesis.Epoch,
-		"from_sequence":             fromSeq,
-		"merkle_root":               merkleRoot.String(),
-		"prior_checkpoint_digest":   priorCheckpointDigest.String(),
-		"tenant_id":                 tenantID,
-		"to_sequence":               toSeq,
+		"algorithm":               "SHA-256",
+		"epoch":                   s.genesis.Epoch,
+		"from_sequence":           fromSeq,
+		"merkle_root":             merkleRoot.String(),
+		"prior_checkpoint_digest": priorCheckpointDigest.String(),
+		"tenant_id":               tenantID,
+		"to_sequence":             toSeq,
 	}
 
 	digest, err := s.digester.Digest(payload)
@@ -153,22 +153,29 @@ func (s *Store) SignCheckpoint(checkpoint *AuditCheckpoint, sig MemberSignature)
 		}
 	}
 
-	pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
-	if err != nil {
-		return fmt.Errorf("invalid member public key: %w", err)
-	}
-
-	switch pub := pubKey.(type) {
-	case *ecdsa.PublicKey:
-		domainDigest := ComputeCheckpointSigningDigest(checkpoint.TenantID, checkpoint.Epoch, checkpoint.CheckpointDigest)
-		if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) {
-			rawDigest := checkpoint.CheckpointDigest[:]
-			if !ecdsa.VerifyASN1(pub, rawDigest, sig.Signature) {
-				return fmt.Errorf("invalid checkpoint signature from %s", sig.ActorID)
-			}
+	if len(member.CredentialID) > 0 {
+		if err := verifyPasskeySignature(*member, sig, checkpoint.TenantID, ports.Digest(ComputeCheckpointSigningDigest(checkpoint.TenantID, checkpoint.Epoch, checkpoint.CheckpointDigest))); err != nil {
+			return err
 		}
-	default:
-		return fmt.Errorf("unsupported key type: %T", pubKey)
+	} else {
+		pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
+		if err != nil {
+			return fmt.Errorf("invalid member public key: %w", err)
+		}
+
+		switch pub := pubKey.(type) {
+		case *ecdsa.PublicKey:
+			domainDigest := ComputeCheckpointSigningDigest(checkpoint.TenantID, checkpoint.Epoch, checkpoint.CheckpointDigest)
+			if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) {
+				rawDigest := checkpoint.CheckpointDigest[:]
+				if !ecdsa.VerifyASN1(pub, rawDigest, sig.Signature) {
+					return fmt.Errorf("invalid checkpoint signature from %s", sig.ActorID)
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported key type: %T", pubKey)
+		}
+
 	}
 
 	sig.SignedAt = time.Now().UTC()

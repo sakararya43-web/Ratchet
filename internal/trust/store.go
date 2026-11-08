@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sakararya43-web/Ratchet/internal/canon"
+	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
 
 // Store manages Authority persistence, genesis protection, proposal lifecycle, and registry governance.
@@ -220,22 +221,29 @@ func (s *Store) SignProposal(proposalID string, sig MemberSignature) error {
 	}
 
 	// 3. Verify cryptographic signature over domain-separated signing digest
-	pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
-	if err != nil {
-		return fmt.Errorf("invalid member public key: %w", err)
-	}
-
-	switch pub := pubKey.(type) {
-	case *ecdsa.PublicKey:
-		domainDigest := ComputePolicySigningDigest(bundle.TenantID, bundle.Epoch, bundle.BundleDigest)
-		bundleHash := sha256.Sum256(bundle.BundleDigest[:])
-		if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) &&
-			!ecdsa.VerifyASN1(pub, bundle.BundleDigest[:], sig.Signature) &&
-			!ecdsa.VerifyASN1(pub, bundleHash[:], sig.Signature) {
-			return fmt.Errorf("invalid member cryptographic signature")
+	if len(member.CredentialID) > 0 {
+		if err := verifyPasskeySignature(*member, sig, bundle.TenantID, ports.Digest(ComputePolicySigningDigest(bundle.TenantID, bundle.Epoch, bundle.BundleDigest))); err != nil {
+			return err
 		}
-	default:
-		return fmt.Errorf("unsupported authority key type: %T", pubKey)
+	} else {
+		pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
+		if err != nil {
+			return fmt.Errorf("invalid member public key: %w", err)
+		}
+
+		switch pub := pubKey.(type) {
+		case *ecdsa.PublicKey:
+			domainDigest := ComputePolicySigningDigest(bundle.TenantID, bundle.Epoch, bundle.BundleDigest)
+			bundleHash := sha256.Sum256(bundle.BundleDigest[:])
+			if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) &&
+				!ecdsa.VerifyASN1(pub, bundle.BundleDigest[:], sig.Signature) &&
+				!ecdsa.VerifyASN1(pub, bundleHash[:], sig.Signature) {
+				return fmt.Errorf("invalid member cryptographic signature")
+			}
+		default:
+			return fmt.Errorf("unsupported authority key type: %T", pubKey)
+		}
+
 	}
 
 	sig.SignedAt = time.Now().UTC()
@@ -427,22 +435,29 @@ func (s *Store) SignRegistryProposal(proposalID string, sig MemberSignature) err
 		}
 	}
 
-	pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
-	if err != nil {
-		return fmt.Errorf("invalid member public key: %w", err)
-	}
-
-	switch pub := pubKey.(type) {
-	case *ecdsa.PublicKey:
-		domainDigest := ComputeRegistrySigningDigest(prop.TenantID, prop.CurrentEpoch, prop.TargetEpoch, prop.ProposalDigest)
-		if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) {
-			rawDigest := prop.ProposalDigest[:]
-			if !ecdsa.VerifyASN1(pub, rawDigest, sig.Signature) {
-				return fmt.Errorf("invalid member cryptographic signature on registry proposal")
-			}
+	if len(member.CredentialID) > 0 {
+		if err := verifyPasskeySignature(*member, sig, prop.TenantID, ports.Digest(ComputeRegistrySigningDigest(prop.TenantID, prop.CurrentEpoch, prop.TargetEpoch, prop.ProposalDigest))); err != nil {
+			return err
 		}
-	default:
-		return fmt.Errorf("unsupported authority key type: %T", pubKey)
+	} else {
+		pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
+		if err != nil {
+			return fmt.Errorf("invalid member public key: %w", err)
+		}
+
+		switch pub := pubKey.(type) {
+		case *ecdsa.PublicKey:
+			domainDigest := ComputeRegistrySigningDigest(prop.TenantID, prop.CurrentEpoch, prop.TargetEpoch, prop.ProposalDigest)
+			if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) {
+				rawDigest := prop.ProposalDigest[:]
+				if !ecdsa.VerifyASN1(pub, rawDigest, sig.Signature) {
+					return fmt.Errorf("invalid member cryptographic signature on registry proposal")
+				}
+			}
+		default:
+			return fmt.Errorf("unsupported authority key type: %T", pubKey)
+		}
+
 	}
 
 	sig.SignedAt = time.Now().UTC()

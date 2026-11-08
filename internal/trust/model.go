@@ -60,11 +60,14 @@ func ComputeContainmentChallenge(tenantID, actorID string, planDigest ports.Dige
 
 // AuthorityMember represents a security leader enrolled during genesis or approved via quorum.
 type AuthorityMember struct {
-	ActorID     string    `json:"actor_id"`
-	DisplayName string    `json:"display_name"`
-	PublicKey   []byte    `json:"public_key"` // X.509 PKIX bytes
-	EnrolledAt  time.Time `json:"enrolled_at"`
-	IsActive    bool      `json:"is_active"`
+	ActorID      string    `json:"actor_id"`
+	DisplayName  string    `json:"display_name"`
+	PublicKey    []byte    `json:"public_key"` // X.509 PKIX bytes
+	EnrolledAt   time.Time `json:"enrolled_at"`
+	IsActive     bool      `json:"is_active"`
+	CredentialID []byte    `json:"credential_id,omitempty"`
+	RPID         string    `json:"rp_id,omitempty"`
+	Origins      []string  `json:"origins,omitempty"`
 }
 
 // GenesisState records the immutable genesis ceremony of the Independent Security Authority.
@@ -85,6 +88,8 @@ type MemberSignature struct {
 	SignedAt          time.Time `json:"signed_at"`
 	ClientDataJSON    []byte    `json:"client_data_json,omitempty"`
 	AuthenticatorData []byte    `json:"authenticator_data,omitempty"`
+	CredentialID      []byte    `json:"credential_id,omitempty"`
+	ChallengeNonce    []byte    `json:"challenge_nonce,omitempty"`
 }
 
 // PolicyBundle represents a governed Rego policy bundle protected by M-of-N signatures.

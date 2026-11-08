@@ -95,23 +95,30 @@ func (bv *BundleVerifier) Verify(ctx context.Context, raw []byte) (ports.Verifie
 			return ports.VerifiedBundle{}, fmt.Errorf("signer %q is not an authorized authority member", sig.ActorID)
 		}
 
-		pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
-		if err != nil {
-			return ports.VerifiedBundle{}, fmt.Errorf("invalid public key for member %q: %w", sig.ActorID, err)
-		}
-
-		switch pub := pubKey.(type) {
-		case *ecdsa.PublicKey:
-			domainDigest := ComputePolicySigningDigest(bundle.TenantID, bundle.Epoch, bundle.BundleDigest)
-			bundleHash := sha256.Sum256(bundle.BundleDigest[:])
-			if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) &&
-				!ecdsa.VerifyASN1(pub, bundle.BundleDigest[:], sig.Signature) &&
-				!ecdsa.VerifyASN1(pub, bundleHash[:], sig.Signature) &&
-				!ecdsa.VerifyASN1(pub, sigHash[:], sig.Signature) {
-				return ports.VerifiedBundle{}, fmt.Errorf("cryptographic signature failed for member %q", sig.ActorID)
+		if len(member.CredentialID) > 0 {
+			if err := verifyPasskeySignature(member, sig, bundle.TenantID, ports.Digest(ComputePolicySigningDigest(bundle.TenantID, bundle.Epoch, bundle.BundleDigest))); err != nil {
+				return ports.VerifiedBundle{}, err
 			}
-		default:
-			return ports.VerifiedBundle{}, fmt.Errorf("unsupported authority key type: %T", pubKey)
+		} else {
+			pubKey, err := x509.ParsePKIXPublicKey(member.PublicKey)
+			if err != nil {
+				return ports.VerifiedBundle{}, fmt.Errorf("invalid public key for member %q: %w", sig.ActorID, err)
+			}
+
+			switch pub := pubKey.(type) {
+			case *ecdsa.PublicKey:
+				domainDigest := ComputePolicySigningDigest(bundle.TenantID, bundle.Epoch, bundle.BundleDigest)
+				bundleHash := sha256.Sum256(bundle.BundleDigest[:])
+				if !ecdsa.VerifyASN1(pub, domainDigest[:], sig.Signature) &&
+					!ecdsa.VerifyASN1(pub, bundle.BundleDigest[:], sig.Signature) &&
+					!ecdsa.VerifyASN1(pub, bundleHash[:], sig.Signature) &&
+					!ecdsa.VerifyASN1(pub, sigHash[:], sig.Signature) {
+					return ports.VerifiedBundle{}, fmt.Errorf("cryptographic signature failed for member %q", sig.ActorID)
+				}
+			default:
+				return ports.VerifiedBundle{}, fmt.Errorf("unsupported authority key type: %T", pubKey)
+			}
+
 		}
 
 		seenSigners[sig.ActorID] = true
@@ -132,4 +139,3 @@ func (bv *BundleVerifier) Verify(ctx context.Context, raw []byte) (ports.Verifie
 		VerifiedAt:    time.Now().UTC(),
 	}, nil
 }
-

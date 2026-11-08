@@ -12,6 +12,21 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Project completion A - governance and verified response (in progress)
+
+- Began the newly authorized completion Phase A on main after `8dae676`.
+  Prototype A/B/C remain accepted; completion B/C have not started. Full scope
+  and unchanged-root setup constraints are in completion-a-progress.md.
+- Extracted shared public WebAuthn evidence verification without a credential-
+  database dependency. Live approval still resolves only active enrolled keys.
+  Added native Authority member evidence for policy, registry and checkpoint
+  signatures. Native members never fall back to signing an unframed raw hash.
+- Real-cryptography Authority regression verifies current distinct-member quorum,
+  wrong-origin/no-UV refusal, duplicate refusal, restart retention, cross-action
+  replay refusal, current-quorum threshold changes and stale-epoch rejection.
+  Focused approval/trust/policy race suites pass. Live service orchestration,
+  containment, restoration and final acceptance remain required.
+
 ## Prototype C - browser journey and acceptance (2026-11-08)
 
 - Added readable impact/review/status and protected passkey management. Browser

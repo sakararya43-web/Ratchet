@@ -43,11 +43,12 @@ func TestOfflineVerifier_Comprehensive(t *testing.T) {
 
 	credHistory := []StoredCredentialRecord{
 		{
-			TenantID:   "tenant-demo",
-			ActorID:    "user:sec-lead-1",
-			PublicKey:  userBytes,
-			EnrolledAt: baseTime.Add(-24 * time.Hour),
-			IsRevoked:  false,
+			TenantID:     "tenant-demo",
+			ActorID:      "user:sec-lead-1",
+			CredentialID: []byte("cred-123"),
+			PublicKey:    userBytes,
+			EnrolledAt:   baseTime.Add(-24 * time.Hour),
+			IsRevoked:    false,
 		},
 	}
 
@@ -344,6 +345,89 @@ func TestOfflineVerifier_Comprehensive(t *testing.T) {
 		}
 		if rep.OffendingSequence != 4 {
 			t.Errorf("expected offending sequence 4, got %d", rep.OffendingSequence)
+		}
+	})
+
+	// Test 10: Removed Approval Assertion from Approval Event Rejected
+	t.Run("RemovedApprovalAssertionRejected", func(t *testing.T) {
+		corrupted := bundle
+		corrupted.Events = make([]AuditEvent, len(bundle.Events))
+		copy(corrupted.Events, bundle.Events)
+		corrupted.Events[1].ApprovalAssertion = nil
+
+		rep, err := verifier.VerifyBundle(&corrupted, VerifyOptions{PinnedGenesis: &genesis})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if rep.Valid {
+			t.Fatalf("expected verification failure when required approval assertion is removed, got valid")
+		}
+		if rep.OffendingSequence != 2 {
+			t.Errorf("expected offending sequence 2, got %d", rep.OffendingSequence)
+		}
+	})
+
+	// Test 11: Unenrolled Credential ID Rejected
+	t.Run("UnenrolledCredentialIDRejected", func(t *testing.T) {
+		corrupted := bundle
+		corrupted.Events = make([]AuditEvent, len(bundle.Events))
+		copy(corrupted.Events, bundle.Events)
+		clonedSub := *corrupted.Events[1].ApprovalAssertion
+		clonedSub.CredentialID = []byte("unenrolled-fake-credential-999")
+		corrupted.Events[1].ApprovalAssertion = &clonedSub
+
+		rep, err := verifier.VerifyBundle(&corrupted, VerifyOptions{PinnedGenesis: &genesis})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if rep.Valid {
+			t.Fatalf("expected verification failure for unenrolled credential ID, got valid")
+		}
+		if rep.OffendingSequence != 2 {
+			t.Errorf("expected offending sequence 2, got %d", rep.OffendingSequence)
+		}
+	})
+
+	// Test 12: Duplicate Policy Signatures Rejected
+	t.Run("DuplicatePolicySignaturesRejected", func(t *testing.T) {
+		corrupted := bundle
+		policyBundle := &trust.PolicyBundle{
+			ProposalID:    "prop-dup-1",
+			TenantID:      "tenant-demo",
+			BundleVersion: "v1.0.0",
+			Epoch:         1,
+			Description:   "Duplicate signature test policy",
+			Modules:       map[string]string{"main.rego": "package main"},
+			Data:          map[string]any{},
+		}
+		pDigest, err := digester.Digest(map[string]any{
+			"bundle_version": policyBundle.BundleVersion,
+			"data":           policyBundle.Data,
+			"description":    policyBundle.Description,
+			"epoch":          policyBundle.Epoch,
+			"modules":        policyBundle.Modules,
+			"tenant_id":      policyBundle.TenantID,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		policyBundle.BundleDigest = pDigest
+		domainDig := trust.ComputePolicySigningDigest("tenant-demo", 1, pDigest)
+		sigAlice, _ := ecdsa.SignASN1(rand.Reader, authKey1, domainDig[:])
+
+		// Duplicate signature from Alice
+		policyBundle.Signatures = []trust.MemberSignature{
+			{ActorID: "user:sec-lead-1", Signature: sigAlice, SignedAt: time.Now().UTC()},
+			{ActorID: "user:sec-lead-1", Signature: sigAlice, SignedAt: time.Now().UTC()},
+		}
+		corrupted.PolicyHistory = []*trust.PolicyBundle{policyBundle}
+
+		rep, err := verifier.VerifyBundle(&corrupted, VerifyOptions{PinnedGenesis: &genesis})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if rep.Valid {
+			t.Fatalf("expected verification failure for duplicate policy signatures, got valid")
 		}
 	})
 }

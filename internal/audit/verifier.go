@@ -164,7 +164,15 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 			return report, nil
 		}
 
-		// Verify Approval Assertion if present on event
+		// Verify Approval Assertion if required or present on event
+		isApprovalEvent := evt.EventType == EventApprovalRecorded || evt.EventType == EventContainmentExecuted ||
+			evt.Action == "APPROVE_CHANGE" || evt.Action == "EXECUTE_CONTAINMENT" || evt.Action == "CONFIRM_CONTAINMENT"
+		if isApprovalEvent && evt.ApprovalAssertion == nil {
+			report.OffendingSequence = evt.Sequence
+			report.OffendingReference = fmt.Sprintf("event-seq-%d", evt.Sequence)
+			report.Errors = append(report.Errors, fmt.Sprintf("event at sequence %d requires approval assertion but none was provided", evt.Sequence))
+			return report, nil
+		}
 		if evt.ApprovalAssertion != nil {
 			if err := v.verifyApprovalAssertion(evt, bundle.CredentialHistory); err != nil {
 				report.OffendingSequence = evt.Sequence
@@ -326,10 +334,37 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 				pb.ProposalID, compDigest.String(), pb.BundleDigest.String()))
 			return report, nil
 		}
-		if len(pb.Signatures) < genesis.ThresholdM {
+		validSigners := make(map[string]bool)
+		domainDigest := trust.ComputePolicySigningDigest(pb.TenantID, pb.Epoch, pb.BundleDigest)
+		for _, sig := range pb.Signatures {
+			if validSigners[sig.ActorID] {
+				report.OffendingReference = pb.ProposalID
+				report.Errors = append(report.Errors, fmt.Sprintf("policy bundle %s has duplicate signature from %q", pb.ProposalID, sig.ActorID))
+				return report, nil
+			}
+			var member *trust.AuthorityMember
+			for i := range genesis.Members {
+				if genesis.Members[i].ActorID == sig.ActorID && genesis.Members[i].IsActive {
+					member = &genesis.Members[i]
+					break
+				}
+			}
+			if member == nil {
+				report.OffendingReference = pb.ProposalID
+				report.Errors = append(report.Errors, fmt.Sprintf("policy bundle %s signed by unknown or inactive member %q", pb.ProposalID, sig.ActorID))
+				return report, nil
+			}
+			if err := verifyAuthoritySignature(member.PublicKey, domainDigest[:], pb.BundleDigest[:], sig.Signature); err != nil {
+				report.OffendingReference = pb.ProposalID
+				report.Errors = append(report.Errors, fmt.Sprintf("policy bundle %s has invalid signature from %q: %v", pb.ProposalID, sig.ActorID, err))
+				return report, nil
+			}
+			validSigners[sig.ActorID] = true
+		}
+		if len(validSigners) < genesis.ThresholdM {
 			report.OffendingReference = pb.ProposalID
 			report.Errors = append(report.Errors, fmt.Sprintf("policy bundle %s has insufficient signatures: got %d, required %d",
-				pb.ProposalID, len(pb.Signatures), genesis.ThresholdM))
+				pb.ProposalID, len(validSigners), genesis.ThresholdM))
 			return report, nil
 		}
 		report.PoliciesVerified++
@@ -355,10 +390,37 @@ func (v *OfflineVerifier) VerifyBundle(bundle *AuditExportBundle, opts VerifyOpt
 				rp.ProposalID, compDigest.String(), rp.ProposalDigest.String()))
 			return report, nil
 		}
-		if len(rp.Signatures) < genesis.ThresholdM {
+		validSigners := make(map[string]bool)
+		domainDigest := trust.ComputeRegistrySigningDigest(rp.TenantID, rp.CurrentEpoch, rp.TargetEpoch, rp.ProposalDigest)
+		for _, sig := range rp.Signatures {
+			if validSigners[sig.ActorID] {
+				report.OffendingReference = rp.ProposalID
+				report.Errors = append(report.Errors, fmt.Sprintf("registry proposal %s has duplicate signature from %q", rp.ProposalID, sig.ActorID))
+				return report, nil
+			}
+			var member *trust.AuthorityMember
+			for i := range genesis.Members {
+				if genesis.Members[i].ActorID == sig.ActorID && genesis.Members[i].IsActive {
+					member = &genesis.Members[i]
+					break
+				}
+			}
+			if member == nil {
+				report.OffendingReference = rp.ProposalID
+				report.Errors = append(report.Errors, fmt.Sprintf("registry proposal %s signed by unknown or inactive member %q", rp.ProposalID, sig.ActorID))
+				return report, nil
+			}
+			if err := verifyAuthoritySignature(member.PublicKey, domainDigest[:], rp.ProposalDigest[:], sig.Signature); err != nil {
+				report.OffendingReference = rp.ProposalID
+				report.Errors = append(report.Errors, fmt.Sprintf("registry proposal %s has invalid signature from %q: %v", rp.ProposalID, sig.ActorID, err))
+				return report, nil
+			}
+			validSigners[sig.ActorID] = true
+		}
+		if len(validSigners) < genesis.ThresholdM {
 			report.OffendingReference = rp.ProposalID
 			report.Errors = append(report.Errors, fmt.Sprintf("registry proposal %s has insufficient signatures: got %d, required %d",
-				rp.ProposalID, len(rp.Signatures), genesis.ThresholdM))
+				rp.ProposalID, len(validSigners), genesis.ThresholdM))
 			return report, nil
 		}
 		report.RegistryProposalsVerified++
@@ -380,6 +442,11 @@ func (v *OfflineVerifier) verifyApprovalAssertion(evt AuditEvent, credHistory []
 	for i := range credHistory {
 		rec := &credHistory[i]
 		if rec.TenantID == evt.TenantID && rec.ActorID == sub.ActorID {
+			if len(sub.CredentialID) > 0 {
+				if len(rec.CredentialID) == 0 || !bytes.Equal(rec.CredentialID, sub.CredentialID) {
+					continue
+				}
+			}
 			// Check temporal validity: must be enrolled on or before event timestamp
 			if !rec.EnrolledAt.After(evt.Timestamp) {
 				// If revoked, must NOT have been revoked before or at the event timestamp

@@ -12,6 +12,14 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Project completion - Phase C: offline proof hardening, acceptance and release readiness
+
+- C1 & C2 (Offline verifier security hardening):
+  - Fixed offline verifier vulnerability accepting events with removed approval assertions: `verifyBundle` strictly requires `ApprovalAssertion != nil` on all approval events (`EventApprovalRecorded`, `EventContainmentExecuted`, `APPROVE_CHANGE`, `EXECUTE_CONTAINMENT`, `CONFIRM_CONTAINMENT`).
+  - Fixed credential verification matching: requires exact credential ID matching (`bytes.Equal(rec.CredentialID, sub.CredentialID)`), rejecting unenrolled credential IDs.
+  - Fixed policy bundle and registry proposal verification: verifies cryptographic authority member signatures using `verifyAuthoritySignature`, validates against active genesis members, and enforces distinct member threshold M (rejecting duplicate/forged signatures).
+  - Added comprehensive unit test suite in `internal/audit/audit_test.go` verifying rejection of removed approval assertions, unenrolled credential IDs, and duplicate policy signatures.
+
 ## Project completion - Phase B: automation and complete operational console
 
 - B1 (Temporary & emergency access with target expiry):

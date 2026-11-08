@@ -12,6 +12,34 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Prototype C - browser journey and acceptance (2026-11-08)
+
+- Added readable impact/review/status and protected passkey management. Browser
+  independently hashes the exact canonical envelope and impact, and verifies the
+  actor/digest/nonce challenge before requesting a real WebAuthn assertion.
+- Added a strictly authorized, exact-context approval review projection. Owners
+  can review the bound impact without gaining organization-wide graph access.
+  Real PostgreSQL/race tests and browser acceptance verify these restrictions.
+- Completed the actual four-account browser journey: one-owner finance approval,
+  two-distinct-lead wallet approval, real business 403-to-200 transitions, stale
+  context HOLD, self/duplicate/insufficient approval refusal and tampered envelope/
+  challenge refusal. Verified 28 canonical ledger events independently. Cleanup
+  uses actual independently approved revocations and operator-authorized passkey
+  revocation; no target reset or ledger deletion supplies a passing outcome.
+- Corrected complete resource ownership in the signed immutable demo bootstrap.
+  Preserved both pre-release profiles and their operator files; the accepted
+  `ratchet-prototype-v1` profile passes restart, stable-identity/graph and database
+  outage refusal acceptance. Existing independence guards were preserved.
+- All 18 local regression gates passed on clean source `fc87cd3`, including full
+  integration/race, strict lint (zero issues), properties, both fuzzers, zero known
+  vulnerabilities, 19 policy tests, peer compatibility/conformance, Authority
+  restart, process persistence and isolated restore of 31 tables/127,101 rows.
+  Console build, 18 frontend tests and npm vulnerability audit also pass.
+- Added the sequential actual-browser/restart checks to hosted CI with public
+  evidence artifacts, explicit virtual-authenticator scope, operator walkthrough
+  and repeatable commands. Hosted results for the published head remain required;
+  see prototype-acceptance.md. Original deferred requirements remain open.
+
 ## Prototype B - secure execution (2026-11-08, complete)
 
 - Replaced the unsafe simulator consumer with pinned core signature, exact

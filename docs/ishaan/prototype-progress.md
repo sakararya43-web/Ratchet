@@ -18,13 +18,18 @@ Sakar's branch and plan remain unchanged. No original requirement is removed.
 - [x] Read-only reconciliation and truthful canonical result evidence.
 - [x] Real executable/NATS/target adversarial, retry and restart regressions.
 
-## C - browser demonstration and validation (in progress)
+## C - browser demonstration and validation (complete local acceptance)
 
-- [ ] Readable request/impact/review/status console and browser envelope digest check.
-- [ ] Ordinary owner and sensitive two-approver browser journeys.
-- [ ] Self-approval, insufficient quorum, stale context and bad-command refusal.
-- [ ] Actual business access and audit evidence, browser acceptance and walkthrough.
-- [ ] Required regression/CI checks on the same final candidate and operator runbook.
+- [x] Readable request/impact/review/status console and browser envelope digest check.
+- [x] Ordinary owner and sensitive two-approver browser journeys.
+- [x] Self-approval, insufficient quorum, stale context and bad-command refusal.
+- [x] Actual business access and audit evidence, browser acceptance and walkthrough.
+- [x] Required local regression checks, automated CI gates and operator runbook.
+
+All 18 local gates passed on clean candidate `fc87cd3`. The actual four-account
+browser journey and persistence/outage acceptance also passed. Hosted verification
+of the published main commit remains a release gate: check both workflows linked
+from [prototype-acceptance.md](prototype-acceptance.md) before calling CI green.
 
 Containment execution, full restoration, live Authority administration, automated
 expiry/drift, complete offline browser-approval proof and broader native parity

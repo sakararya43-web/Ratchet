@@ -13,7 +13,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 )
 
-var ErrRefused = errors.New("Authority authorization or current artifact context refused")
+var ErrRefused = errors.New("authority authorization or current artifact context refused")
 
 type Bootstrap struct {
 	Tenant     string   `json:"tenant_id"`

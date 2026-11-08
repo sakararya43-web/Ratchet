@@ -19,35 +19,35 @@ func AuthorityGateway(clients map[string]*authority.Client, credentials *approva
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := SessionPrincipal(r.Context())
 		if !ok {
-			http.Error(w, "session required", 401)
+			http.Error(w, "session required", http.StatusUnauthorized)
 			return
 		}
 		client := clients[principal.TenantID]
 		if client == nil || credentials == nil || verifier == nil || authorize == nil || authorize(r.Context(), principal) != nil {
-			http.Error(w, "Authority access refused", 403)
+			http.Error(w, "Authority access refused", http.StatusForbidden)
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
 		if r.Method == "GET" && r.URL.Path == "/state" {
 			var state authority.State
 			if client.Do(r.Context(), principal.ActorID, "/v1/state", nil, &state) != nil {
-				http.Error(w, "Authority unavailable or access refused", 503)
+				http.Error(w, "Authority unavailable or access refused", http.StatusServiceUnavailable)
 				return
 			}
-			writeJSON(w, 200, state)
+			writeJSON(w, http.StatusOK, state)
 			return
 		}
 		if r.Method == "GET" && r.URL.Path == "/credentials" {
 			user, err := credentials.User(r.Context(), principal.TenantID, principal.ActorID)
 			if err != nil {
-				http.Error(w, "credentials unavailable", 503)
+				http.Error(w, "credentials unavailable", http.StatusServiceUnavailable)
 				return
 			}
 			list := []map[string]any{}
 			for _, credential := range user.Credentials {
 				list = append(list, map[string]any{"credential_id": credential.ID, "public_key": credential.PublicKey})
 			}
-			writeJSON(w, 200, list)
+			writeJSON(w, http.StatusOK, list)
 			return
 		}
 		if r.Method != "POST" || (r.URL.Path != "/prepare" && r.URL.Path != "/apply") {
@@ -58,30 +58,30 @@ func AuthorityGateway(clients map[string]*authority.Client, credentials *approva
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 		decoder.DisallowUnknownFields()
 		if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF {
-			http.Error(w, "exact Authority input required", 400)
+			http.Error(w, "exact Authority input required", http.StatusBadRequest)
 			return
 		}
 		var preview authority.Preview
 		if client.Do(r.Context(), principal.ActorID, "/v1/prepare", &input, &preview) != nil {
-			http.Error(w, "Authority context changed or refused", 409)
+			http.Error(w, "Authority context changed or refused", http.StatusConflict)
 			return
 		}
 		if r.URL.Path == "/prepare" {
-			writeJSON(w, 200, preview)
+			writeJSON(w, http.StatusOK, preview)
 			return
 		}
 		if input.Proof.TenantID != principal.TenantID || input.Proof.ActorID != principal.ActorID {
-			http.Error(w, "assertion actor mismatch", 403)
+			http.Error(w, "assertion actor mismatch", http.StatusForbidden)
 			return
 		}
 		if _, err := verifier.Verify(r.Context(), input.Proof, preview.Digest); err != nil {
-			http.Error(w, "current enrolled passkey required", 403)
+			http.Error(w, "current enrolled passkey required", http.StatusForbidden)
 			return
 		}
 		if input.Operation == "enroll" {
 			user, err := credentials.User(r.Context(), principal.TenantID, principal.ActorID)
 			if err != nil || input.Member == nil {
-				http.Error(w, "enrollment unavailable", 409)
+				http.Error(w, "enrollment unavailable", http.StatusConflict)
 				return
 			}
 			matched := false
@@ -91,15 +91,15 @@ func AuthorityGateway(clients map[string]*authority.Client, credentials *approva
 				}
 			}
 			if !matched {
-				http.Error(w, "exact enrolled public key required", 403)
+				http.Error(w, "exact enrolled public key required", http.StatusForbidden)
 				return
 			}
 		}
 		var state authority.State
 		if client.Do(r.Context(), principal.ActorID, "/v1/apply", &input, &state) != nil {
-			http.Error(w, "Authority action refused; refresh current state", 409)
+			http.Error(w, "Authority action refused; refresh current state", http.StatusConflict)
 			return
 		}
-		writeJSON(w, 200, state)
+		writeJSON(w, http.StatusOK, state)
 	})
 }

@@ -617,19 +617,19 @@ func executeAuditVerify(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if *exportFile == "" {
-		fmt.Fprintln(stderr, "Error: --export-file is required")
+		_, _ = fmt.Fprintln(stderr, "Error: --export-file is required")
 		return ExitBadArgs
 	}
 
 	bundleBytes, err := os.ReadFile(*exportFile)
 	if err != nil {
-		fmt.Fprintf(stderr, "Failed to read export bundle file %s: %v\n", *exportFile, err)
+		_, _ = fmt.Fprintf(stderr, "Failed to read export bundle file %s: %v\n", *exportFile, err)
 		return ExitBadArgs
 	}
 
 	var bundle audit.AuditExportBundle
 	if err := json.Unmarshal(bundleBytes, &bundle); err != nil {
-		fmt.Fprintf(stderr, "Invalid export bundle JSON: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "Invalid export bundle JSON: %v\n", err)
 		return ExitBadArgs
 	}
 
@@ -638,12 +638,12 @@ func executeAuditVerify(args []string, stdout, stderr io.Writer) int {
 	if *genesisFile != "" {
 		genBytes, err := os.ReadFile(*genesisFile)
 		if err != nil {
-			fmt.Fprintf(stderr, "Failed to read genesis file %s: %v\n", *genesisFile, err)
+			_, _ = fmt.Fprintf(stderr, "Failed to read genesis file %s: %v\n", *genesisFile, err)
 			return ExitBadArgs
 		}
 		var pinnedGen trust.GenesisState
 		if err := json.Unmarshal(genBytes, &pinnedGen); err != nil {
-			fmt.Fprintf(stderr, "Invalid genesis JSON: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "Invalid genesis JSON: %v\n", err)
 			return ExitBadArgs
 		}
 		opts.PinnedGenesis = &pinnedGen
@@ -652,7 +652,7 @@ func executeAuditVerify(args []string, stdout, stderr io.Writer) int {
 	if *expectedTip != "" {
 		tipD, err := ports.DigestFromHex(*expectedTip)
 		if err != nil {
-			fmt.Fprintf(stderr, "Invalid --expected-tip hex digest: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "Invalid --expected-tip hex digest: %v\n", err)
 			return ExitBadArgs
 		}
 		opts.ExpectedTipDigest = &tipD
@@ -661,7 +661,7 @@ func executeAuditVerify(args []string, stdout, stderr io.Writer) int {
 	if *expectedCheckpoint != "" {
 		chkD, err := ports.DigestFromHex(*expectedCheckpoint)
 		if err != nil {
-			fmt.Fprintf(stderr, "Invalid --expected-checkpoint hex digest: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "Invalid --expected-checkpoint hex digest: %v\n", err)
 			return ExitBadArgs
 		}
 		opts.ExpectedCheckpointDigest = &chkD
@@ -670,15 +670,15 @@ func executeAuditVerify(args []string, stdout, stderr io.Writer) int {
 	verifier := audit.NewOfflineVerifier()
 	report, err := verifier.VerifyBundle(&bundle, opts)
 	if err != nil {
-		fmt.Fprintf(stderr, "Verifier error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "Verifier error: %v\n", err)
 		return ExitSigFailed
 	}
 
 	if *jsonOutput {
 		out, _ := json.MarshalIndent(report, "", "  ")
-		fmt.Fprintln(stdout, string(out))
+		_, _ = fmt.Fprintln(stdout, string(out))
 	} else {
-		fmt.Fprint(stdout, audit.FormatReportText(report))
+		_, _ = fmt.Fprint(stdout, audit.FormatReportText(report))
 	}
 
 	if !report.Valid {

@@ -103,32 +103,32 @@ func (s *Service) Handler() http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
-			http.Error(w, "request too large", 413)
+			http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
 			return
 		}
 		identityRaw, e1 := base64.RawURLEncoding.DecodeString(r.Header.Get("X-Ratchet-Authority-Identity"))
 		signature, e2 := base64.RawURLEncoding.DecodeString(r.Header.Get("X-Ratchet-Authority-Signature"))
 		var identity Identity
 		if e1 != nil || e2 != nil || len(identityRaw) > 4096 || json.Unmarshal(identityRaw, &identity) != nil {
-			http.Error(w, "authenticated gateway required", 401)
+			http.Error(w, "authenticated gateway required", http.StatusUnauthorized)
 			return
 		}
 		digest, err := identityDigest(identity)
 		bodyHash, e := canon.New().Digest(string(raw))
 		now := time.Now().Unix()
 		if err != nil || e != nil || identity.Tenant != s.Bootstrap.Tenant || identity.Actor == "" || identity.Method != r.Method || identity.Path != r.URL.RequestURI() || bodyHash != identity.Body || identity.Expires < now || identity.Expires > now+60 || !ed25519.Verify(s.Bootstrap.CorePublic, digest[:], signature) {
-			http.Error(w, "gateway context refused", 403)
+			http.Error(w, "gateway context refused", http.StatusForbidden)
 			return
 		}
 		var result any
 		if r.Method == "GET" && r.URL.Path == "/v1/state" {
 			state, readErr := s.State(r.Context())
 			if readErr != nil {
-				http.Error(w, "Authority unavailable", 503)
+				http.Error(w, "Authority unavailable", http.StatusServiceUnavailable)
 				return
 			}
 			if !s.canView(identity.Actor, state) {
-				http.Error(w, "Authority member required", 403)
+				http.Error(w, "Authority member required", http.StatusForbidden)
 				return
 			}
 			result = state
@@ -137,7 +137,7 @@ func (s *Service) Handler() http.Handler {
 			decoder := json.NewDecoder(bytes.NewReader(raw))
 			decoder.DisallowUnknownFields()
 			if decoder.Decode(&input) != nil || decoder.Decode(new(any)) != io.EOF {
-				http.Error(w, "exact input required", 400)
+				http.Error(w, "exact input required", http.StatusBadRequest)
 				return
 			}
 			if r.URL.Path == "/v1/prepare" {
@@ -146,7 +146,7 @@ func (s *Service) Handler() http.Handler {
 				result, err = s.Apply(r.Context(), identity.Actor, input)
 			}
 			if err != nil {
-				http.Error(w, "Authority action or context refused", 409)
+				http.Error(w, "Authority action or context refused", http.StatusConflict)
 				return
 			}
 		} else {

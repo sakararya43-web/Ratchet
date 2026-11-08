@@ -32,7 +32,7 @@ func authorityClients(config consoleConfig) (map[string]*authority.Client, error
 			continue
 		}
 		if tenant.Execution == nil {
-			return nil, errors.New("Authority gateway signing identity required")
+			return nil, errors.New("authority gateway signing identity required")
 		}
 		raw, err := os.ReadFile(tenant.Execution.PrivateKeyFile)
 		if err != nil {

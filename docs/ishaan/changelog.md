@@ -50,6 +50,11 @@
 
 ## Project completion - Phase A: live governance, verified containment and restoration
 
+- A5 (Independently reviewed restoration & all four non-role execution kinds):
+  - In `internal/workflow/execution.go`: unlocked execution preparation (`prepare`) for all four restoration kinds (`ROLE_ASSIGN`, `ENABLE_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, `ISSUE_SESSION`). Target identity existence is validated without requiring role existence for account or session operations; role calculations properly distinguish role grants from session tokens.
+  - In `internal/api/containment.go`: aligned `RestoreAccess` with exact incident containment plan actions, resolving typed restoration operations directly from proposal actions rather than crude prefix guessing.
+  - Enforced fresh independent review requirement across restoration changes: submissions bound to an `IncidentID` cannot be auto-allowed as reductions, requiring fresh independent passkey approvals under required quorum.
+
 - A4 (Distinct action tracking and residual reach verification before containment):
   - In `internal/workflow/execution.go`: replaced raw count verification with distinct per-action tracking (`verifiedReqIDs`) keyed by deterministic request ID (`uuid.NewSHA1(uuid.NameSpaceOID, proposal.Body.ID + ":" + index)`), preventing duplicate events for a single action from prematurely satisfying a multi-action containment plan.
   - Added source connector quarantine check against `ratchet.graph_sources.needs_resync` to ensure un-resynced connectors cannot verify containment.

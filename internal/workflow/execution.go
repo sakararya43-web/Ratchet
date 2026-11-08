@@ -97,7 +97,12 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	if e == nil || e.Tenant != c.TenantID || !now.Before(e.capability.Expires) || e.capability.Expires.After(now.Add(24*time.Hour)) {
 		return cmd, ErrDependency
 	}
-	if c.Intent.Kind != "ROLE_ASSIGN" && c.Intent.Kind != "ROLE_REVOKE" {
+	switch c.Intent.Kind {
+	case "ROLE_ASSIGN", "ROLE_REVOKE",
+		"RESTRICT_ACCOUNT", "ENABLE_ACCOUNT",
+		"REMOVE_SERVICE_PERMISSION", "RESTORE_SERVICE_PERMISSION",
+		"TERMINATE_SESSION", "ISSUE_SESSION":
+	default:
 		return cmd, domain.ErrInvalid
 	}
 	if c.Intent.DurationSeconds > 0 && (!e.capability.ScheduledRevocation || c.Intent.Kind != "ROLE_ASSIGN") {
@@ -152,6 +157,16 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 		}
 	case "ROLE_REVOKE":
 		roles = slices.DeleteFunc(roles, func(role string) bool { return role == c.Intent.Access })
+	case "RESTORE_SERVICE_PERMISSION":
+		if roleExists && !slices.Contains(roles, c.Intent.Access) {
+			roles = append(roles, c.Intent.Access)
+		}
+	case "REMOVE_SERVICE_PERMISSION":
+		if roleExists {
+			roles = slices.DeleteFunc(roles, func(role string) bool { return role == c.Intent.Access })
+		}
+	case "ENABLE_ACCOUNT", "RESTRICT_ACCOUNT", "ISSUE_SESSION", "TERMINATE_SESSION":
+		// Target identity/session state mutated on connector; role assignments unchanged.
 	}
 	slices.Sort(roles)
 	roles = slices.Compact(roles)

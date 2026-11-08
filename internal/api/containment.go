@@ -50,13 +50,44 @@ func (a *containmentAPI) RestoreAccess(ctx context.Context, r *connect.Request[v
 	if revision != 0 || r.Msg.IncidentId == "" {
 		return nil, changeError(domain.ErrInvalid)
 	}
-	kind := "ROLE_ASSIGN"
-	if r.Msg.AccessToRestore == "" {
-		kind = "ENABLE_ACCOUNT"
-	} else if strings.HasPrefix(r.Msg.AccessToRestore, "perm:") || strings.HasPrefix(r.Msg.AccessToRestore, "grant:") {
-		kind = "RESTORE_SERVICE_PERMISSION"
-	} else if strings.HasPrefix(r.Msg.AccessToRestore, "session:") {
-		kind = "ISSUE_SESSION"
+	kind := ""
+	if view, err := a.service.GetIncident(ctx, p, r.Msg.IncidentId); err == nil {
+		for _, action := range view.Proposal.Body.Plan.Actions {
+			if action.Target == r.Msg.TargetIdentity {
+				switch action.Kind {
+				case "RESTRICT_ACCOUNT":
+					if r.Msg.AccessToRestore == "" || r.Msg.AccessToRestore == action.Access {
+						kind = "ENABLE_ACCOUNT"
+					}
+				case "REMOVE_SERVICE_PERMISSION":
+					if r.Msg.AccessToRestore == action.Access || strings.HasPrefix(r.Msg.AccessToRestore, "perm:") || strings.HasPrefix(r.Msg.AccessToRestore, "grant:") {
+						kind = "RESTORE_SERVICE_PERMISSION"
+					}
+				case "TERMINATE_SESSION":
+					if r.Msg.AccessToRestore == action.Access || strings.HasPrefix(r.Msg.AccessToRestore, "session:") {
+						kind = "ISSUE_SESSION"
+					}
+				case "ROLE_REVOKE":
+					if r.Msg.AccessToRestore == action.Access {
+						kind = "ROLE_ASSIGN"
+					}
+				}
+			}
+			if kind != "" {
+				break
+			}
+		}
+	}
+	if kind == "" {
+		if r.Msg.AccessToRestore == "" {
+			kind = "ENABLE_ACCOUNT"
+		} else if strings.HasPrefix(r.Msg.AccessToRestore, "perm:") || strings.HasPrefix(r.Msg.AccessToRestore, "grant:") {
+			kind = "RESTORE_SERVICE_PERMISSION"
+		} else if strings.HasPrefix(r.Msg.AccessToRestore, "session:") {
+			kind = "ISSUE_SESSION"
+		} else {
+			kind = "ROLE_ASSIGN"
+		}
 	}
 	change, err := a.service.Submit(ctx, p, workflow.Submit{
 		CommandID:       id,

@@ -3,7 +3,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trimpath -buildvcs=false -o /out/ ./cmd/ratchetd ./cmd/ratchet-sim ./cmd/ratchet-connector ./cmd/ratchet-prototype
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -trimpath -buildvcs=false -o /out/ ./cmd/ratchetd ./cmd/ratchet-sim ./cmd/ratchet-connector ./cmd/ratchet-prototype ./cmd/ratchet-authority
 
 FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc AS runtime
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

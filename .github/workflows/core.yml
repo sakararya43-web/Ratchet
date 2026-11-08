@@ -116,6 +116,12 @@ jobs:
           # The complete suite includes durable replay, expiry and drift tests.
           go test -race -p=1 -tags=integration -count=1 -timeout=10m ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Independent Authority database and native governance acceptance
+        shell: pwsh
+        run: |
+          . ./scripts/core-env-load.ps1
+          python scripts/core-authority-check.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: New-process persistence and readiness smoke
         run: sh scripts/core-smoke.sh
       - name: Measure P1 workloads without race instrumentation

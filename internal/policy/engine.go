@@ -137,8 +137,12 @@ func prepareRegistry(ctx context.Context, registry *Registry, tenant string, raw
 	}
 	caps.Builtins = builtins
 	caps.AllowNet = []string{}
+	policyData := verified.Data
+	if policyData == nil {
+		policyData = map[string]any{}
+	}
 	prepare := func(query string) (rego.PreparedEvalQuery, error) {
-		options := []func(*rego.Rego){rego.Query(query), rego.Capabilities(caps), rego.StrictBuiltinErrors(true), rego.Store(inmem.NewFromObject(verified.Data))}
+		options := []func(*rego.Rego){rego.Query(query), rego.Capabilities(caps), rego.StrictBuiltinErrors(true), rego.Store(inmem.NewFromObject(policyData))}
 		for name, module := range verified.Modules {
 			options = append(options, rego.Module(name, module))
 		}

@@ -36,20 +36,22 @@ import (
 )
 
 type consoleConfig struct {
-	ServeWeb                bool             `json:"serve_web"`
-	Origin                  string           `json:"origin"`
-	SessionKey              string           `json:"session_key_hex"`
-	GraphKey                string           `json:"graph_key_hex"`
-	GraphKeyFile            string           `json:"graph_key_file"`
-	CursorKey               string           `json:"cursor_key_hex"`
-	ServerCert              string           `json:"server_cert"`
-	ServerKey               string           `json:"server_key"`
-	NATSURL                 string           `json:"nats_url"`
-	NATSCredentials         string           `json:"nats_credentials"`
-	ContainmentCosts        map[string]int64 `json:"containment_costs"`
-	ApprovalLifetimeSeconds int64            `json:"approval_lifetime_seconds"`
-	Tenants                 []struct {
+	ServeWeb                 bool             `json:"serve_web"`
+	Origin                   string           `json:"origin"`
+	SessionKey               string           `json:"session_key_hex"`
+	GraphKey                 string           `json:"graph_key_hex"`
+	GraphKeyFile             string           `json:"graph_key_file"`
+	CursorKey                string           `json:"cursor_key_hex"`
+	ServerCert               string           `json:"server_cert"`
+	ServerKey                string           `json:"server_key"`
+	NATSURL                  string           `json:"nats_url"`
+	NATSCredentials          string           `json:"nats_credentials"`
+	ContainmentCosts         map[string]int64 `json:"containment_costs"`
+	AuthorityBootstrapActors []string         `json:"authority_bootstrap_actors"`
+	ApprovalLifetimeSeconds  int64            `json:"approval_lifetime_seconds"`
+	Tenants                  []struct {
 		ID                        string           `json:"tenant_id"`
+		AuthorityURL              string           `json:"authority_url"`
 		Execution                 *executionConfig `json:"execution"`
 		AuthorityFile             string           `json:"authority_file"`
 		GenesisDigest             string           `json:"genesis_digest"`
@@ -309,6 +311,15 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	apiMux := http.NewServeMux()
+	governanceClients, err := authorityClients(config)
+	if err != nil {
+		return err
+	}
+	if len(governanceClients) > 0 {
+		apiMux.Handle("/authority/", http.StripPrefix("/authority", api.AuthorityGateway(governanceClients, credentials, verifier, func(ctx context.Context, p api.Principal) error {
+			return service.Authorize(ctx, workflow.Actor{TenantID: p.TenantID, ID: p.ActorID}, "governance")
+		})))
+	}
 	apiMux.Handle("/console/bootstrap", api.ConsoleBootstrap(service, graphKey))
 	apiMux.Handle("/console/approval-review", api.ConsoleApprovalReview(service))
 	apiMux.Handle("/ratchet.v1.ChangeService/", changes)

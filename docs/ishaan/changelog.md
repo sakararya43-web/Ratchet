@@ -27,6 +27,20 @@
   Focused approval/trust/policy race suites pass. Live service orchestration,
   containment, restoration and final acceptance remain required.
 
+- Added the independent SQL-backed Authority service, signed actor/body/expiry
+  gateway transport, isolated transactions, exact retry receipts and retained
+  native evidence. Serving credentials cannot change bootstrap pins or rewrite
+  Authority events; mutated cached state is refused against immutable history.
+- Added explicit HTTPS enrollment-only serving and authenticated console gateway.
+  Bootstrap serving mounts no target execution or policy-decision API. Regular
+  serving requires current signed governance policy and active member proof.
+  Authority publishes public artifacts for the existing root-pinned core loader.
+- Dedicated real PostgreSQL/HTTP native governance race acceptance passes,
+  including membership/threshold rotation, removed/stale members, immutable pins,
+  retry, restart and cached-head tampering. Added its explicit CI gate. Ordinary
+  Authority executable/core/API/policy race suites pass. Corrected nil policy-data
+  handling exposed by acceptance; no security assertion was weakened.
+
 ## Prototype C - browser journey and acceptance (2026-11-08)
 
 - Added readable impact/review/status and protected passkey management. Browser

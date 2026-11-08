@@ -64,7 +64,7 @@ def main():
             "--mount", "type=volume,source=ratchet-go-cache,target=/root/.cache/go-build",
             "--workdir", "/src",
         ]
-        for key in ("RATCHET_DATABASE_DSN", "RATCHET_MIGRATION_DSN", "RATCHET_PROJECTOR_DSN", "RATCHET_NATS_URL"):
+        for key in ("RATCHET_DATABASE_DSN", "RATCHET_MIGRATION_DSN", "RATCHET_PROJECTOR_DSN", "RATCHET_NATS_URL", "RATCHET_AUTHORITY_DSN", "RATCHET_AUTHORITY_MIGRATION_DSN"):
             if key in os.environ:
                 command += ["--env", key]
         command += [image, *arguments]

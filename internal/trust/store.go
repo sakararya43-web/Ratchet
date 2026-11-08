@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
@@ -159,7 +160,7 @@ func (s *Store) ProposeBundle(
 		return nil, fmt.Errorf("failed to digest proposed bundle: %w", err)
 	}
 
-	proposalID := fmt.Sprintf("prop-%s-%d", bundleVersion, time.Now().Unix())
+	proposalID := "prop-" + uuid.NewString()
 	bundle := &PolicyBundle{
 		ProposalID:    proposalID,
 		TenantID:      tenantID,
@@ -375,7 +376,7 @@ func (s *Store) ProposeRegistryChange(tenantID string, newM, newN int, proposedM
 		return nil, fmt.Errorf("failed to digest registry proposal: %w", err)
 	}
 
-	proposalID := fmt.Sprintf("reg-prop-epoch-%d-%d", targetEpoch, time.Now().Unix())
+	proposalID := "reg-prop-" + uuid.NewString()
 	prop := &RegistryProposal{
 		ProposalID:      proposalID,
 		TenantID:        tenantID,

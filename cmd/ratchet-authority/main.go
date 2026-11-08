@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/trust"
@@ -202,10 +203,10 @@ func (s *Server) handleActivateBundle(w http.ResponseWriter, r *http.Request) {
 }
 
 type ProposeRegistryRequest struct {
-	TenantID   string `json:"tenant_id"`
-	ProposedM  int    `json:"proposed_m"`
-	ProposedN  int    `json:"proposed_n"`
-	Members    []struct {
+	TenantID  string `json:"tenant_id"`
+	ProposedM int    `json:"proposed_m"`
+	ProposedN int    `json:"proposed_n"`
+	Members   []struct {
 		ActorID     string `json:"actor_id"`
 		DisplayName string `json:"display_name"`
 		PublicKey   string `json:"public_key"`
@@ -403,6 +404,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "secure" {
+		if err := runSecure(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	port := flag.Int("port", 8086, "Authority HTTP listen port")
 	stateFile := flag.String("state", "authority_state.json", "Authority storage file")
 	flag.Parse()

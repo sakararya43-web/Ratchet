@@ -48,6 +48,9 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	if args[0] == "console-serve" {
 		return runConsole(ctx, args[1:], out)
 	}
+	if args[0] == "enrollment-serve" {
+		return runEnrollment(ctx, args[1:], out)
+	}
 	if args[0] == "provision-users" {
 		return provisionUsers(ctx, args[1:], out)
 	}

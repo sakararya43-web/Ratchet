@@ -1,10 +1,11 @@
 {
   "files": {
-    "assets/index-DBonMIlZ.js": "2e4e1370a3d13ec2ef5a968ceaafee13a5bd41456358da510693dcb7c148c653",
-    "assets/index-l67yc5Rj.css": "176be6b6461f0ff75f50ccbc10ca2a5c4000de75b6fdce1be26a62e5506d17f9",
-    "index.html": "8103dab47f046ba9886b42192c33eff1eb26896124e618ea8adbd5eea10775e0"
+    "assets/index-BA3ggHht.css": "a86361a0b5735524786c10bd237bca11092224ce66b2c2e368a3aedb947e6192",
+    "assets/index-qlnSCmHj.js": "a7ccc0f096fdd04697337324ac8c9828382c690b997b4105032849f1e19f42f9",
+    "index.html": "65f7c50d28faf64adb4a6ce02bb8ed36fb844a8d2d801a5f58485aa2e6da9ea1"
   },
   "sources": {
+    "e2e/authority.spec.ts": "9bd612068e12737fc18c7832a83206afb3de225e0007b9578b5b82482f0759b8",
     "e2e/prototype.helpers.ts": "cf47396d0c13bf0e44cec170cf8013fd3b5fe5c48d83c7b019ba8f41c3ed3e8f",
     "e2e/prototype.spec.ts": "7003269e0d277bc3c3a924120cb6b4d0833d02dee53358e0fcd7763cc43c2d2c",
     "index.html": "05e2e2e0a8b999b6e4e955b52d4dbd758cc332b6763159aa24edd7966faddbdc",
@@ -12,9 +13,11 @@
     "package.json": "8e720ca04af3592d5a59d5296505156469034ce5bc4c78a571ceeddb6d668603",
     "playwright.prototype.config.ts": "7a1f1271e3bdbd0a35029d044cccd746dea3b5861afb505d361459971af41a62",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
-    "src/App.tsx": "5d6c4b7162071f0ffbb5487db5b85832442670717532be1cb5993496cbc2d6e0",
+    "src/App.tsx": "d164ea536a3364317ea6468f9cb5996ecfb7b2f350d020dbc2cb37f4c923c35b",
+    "src/AuthorityPanel.tsx": "2ea175b7c056cdda2a6a1d57b83d0aa60718e5f74e34525d71b7fd19018ebce1",
     "src/index.css": "c0fce240bdb530b66aae3a5e4ae948613c95a38c0805e289819532f1020ac50b",
     "src/lib/api.ts": "66b5c5200e58fda1ed7db4a21ff9f258c04695123de3698ae46fa38f7af664c7",
+    "src/lib/authority.ts": "da8a6f43fad3015c55bfe143a27565341f36d1c1a22481264101949e8ea1a52b",
     "src/lib/canon.test.ts": "86cc1be84119c7a46501fb5de0f91e6c25f24b60590e656e21f528f68643a1bd",
     "src/lib/canon.ts": "5b82922ed74335b497a95518c763904327e1018428c819cfd38876da6884e8e8",
     "src/lib/envelope.test.ts": "90602a82fb28424b878b34b2c0f768be034b2d9c09bdf8e8384127b1100eaf65",

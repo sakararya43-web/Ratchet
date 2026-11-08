@@ -2,8 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ShieldCheck, RefreshCw } from 'lucide-react';
 import { approve, executeContainment, login, mutation, registerPasskey, revokePasskey, request, rpc, session, type Bootstrap, type Change, type Document, type Session } from './lib/api';
 import { verifyEnvelope, verifyImpact, type ApprovalEnvelope } from './lib/envelope';
+import { AuthorityPanel } from './AuthorityPanel';
 
-const tabs = ['Overview', 'Changes', 'Infrastructure', 'Impact', 'Policy history', 'Incidents', 'Audit', 'Passkeys'] as const;
+const tabs = ['Overview', 'Changes', 'Infrastructure', 'Impact', 'Security policy', 'Incidents', 'Audit', 'Passkeys'] as const;
 type Tab = typeof tabs[number];
 type Resource = { id: string; displayName?: string; tier?: number };
 type Impact = { graphVersion?: string; monotonicReduction?: boolean; newResources?: Resource[]; newControlledIdentities?: string[]; newTier0PathsCount?: number; safeguardsWeakened?: { id: string; description?: string }[]; affectedIdentities?: { identityId: string; newPowers?: { nodeId: string; action: string }[]; removedPowers?: { nodeId: string; action: string }[] }[] };
@@ -61,8 +62,8 @@ export function App() {
     if (tab === 'Infrastructure' || tab === 'Impact') return;
     if (tab === 'Changes') { const r = await rpc<{ requests?: Change[]; nextPageToken?: string }>('ChangeService', 'ListChanges', { tenantId, pageSize: 50, pageToken }); setChanges(r.requests ?? []); setNext(r.nextPageToken ?? ''); return; }
     if (tab === 'Passkeys') { setResult(await request('/api/passkeys/list')); return; }
-    const [service, method] = tab === 'Overview' ? ['OverviewService', 'GetAttentionItems'] : tab === 'Policy history' ? ['ChangeService', 'ListPolicyHistory'] : tab === 'Incidents' ? ['IncidentService', 'ListIncidents'] : ['AuditService', 'QueryAuditEvents'];
-    const r = await rpc<Document>(service, method, { tenantId, ...(tab === 'Overview' ? {} : { pageSize: 50, ...(tab === 'Policy history' ? { afterEventPosition: pageToken || '0' } : { pageToken }) }) });
+    const [service, method] = tab === 'Overview' ? ['OverviewService', 'GetAttentionItems'] : tab === 'Security policy' ? ['ChangeService', 'ListPolicyHistory'] : tab === 'Incidents' ? ['IncidentService', 'ListIncidents'] : ['AuditService', 'QueryAuditEvents'];
+    const r = await rpc<Document>(service, method, { tenantId, ...(tab === 'Overview' ? {} : { pageSize: 50, ...(tab === 'Security policy' ? { afterEventPosition: pageToken || '0' } : { pageToken }) }) });
     setResult(r); setNext(String(r.nextPageToken ?? (r.hasMore ? r.nextEventPosition : '') ?? ''));
   }
   useEffect(() => { if (identity) void work(async () => { setReview(null); setBootstrap(await request<Bootstrap>('/api/console/bootstrap')); await load(); }); }, [identity, tab]);
@@ -226,6 +227,7 @@ export function App() {
           <button disabled={busy}>Submit restoration request</button>
         </form>
       </section>}
+      {tab === 'Security policy' && <AuthorityPanel actorId={identity.principal.actor_id} tenantId={tenantId!} />}
       {tab === 'Passkeys' && <section><h3>Register a passkey</h3><p>Use a one-use enrollment ticket issued by your operator. A signed-in session alone cannot change approval credentials.</p><form onSubmit={e => form(e, async v => { await registerPasskey(v.Label, v.Ticket); await load(); setNotice('Passkey registered for this signed-in account.'); })}><Fields names={['Label']} /><label>Enrollment ticket<input name="Ticket" type="password" autoComplete="off" required /></label><button disabled={busy}>Register with your authenticator</button></form><h3>Revoke a credential</h3><form onSubmit={e => form(e, async v => { await revokePasskey(v.Credential, v.RevocationTicket); await load(); setNotice('Credential revoked.'); })}><Fields names={['Credential']} /><label>Revocation ticket<input name="RevocationTicket" type="password" autoComplete="off" required /></label><button disabled={busy}>Revoke credential</button></form></section>}
       {tab === 'Audit' && <section><h3>Permanent audit trail</h3><form onSubmit={e => form(e, async v => setResult(await rpc('AuditService', 'QueryAuditEvents', { tenantId, requestId: v.Request, pageSize: 50 })))}><Fields names={['Request']} /><button disabled={busy}>Find request audit</button></form><table><thead><tr><th>Sequence</th><th>Event</th><th>Stream</th><th>Recorded</th><th>Event hash</th></tr></thead><tbody>{audit?.events?.map(event => <tr key={event.sequenceNumber}><td>{event.sequenceNumber}</td><td>{event.eventType}</td><td>{event.streamId}</td><td>{event.recordedAt}</td><td><code>{event.eventHash}</code></td></tr>)}</tbody></table>{!audit?.events?.length && <p>No events in this authorized query.</p>}</section>}
       {result !== null && tab !== 'Overview' && tab !== 'Impact' && <details><summary>Server evidence</summary><Data value={result} /></details>}{next && <button disabled={busy} onClick={() => void work(() => load(next))}>Next page</button>}

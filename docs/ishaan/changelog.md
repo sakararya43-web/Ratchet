@@ -12,6 +12,16 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Project completion - live Authority integration & browser governance
+
+- Reconciled missing local live Authority governance assets onto main:
+  - Added `web/src/lib/authority.ts`: TypeScript client for AuthorityGateway (`/api/authority/state`, `credentials`, `prepare`, `apply`, with passkey assertion signing).
+  - Added `web/src/AuthorityPanel.tsx`: Security Policy screen with epoch status, M-of-N quorum threshold, candidate passkey enrollment, and proposal signing/activation.
+  - Added `web/e2e/authority.spec.ts`: Playwright acceptance suite with virtual CTAP2 authenticators for native governance.
+  - Added `deploy/completion-a.compose.yaml`, `scripts/completion-a.py`, and `scripts/completion-a-browser.py` for isolated Authority testing.
+  - Rebuilt production web assets via `scripts/core-web-build.py` (18 tests passing, 0 npm vulnerabilities, SHA-256 integrity manifest).
+- Resolved all 24 staticcheck and errcheck violations without weakening configurations.
+
 ## Project completion C - offline proof, integrated acceptance and release readiness (completed)
 
 - Completed all Phase C requirements sequentially with zero scaffolding and passing tests across all modules.

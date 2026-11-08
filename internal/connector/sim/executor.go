@@ -22,13 +22,23 @@ import (
 type ResultPublisher func(context.Context, string, string, []byte) error
 
 type Executor struct {
-	mu                           sync.Mutex
+	cmdLocks                     sync.Map
 	tenant, connector, directory string
 	core                         ed25519.PublicKey
 	key                          ed25519.PrivateKey
 	adapter                      *Adapter
 	publish                      ResultPublisher
 }
+
+func (e *Executor) lockCommand(cmdID string) func() {
+	val, _ := e.cmdLocks.LoadOrStore(cmdID, &sync.Mutex{})
+	mtx := val.(*sync.Mutex)
+	mtx.Lock()
+	return func() {
+		mtx.Unlock()
+	}
+}
+
 type commandRecord struct {
 	Version  int                                 `json:"version"`
 	Identity ports.Digest                        `json:"identity"`
@@ -50,12 +60,12 @@ func NewExecutor(tenant, connectorID, directory string, core ed25519.PublicKey, 
 // and acknowledges only after JetStream confirms publication. The target's own
 // atomic CAS/receipt journal closes the crash gap between mutation and result.
 func (e *Executor) Handle(ctx context.Context, raw []byte) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
 	command, err := authenticateCommand(raw, e.tenant, e.connector, e.core, time.Now().UTC(), true)
 	if err != nil {
 		return err
 	}
+	unlock := e.lockCommand(command.CommandID)
+	defer unlock()
 	identity, err := commandIdentity(command)
 	if err != nil {
 		return err
@@ -115,6 +125,12 @@ func (e *Executor) Handle(ctx context.Context, raw []byte) error {
 		preimageMatches = observed.IsRestricted
 	case "TERMINATE_SESSION":
 		preimageMatches = slices.Contains(observed.ActiveSessions, command.Envelope.Intent.Access)
+	case "ISSUE_SESSION":
+		preimageMatches = !observed.IsRestricted
+	case "REMOVE_SERVICE_PERMISSION":
+		preimageMatches = slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access) || len(command.BeforeRoles) == 0 || slices.Equal(observed.CurrentRoles, command.BeforeRoles)
+	case "RESTORE_SERVICE_PERMISSION":
+		preimageMatches = !slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access) || len(command.BeforeRoles) == 0 || slices.Equal(observed.CurrentRoles, command.BeforeRoles)
 	}
 
 	// Never write during reconciliation or after expiration, and never write over
@@ -137,10 +153,12 @@ func (e *Executor) Handle(ctx context.Context, raw []byte) error {
 		switch action {
 		case "ASSIGN_ROLE":
 			verified = verified && slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access)
-		case "REVOKE_ROLE", "REMOVE_SERVICE_PERMISSION":
+		case "REVOKE_ROLE":
+			verified = verified && !slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access)
+		case "REMOVE_SERVICE_PERMISSION":
 			verified = verified && !slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access)
 		case "RESTRICT_ACCOUNT":
-			verified = verified && observed.IsRestricted
+			verified = verified && observed.IsRestricted && len(observed.ActiveSessions) == 0
 		case "ENABLE_ACCOUNT":
 			verified = verified && !observed.IsRestricted
 		case "TERMINATE_SESSION":

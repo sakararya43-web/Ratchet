@@ -50,6 +50,14 @@
 
 ## Project completion - Phase A: live governance, verified containment and restoration
 
+- A3 (All four containment actions & unblocked priority execution):
+  - Removed global mutex in `internal/connector/sim/executor.go`: implemented per-command locking (`cmdLocks sync.Map`) so concurrent and emergency priority commands never block waiting for unrelated slow or ordinary target I/O.
+  - Enforced strict semantics for all four containment actions (`ROLE_REVOKE`, `RESTRICT_ACCOUNT`, `REMOVE_SERVICE_PERMISSION`, `TERMINATE_SESSION`):
+    - Account restriction verifies identity disabling and ensures zero active sessions remain.
+    - Session termination validates exact session ownership linkage.
+    - Service permission removal/restoration verifies against grant semantics without confusing grant IDs with role IDs.
+  - Preserved durable CAS, duplicate receipt journal persistence, and signed read-back observations across target operations.
+
 - A2 (Exact-plan containment authorization, target preconditions & durable idempotency):
   - Fixed containment target preconditions in `internal/workflow/containment.go`: retrieves actual connector source revision and resync quarantine status from `ratchet.graph_sources` rather than using merged graph version.
   - Implemented sequential expected revisions for multi-action containment plans.

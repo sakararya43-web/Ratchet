@@ -84,6 +84,24 @@ jobs:
           args: --config .golangci-core.yml ./...
       - name: Policy decisions and authorization regressions
         run: python3 scripts/core-check.py --image openpolicyagent/opa:1.22.0-static test --fail-on-empty -v policies/
+      - name: Real local prototype and independent browser acceptance
+        run: |
+          node web/node_modules/playwright/cli.js install --with-deps chromium
+          python3 scripts/prototype.py start
+          python3 scripts/prototype-browser.py
+          python3 scripts/prototype-foundation.py
+      - name: Preserve public prototype evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prototype-browser-acceptance
+          path: |
+            .local/prototype/browser-evidence.json
+            .local/prototype/foundation-evidence.json
+            .local/prototype/audit-acceptance.png
+            .local/prototype/changes-acceptance.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Start real local dependencies
         shell: pwsh
         run: ./scripts/core-env.ps1
@@ -153,4 +171,7 @@ jobs:
         run: |
           if test -f .local/core.env; then
             docker compose --env-file .local/core.env -f deploy/compose/compose.yaml down
+          fi
+          if test -f .local/prototype/prototype.env; then
+            python3 scripts/prototype.py stop
           fi

@@ -20,7 +20,7 @@ export async function changesTab(page: Page) {
 }
 
 export async function submit(page: Page, role: string, kind = 'ROLE_ASSIGN') {
-  await page.getByLabel('Kind', { exact: true }).selectOption(kind);
+  await page.getByRole('combobox', { name: 'Kind', exact: true }).selectOption(kind);
   await page.getByLabel('Identity', { exact: true }).fill('user:rahul-assistant');
   await page.getByLabel('Access', { exact: true }).fill(role);
   await page.getByLabel('Justification', { exact: true }).fill(`Prototype acceptance ${kind} ${role}`);

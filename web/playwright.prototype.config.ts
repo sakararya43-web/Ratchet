@@ -12,7 +12,8 @@ export default defineConfig({
   expect: { timeout: 30_000 }, outputDir: resolve(local, 'browser-artifacts'),
   reporter: [['line'], ['json', { outputFile: resolve(local, 'browser-results.json') }]],
   use: {
-    baseURL: 'https://localhost:8444', trace: 'off', screenshot: 'only-on-failure',
+    baseURL: 'https://localhost:8444', actionTimeout: 10_000, navigationTimeout: 10_000,
+    trace: 'off', screenshot: 'only-on-failure',
     launchOptions: { args: [`--ignore-certificate-errors-spki-list=${spki}`] },
   },
 });

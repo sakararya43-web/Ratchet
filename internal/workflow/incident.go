@@ -146,15 +146,16 @@ func (s *Service) incidentWithin(ctx context.Context, tx pgx.Tx, tenant, id stri
 					return incident, eventstore.ErrIntegrity
 				}
 			} else {
-				if event.Type == "IncidentContained" {
+				switch event.Type {
+				case "IncidentContained":
 					if next.Status != "CONTAINED" || next.ContainedAt.IsZero() || next.ContainedAt.After(event.RecordedAt) || next.PlanID != incident.PlanID || next.PlanDigest != incident.PlanDigest {
 						return incident, eventstore.ErrIntegrity
 					}
-				} else if event.Type == "IncidentResidualReviewRequired" {
+				case "IncidentResidualReviewRequired":
 					if next.Status != "OPEN" && next.Status != "REVIEW" {
 						return incident, eventstore.ErrIntegrity
 					}
-				} else {
+				default:
 					return incident, eventstore.ErrIntegrity
 				}
 			}

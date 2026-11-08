@@ -140,7 +140,8 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	slices.Sort(roles)
 	roles = slices.Compact(roles)
 	beforeRoles := slices.Clone(roles)
-	if c.Intent.Kind == "ROLE_ASSIGN" {
+	switch c.Intent.Kind {
+	case "ROLE_ASSIGN":
 		if c.Intent.DurationSeconds > 0 && slices.Contains(roles, c.Intent.Access) {
 			// An existing permanent grant cannot silently become timer-owned.
 			return cmd, domain.ErrInvalid
@@ -148,7 +149,7 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 		if !slices.Contains(roles, c.Intent.Access) {
 			roles = append(roles, c.Intent.Access)
 		}
-	} else if c.Intent.Kind == "ROLE_REVOKE" {
+	case "ROLE_REVOKE":
 		roles = slices.DeleteFunc(roles, func(role string) bool { return role == c.Intent.Access })
 	}
 	slices.Sort(roles)

@@ -12,6 +12,14 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Core lint & staticcheck quickfix hardening
+
+- Fixed staticcheck QF1003 (tagged switch recommendation) in `internal/workflow/incident.go`: converted event type conditional checks to a tagged switch statement with explicit default integrity error.
+- Fixed staticcheck QF1003 in `internal/workflow/execution.go`: converted change intent kind conditional to a tagged switch.
+- Fixed staticcheck QF1003 in `internal/connector/sim/executor.go`: converted envelope intent kind conditional to a tagged switch with grouped role assignment/revocation handling.
+- Fixed staticcheck QF1001 (De Morgan's law simplification) in `internal/authority/transport.go`: simplified scheme and loopback validation logic to eliminate nested negation.
+- Passed full test suite, go vet, and linters across all packages without suppressing rules or weakening linter configuration.
+
 ## Project completion - Phase C: offline proof hardening, acceptance and release readiness
 
 - C1 & C2 (Offline verifier security hardening):

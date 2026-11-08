@@ -44,7 +44,7 @@ func NewClient(address, tenant string, key ed25519.PrivateKey) (*Client, error) 
 	}
 	ip := net.ParseIP(u.Hostname())
 	local := u.Hostname() == "localhost" || (ip != nil && ip.IsLoopback())
-	if u.Scheme != "https" && !(local && u.Scheme == "http") {
+	if u.Scheme != "https" && (!local || u.Scheme != "http") {
 		return nil, ErrRefused
 	}
 	return &Client{URL: address, Tenant: tenant, Key: append(ed25519.PrivateKey(nil), key...), HTTP: &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect refused") }}}, nil

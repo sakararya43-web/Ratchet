@@ -106,13 +106,14 @@ func (e *Executor) Handle(ctx context.Context, raw []byte) error {
 		return err
 	}
 	preimageMatches := true
-	if command.Envelope.Intent.Kind == "ROLE_ASSIGN" || command.Envelope.Intent.Kind == "ROLE_REVOKE" {
+	switch command.Envelope.Intent.Kind {
+	case "ROLE_ASSIGN", "ROLE_REVOKE":
 		preimageMatches = slices.Equal(observed.CurrentRoles, command.BeforeRoles)
-	} else if command.Envelope.Intent.Kind == "RESTRICT_ACCOUNT" {
+	case "RESTRICT_ACCOUNT":
 		preimageMatches = !observed.IsRestricted
-	} else if command.Envelope.Intent.Kind == "ENABLE_ACCOUNT" {
+	case "ENABLE_ACCOUNT":
 		preimageMatches = observed.IsRestricted
-	} else if command.Envelope.Intent.Kind == "TERMINATE_SESSION" {
+	case "TERMINATE_SESSION":
 		preimageMatches = slices.Contains(observed.ActiveSessions, command.Envelope.Intent.Access)
 	}
 

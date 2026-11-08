@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -224,7 +225,7 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 		incidentID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(actor.TenantID+":incident:"+proposal.Body.ID)).String()
 		incidentStreamID := "incident:" + incidentID
 
-		incident, incErr := s.incidentWithin(ctx, tx, actor.TenantID, incidentID, 0)
+		_, incErr := s.incidentWithin(ctx, tx, actor.TenantID, incidentID, 0)
 		if incErr != nil {
 			if !errors.Is(incErr, pgx.ErrNoRows) {
 				return incErr
@@ -236,7 +237,7 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 			if err != nil {
 				return err
 			}
-			incident = Incident{
+			openIncident := Incident{
 				ID:              incidentID,
 				Tenant:          actor.TenantID,
 				CorrelationID:   input.CorrelationID,
@@ -248,7 +249,7 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				Revision:        1,
 				OpenFingerprint: openFingerprint,
 			}
-			openRaw, err := json.Marshal(incident)
+			openRaw, err := json.Marshal(openIncident)
 			if err != nil {
 				return err
 			}
@@ -299,6 +300,20 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				return err
 			}
 
+			roles := []string{}
+			_, out, _ := snapshot.IncidentEdges(action.Target)
+			for _, e := range out {
+				if e.Kind == "ASSIGNED" {
+					roles = append(roles, e.Target)
+				}
+			}
+			slices.Sort(roles)
+			beforeRoles := append([]string(nil), roles...)
+			expectedRoles := append([]string(nil), roles...)
+			if action.Kind == "ROLE_REVOKE" {
+				expectedRoles = slices.DeleteFunc(expectedRoles, func(r string) bool { return r == action.Access })
+			}
+
 			prepCmd := PreparedCommand{
 				SchemaVersion:     1,
 				Tenant:            actor.TenantID,
@@ -310,6 +325,8 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				ExpectedRevision:  snapshot.Version(),
 				Envelope:          env,
 				EnvelopeDigest:    envDigest,
+				BeforeRoles:       beforeRoles,
+				ExpectedRoles:     expectedRoles,
 				Approvals: []domain.Approval{
 					{
 						ActorID:      actor.ID,
@@ -337,6 +354,15 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				return err
 			}
 
+			rolesJSON, err := json.Marshal(expectedRoles)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO ratchet.execution_attempts(tenant_id,command_id,request_id,connector_id,source_revision,envelope_digest,expected_roles,deadline,command_payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+				actor.TenantID, actionCmdID, actionReqID, execution.Connector, snapshot.Version(), envDigest.Bytes(), rolesJSON, prepCmd.Deadline, rawCmd); err != nil {
+				return err
+			}
+
 			receipt, err := s.Store.AppendWithin(ctx, tx, eventstore.Command{
 				TenantID:       actor.TenantID,
 				ID:             uuid.NewSHA1(input.CommandID, []byte(fmt.Sprintf("event-%d", i))),
@@ -358,39 +384,11 @@ func (s *Service) ExecuteContainment(ctx context.Context, actor Actor, input Exe
 				ActionID:            actionCmdID,
 				ActionType:          action.Kind,
 				TargetIdentity:      action.Target,
-				Success:             true,
-				AppliedAt:           now,
+				Success:             false,
+				AppliedAt:           time.Time{},
 				TargetRevisionAfter: snapshot.Version(),
-				ReadBackVerified:    true,
+				ReadBackVerified:    false,
 			})
-		}
-
-		containedIncident := Incident{
-			ID:              incidentID,
-			Tenant:          actor.TenantID,
-			CorrelationID:   input.CorrelationID,
-			Identity:        proposal.Body.Plan.Origins[0],
-			PlanID:          proposal.Body.ID,
-			PlanDigest:      proposal.Digest,
-			Status:          "CONTAINED",
-			OpenedAt:        incident.OpenedAt,
-			Revision:        incident.Revision + 1,
-			OpenFingerprint: incident.OpenFingerprint,
-			ContainedAt:     now,
-		}
-		containedRaw, err := json.Marshal(containedIncident)
-		if err != nil {
-			return err
-		}
-		if _, err := s.Store.AppendWithin(ctx, tx, eventstore.Command{
-			TenantID:        actor.TenantID,
-			ID:              uuid.NewSHA1(input.CommandID, []byte("incident-contained")),
-			StreamID:        incidentStreamID,
-			ExpectedVersion: incident.Revision,
-			ActorReference:  uuid.NewSHA1(uuid.NameSpaceOID, []byte(actor.TenantID+":"+actor.ID)),
-			Events:          []eventstore.Event{{Type: "IncidentContained", Facts: containedRaw}},
-		}); err != nil {
-			return err
 		}
 
 		durationMs := time.Since(startTime).Milliseconds()

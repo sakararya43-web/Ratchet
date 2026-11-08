@@ -80,7 +80,7 @@ func (s *Service) containmentProposal(ctx context.Context, tx pgx.Tx, tenant, id
 	if err != nil {
 		return proposal, err
 	}
-	if len(events) != 1 || events[0].Sequence != position || events[0].Type != "ContainmentPlanned" {
+	if len(events) < 1 || events[0].Sequence != position || events[0].Type != "ContainmentPlanned" {
 		return proposal, eventstore.ErrIntegrity
 	}
 	var content ledger.Content

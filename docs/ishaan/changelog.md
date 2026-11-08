@@ -12,7 +12,7 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
-## Project completion - live Authority integration & browser governance
+## Project completion - Phase A: live governance, verified containment and restoration
 
 - Reconciled missing local live Authority governance assets onto main:
   - Added `web/src/lib/authority.ts`: TypeScript client for AuthorityGateway (`/api/authority/state`, `credentials`, `prepare`, `apply`, with passkey assertion signing).
@@ -20,7 +20,14 @@
   - Added `web/e2e/authority.spec.ts`: Playwright acceptance suite with virtual CTAP2 authenticators for native governance.
   - Added `deploy/completion-a.compose.yaml`, `scripts/completion-a.py`, and `scripts/completion-a-browser.py` for isolated Authority testing.
   - Rebuilt production web assets via `scripts/core-web-build.py` (18 tests passing, 0 npm vulnerabilities, SHA-256 integrity manifest).
-- Resolved all 24 staticcheck and errcheck violations without weakening configurations.
+- Resolved all 24 staticcheck and errcheck violations across authority, api, and cli without weakening configurations.
+- Truthful incident lifecycle and priority containment execution:
+  - Fixed premature containment success: `ExecuteContainment` now correctly records execution attempts in `ratchet.execution_attempts` and dispatches to outbox with unapplied/unverified initial state, preventing premature `CONTAINED` status transitions.
+  - Wired production caller for `DeliverPriority` in `internal/bus/jetstream.go` (`Relay`) under advisory lock `319736`.
+  - Added dedicated reserved containment stream and consumer (`broker.ConsumeContainment`) in `cmd/ratchet-connector/main.go` and `internal/bus/jetstream.go` on `ratchet.<tenant>.contain.<connector>`.
+  - Added `recordContainmentResult` in `internal/workflow/execution.go`: validates connector signatures and read-back verification, records `ContainmentActionVerified` on `containment:<plan_id>`, and transitions incident to `CONTAINED` only when all planned actions are verified on the target.
+  - Updated `containmentProposal` to tolerate post-planning stream receipts on `containment:<plan_id>`.
+  - Added non-role restoration and reduction draft handling in `internal/graph/impact.go` and `internal/workflow/execution.go` (`ENABLE_ACCOUNT`, `RESTRICT_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, `REMOVE_SERVICE_PERMISSION`, `ISSUE_SESSION`, `TERMINATE_SESSION`). Fixed role equality verification in `RecordExecutionResult` for non-role operations.
 
 ## Project completion C - offline proof, integrated acceptance and release readiness (completed)
 

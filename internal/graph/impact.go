@@ -292,6 +292,75 @@ func (s *Snapshot) Draft(kind, target, access string) (Delta, error) {
 			return Delta{}, ErrNotFound
 		}
 		return d, nil
+	case "ENABLE_ACCOUNT", "RESTRICT_ACCOUNT":
+		if !Identity(n.Type) {
+			return Delta{}, ErrInvalid
+		}
+		node := cloneNode(n)
+		if node.Properties == nil {
+			node.Properties = map[string]string{}
+		}
+		if kind == "ENABLE_ACCOUNT" {
+			node.Properties["disabled"] = "false"
+		} else {
+			node.Properties["disabled"] = "true"
+		}
+		return Delta{NodesAdded: []Node{node}}, nil
+	case "RESTORE_SERVICE_PERMISSION", "REMOVE_SERVICE_PERMISSION":
+		if n.Type != "ServiceAccount" || access == "" {
+			return Delta{}, ErrInvalid
+		}
+		if kind == "RESTORE_SERVICE_PERMISSION" {
+			return Delta{EdgesAdded: []Edge{{
+				ID:         "draft:" + target + ":" + access,
+				Source:     target,
+				Target:     access,
+				Kind:       "ASSIGNED",
+				Properties: map[string]string{"grant_id": access},
+			}}}, nil
+		}
+		d := Delta{}
+		for _, e := range s.edges {
+			if e.Source == target && (e.Kind == "GRANTS" || e.Kind == "ASSIGNED") && (e.Target == access || e.Properties["grant_id"] == access) {
+				d.EdgesRemoved = append(d.EdgesRemoved, e.ID)
+			}
+		}
+		if len(d.EdgesRemoved) == 0 {
+			return Delta{}, ErrNotFound
+		}
+		return d, nil
+	case "ISSUE_SESSION", "TERMINATE_SESSION":
+		if kind == "ISSUE_SESSION" {
+			if !Identity(n.Type) {
+				return Delta{}, ErrInvalid
+			}
+			newSessionID := access
+			if newSessionID == "" {
+				newSessionID = "session:" + target + "-restored"
+			}
+			sessionNode := Node{
+				ID:          newSessionID,
+				Type:        "Session",
+				DisplayName: "Session " + newSessionID,
+				Properties:  map[string]string{"owner": target, "disabled": "false"},
+			}
+			edge := Edge{
+				ID:     "draft:session:" + target + ":" + newSessionID,
+				Source: target,
+				Target: newSessionID,
+				Kind:   "MEMBER_OF",
+			}
+			return Delta{NodesAdded: []Node{sessionNode}, EdgesAdded: []Edge{edge}}, nil
+		}
+		if n.Type != "Session" {
+			return Delta{}, ErrInvalid
+		}
+		node := cloneNode(n)
+		if node.Properties == nil {
+			node.Properties = map[string]string{}
+		}
+		node.Properties["disabled"] = "true"
+		return Delta{NodesAdded: []Node{node}}, nil
 	case "MODIFY_SAFEGUARD":
 		if n.Type != "Safeguard" || access != "remove" {
 			return Delta{}, fmt.Errorf("%w: only explicit safeguard removal is supported", ErrInvalid)

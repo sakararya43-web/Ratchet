@@ -126,8 +126,18 @@ func main() {
 		if err = broker.EnsureExecution(ctx, *tenantID, *connectorID); err != nil {
 			log.Fatal(err)
 		}
+		if err = broker.EnsureContainment(ctx, *tenantID, *connectorID); err != nil {
+			log.Fatal(err)
+		}
 		go func() {
 			err := broker.ConsumeExecution(ctx, *tenantID, *connectorID, executor.Handle, logger)
+			if err != nil && ctx.Err() == nil {
+				consumerError <- err
+				cancel()
+			}
+		}()
+		go func() {
+			err := broker.ConsumeContainment(ctx, *tenantID, *connectorID, executor.Handle, logger)
 			if err != nil && ctx.Err() == nil {
 				consumerError <- err
 				cancel()

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ShieldCheck, RefreshCw } from 'lucide-react';
-import { approve, login, mutation, registerPasskey, revokePasskey, request, rpc, session, type Bootstrap, type Change, type Document, type Session } from './lib/api';
+import { approve, executeContainment, login, mutation, registerPasskey, revokePasskey, request, rpc, session, type Bootstrap, type Change, type Document, type Session } from './lib/api';
 import { verifyEnvelope, verifyImpact, type ApprovalEnvelope } from './lib/envelope';
 
 const tabs = ['Overview', 'Changes', 'Infrastructure', 'Impact', 'Policy history', 'Incidents', 'Audit', 'Passkeys'] as const;
@@ -91,13 +91,141 @@ export function App() {
       {error && <p role="alert">{error}</p>}{notice && <p role="status" className="notice">{notice}</p>}{busy && <p role="status">Waiting for the server or your passkey?</p>}
       {bootstrap && <p className="muted">Graph version {bootstrap.graph_version} | {bootstrap.scope === 'SELF' ? 'Your identity only; organization visibility requires investigator authorization.' : 'Organization visibility authorized by core policy.'}</p>}
       {tab === 'Overview' && <section><h3>Attention items</h3>{overview?.attentionItems?.length ? overview.attentionItems.map(item => <article key={item.itemId}><h4>{item.title}</h4><p>{item.description}</p></article>) : <p>No attention items returned for this account.</p>}<button disabled={busy} onClick={() => setTab('Changes')}>Open access changes</button><button disabled={busy} onClick={() => setTab('Passkeys')}>Manage your passkeys</button></section>}
-      {tab === 'Infrastructure' && bootstrap && <><h3>Observed nodes</h3><table><thead><tr><th>Name</th><th>Type</th><th>Tier</th><th>Identity</th></tr></thead><tbody>{bootstrap.nodes.map(n => <tr key={n.id}><td>{n.display_name || n.id}</td><td>{n.type}</td><td>{n.tier ?? '?'}</td><td>{n.id}</td></tr>)}</tbody></table><details><summary>Observed relationships</summary><Data value={bootstrap.edges} /></details></>}
-      {(tab === 'Changes' || tab === 'Impact') && <section><h3>{tab === 'Changes' ? 'Request an access change' : 'Assess an access change'}</h3><p>Choose an identity and exact role. The server assesses reachability and selects independent reviewers.</p><form onSubmit={e => form(e, async v => { const body = { tenantId, kind: v.Kind, targetIdentity: v.Identity, requestedAccess: v.Access, requestedBy: identity.principal.actor_id, ...(tab === 'Changes' ? { justification: v.Justification, mutation: mutation() } : {}) }; const r = await rpc<{ request?: Change; impact?: Impact }>(tab === 'Changes' ? 'ChangeService' : 'ImpactService', tab === 'Changes' ? 'SubmitChange' : 'SimulateChange', body); if (r.request) { setNotice(`Request ${r.request.requestId} submitted. Assessment and execution status update automatically.`); await load(); } else setResult(r); })}><label>Kind<select name="Kind"><option>ROLE_ASSIGN</option><option>ROLE_REVOKE</option></select></label><Fields names={['Identity', 'Access', ...(tab === 'Changes' ? ['Justification'] : [])]} /><button disabled={busy}>{tab === 'Changes' ? 'Submit for assessment' : 'Compute impact on server'}</button></form></section>}
+      {tab === 'Infrastructure' && bootstrap && (
+        <section>
+          <h3>Observed infrastructure nodes ({bootstrap.nodes.length})</h3>
+          <p className="muted">Target graph snapshot version {bootstrap.graph_version}. Highlighted nodes are critical Tier-0 infrastructure.</p>
+          <table>
+            <thead><tr><th>Name</th><th>Type</th><th>Tier</th><th>Identity / Resource ID</th></tr></thead>
+            <tbody>
+              {bootstrap.nodes.map(n => (
+                <tr key={n.id} style={n.tier === 0 ? { background: '#1c1917', borderLeft: '4px solid #ef4444' } : undefined}>
+                  <td>{n.display_name || n.id}</td>
+                  <td>{n.type}</td>
+                  <td>{n.tier === 0 ? <strong style={{ color: '#f87171' }}>Tier 0 (Critical)</strong> : (n.tier ?? '—')}</td>
+                  <td><code>{n.id}</code></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <details><summary>Observed relationships ({bootstrap.edges.length})</summary><Data value={bootstrap.edges} /></details>
+        </section>
+      )}
+      {(tab === 'Changes' || tab === 'Impact') && <section>
+        <h3>{tab === 'Changes' ? 'Request an access change' : 'Assess an access change'}</h3>
+        <p>Choose an identity and exact role. The server assesses reachability and selects independent reviewers.</p>
+        <form onSubmit={e => form(e, async v => {
+          const duration = parseInt(v.DurationSeconds || '0', 10);
+          const emergency = v.Emergency === 'true';
+          const body = {
+            tenantId,
+            kind: v.Kind,
+            targetIdentity: v.Identity,
+            requestedAccess: v.Access,
+            requestedBy: identity.principal.actor_id,
+            ...(duration > 0 ? { durationSeconds: duration } : {}),
+            ...(emergency ? { emergency: true } : {}),
+            ...(tab === 'Changes' ? { justification: v.Justification, mutation: mutation() } : {})
+          };
+          const r = await rpc<{ request?: Change; impact?: Impact }>(tab === 'Changes' ? 'ChangeService' : 'ImpactService', tab === 'Changes' ? 'SubmitChange' : 'SimulateChange', body);
+          if (r.request) {
+            setNotice(`Request ${r.request.requestId} submitted. Assessment and execution status update automatically.`);
+            await load();
+          } else setResult(r);
+        })}>
+          <label>Kind<select name="Kind"><option>ROLE_ASSIGN</option><option>ROLE_REVOKE</option></select></label>
+          <Fields names={['Identity', 'Access', ...(tab === 'Changes' ? ['Justification'] : [])]} />
+          {tab === 'Changes' && (
+            <>
+              <label>Duration limit in seconds (0 for permanent)<input name="DurationSeconds" type="number" defaultValue="0" min="0" max="86400" /></label>
+              <label>Emergency request?<select name="Emergency"><option value="false">No (Standard review)</option><option value="true">Yes (Emergency review)</option></select></label>
+            </>
+          )}
+          <button disabled={busy}>{tab === 'Changes' ? 'Submit for assessment' : 'Compute impact on server'}</button>
+        </form>
+      </section>}
       {tab === 'Impact' && result !== null && <section><h3>Computed impact</h3><ImpactView impact={(result as { impact: Impact }).impact} /></section>}
       {tab === 'Changes' && review && <section className="review" data-testid="approval-review"><h3>Review the exact change</h3><p>Recorded independent approvals: {review.approvers.length} / {review.change.requiredQuorum ?? 0}{review.approvers.length > 0 && ` (${review.approvers.join(", ")})`}</p><dl><dt>Identity</dt><dd>{review.envelope.intent.target_identity}</dd><dt>Action / role</dt><dd>{review.envelope.intent.kind} / {review.envelope.intent.requested_access}</dd><dt>Requester</dt><dd>{review.envelope.authenticated_requester}</dd><dt>Approval expires</dt><dd>{review.envelope.expires_at}</dd><dt>Required independent reviewers</dt><dd>{review.change.requiredQuorum} | {review.change.requiredApproverGroups?.join(', ')}</dd></dl><ImpactView impact={review.impact} /><p className="notice">Canonical envelope digest verified in this browser. The passkey challenge is checked against this digest and your signed-in actor.</p><code data-testid="verified-envelope-digest">{review.change.changeDigest}</code><details><summary>Exact canonical envelope</summary><Data value={review.envelope} /></details><button disabled={busy || review.change.status !== 'AWAITING_APPROVAL'} onClick={() => void work(async () => { const r = await approve(review.change, tenantId!) as { request: Change }; setReview(null); await load(); setNotice(`Approval recorded. Server state: ${r.request.status}. Required independent quorum: ${r.request.requiredQuorum ?? 0}.`); })}>Approve reviewed change with passkey</button><button disabled={busy} onClick={() => setReview(null)}>Close review</button></section>}
-      {tab === 'Changes' && changes.map(c => <section key={c.requestId} data-testid={`change-${c.requestId}`}><h3>{c.kind === 'ROLE_ASSIGN' ? 'Assign role' : c.kind === 'ROLE_REVOKE' ? 'Revoke role' : c.kind}: {c.requestedAccess}</h3><p>{c.targetIdentity} | requested by {c.requestedBy}</p><p><strong data-testid="change-status">{c.status}</strong> | revision {c.revision} | required independent quorum {c.requiredQuorum ?? 0}</p><p>{c.justification}</p><p>{c.decisionReasons?.join(' | ')}</p><code>Request {c.requestId}</code><p>{c.status === 'EXECUTED' ? 'Target change and independent read-back verified by core.' : c.status === 'EXECUTING' ? 'Awaiting independently verified target evidence; access is not confirmed yet.' : c.status === 'AWAITING_APPROVAL' ? 'Waiting for the required independent approvals.' : ''}</p><button disabled={busy || !c.changeDigest || c.status !== 'AWAITING_APPROVAL'} onClick={() => void work(() => inspect(c))}>Review exact change</button><details><summary>Decision and review actions</summary><button disabled={busy} onClick={() => void work(async () => setResult(await rpc('ChangeService', 'GetDecisionEvidence', { tenantId, requestId: c.requestId })))}>Load decision evidence</button><form onSubmit={e => form(e, async v => { await rpc('ChangeService', v.Action, { tenantId, requestId: c.requestId, reason: v.Reason, mutation: mutation(c.revision) }); await load(); })}><label>Review action<select name="Action"><option value="HoldChange">Hold</option><option value="RejectChange">Reject</option></select></label><Fields names={['Reason']} /><button disabled={busy}>Apply review action</button></form></details></section>)}
+      {tab === 'Changes' && changes.map(c => <section key={c.requestId} data-testid={`change-${c.requestId}`}>
+        <h3>
+          {c.kind === 'ROLE_ASSIGN' ? 'Assign role' : c.kind === 'ROLE_REVOKE' ? 'Revoke role' : c.kind}: {c.requestedAccess}
+          {c.emergency && <span style={{ marginLeft: 8, padding: '2px 8px', background: '#dc2626', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>EMERGENCY</span>}
+        </h3>
+        <p>{c.targetIdentity} | requested by {c.requestedBy}</p>
+        <p><strong data-testid="change-status">{c.status}</strong> | revision {c.revision} | required independent quorum {c.requiredQuorum ?? 0}</p>
+        {c.timeLimitSeconds && c.timeLimitSeconds > 0 ? (
+          <p className="notice">Temporary grant: {c.timeLimitSeconds}s duration | Status: <strong>{c.expiryStatus || 'SCHEDULED'}</strong>{c.grantExpiresAt ? ` | Expires: ${c.grantExpiresAt}` : ''}</p>
+        ) : null}
+        <p>{c.justification}</p>
+        <p>{c.decisionReasons?.join(' | ')}</p>
+        <code>Request {c.requestId}</code>
+        <p>{c.status === 'EXECUTED' ? 'Target change and independent read-back verified by core.' : c.status === 'EXECUTING' ? 'Awaiting independently verified target evidence; access is not confirmed yet.' : c.status === 'AWAITING_APPROVAL' ? 'Waiting for the required independent approvals.' : c.status === 'REVOKING' ? 'Target expiry revocation in progress.' : c.status === 'REVOKED' ? 'Time-bounded grant expired and verified revoked at target.' : ''}</p>
+        <button disabled={busy || !c.changeDigest || c.status !== 'AWAITING_APPROVAL'} onClick={() => void work(() => inspect(c))}>Review exact change</button>
+        <details><summary>Decision and review actions</summary>
+          <button disabled={busy} onClick={() => void work(async () => setResult(await rpc('ChangeService', 'GetDecisionEvidence', { tenantId, requestId: c.requestId })))}>Load decision evidence</button>
+          <form onSubmit={e => form(e, async v => {
+            await rpc('ChangeService', v.Action, { tenantId, requestId: c.requestId, reason: v.Reason, mutation: mutation(c.revision) });
+            await load();
+          })}>
+            <label>Review action<select name="Action"><option value="HoldChange">Hold</option><option value="RejectChange">Reject</option></select></label>
+            <Fields names={['Reason']} />
+            <button disabled={busy}>Apply review action</button>
+          </form>
+        </details>
+      </section>)}
       {tab === 'Changes' && !busy && changes.length === 0 && <p>No requests in this authorized page.</p>}
-      {tab === 'Incidents' && <section><h3>Plan containment</h3><p>Planning and incident records are available. Executable containment and full restoration remain outside this prototype milestone.</p><form onSubmit={e => form(e, async v => { const r = await rpc<{ plan: Document }>('ContainmentService', 'PlanContainment', { tenantId, compromisedIdentity: v.Identity, mutation: mutation() }); setPlan(r.plan); setResult(r); })}><Fields names={['Identity']} /><button disabled={busy}>Compute plan</button></form>{plan && <><Data value={plan} /><button disabled={busy} onClick={() => void work(async () => setResult(await rpc('IncidentService', 'OpenIncident', { tenantId, planId: plan.planId, planDigest: plan.planDigest, mutation: mutation() })))}>Open incident for this exact plan</button></>}<h3>Request reviewed restoration</h3><form onSubmit={e => form(e, async v => setResult(await rpc('ContainmentService', 'RestoreAccess', { tenantId, incidentId: v.Incident, targetIdentity: v.Identity, accessToRestore: v.Access, justification: v.Justification, mutation: mutation() })))}><Fields names={['Incident', 'Identity', 'Access', 'Justification']} /><button disabled={busy}>Submit restoration request</button></form></section>}
+      {tab === 'Incidents' && <section>
+        <h3>Containment and Incident Response</h3>
+        <p>Assess blast radius, compute minimal disruption cuts, and execute exact-plan containment confirmed by native passkey assertion.</p>
+        <form onSubmit={e => form(e, async v => {
+          const r = await rpc<{ plan: Document }>('ContainmentService', 'PlanContainment', { tenantId, compromisedIdentity: v.Identity, mutation: mutation() });
+          setPlan(r.plan);
+          setResult(r);
+        })}>
+          <Fields names={['Identity']} />
+          <button disabled={busy}>Compute containment plan</button>
+        </form>
+        {plan && (
+          <div className="review">
+            <h4>Containment Proposal: {String(plan.planId)}</h4>
+            <p>Compromised identity: <strong>{String(plan.compromisedIdentity)}</strong></p>
+            <p>Disruption cost: <strong>{String(plan.disruptionCost)}</strong> | Severed tier-0 routes: <strong>{String(plan.severedTier0RoutesCount)}</strong></p>
+            <p>{plan.minimumProved ? '✓ Proven minimal disruption cut' : 'Sub-optimal cut'}</p>
+            <p>Plan digest: <code>{String(plan.planDigest)}</code></p>
+            <details><summary>Canonical Plan Evidence</summary><Data value={plan} /></details>
+            <button disabled={busy} onClick={() => void work(async () => {
+              const res = await executeContainment({ planId: plan.planId as string, planDigest: plan.planDigest as string }, tenantId!);
+              setNotice('Containment executed with native passkey assertion and verified zero tier-0 reach.');
+              setResult(res);
+              await load();
+            })}>Execute containment with passkey confirmation</button>
+            <button disabled={busy} onClick={() => void work(async () => {
+              const res = await rpc('IncidentService', 'OpenIncident', { tenantId, planId: plan.planId, planDigest: plan.planDigest, mutation: mutation() });
+              setNotice('Incident opened for investigation.');
+              setResult(res);
+              await load();
+            })}>Open incident without execution</button>
+          </div>
+        )}
+        <h3>Request reviewed restoration</h3>
+        <p>Submit a fresh independently reviewed restoration request linked to an incident. Session resurrection is forbidden.</p>
+        <form onSubmit={e => form(e, async v => {
+          const res = await rpc('ContainmentService', 'RestoreAccess', {
+            tenantId,
+            incidentId: v.Incident,
+            targetIdentity: v.Identity,
+            accessToRestore: v.Access,
+            justification: v.Justification,
+            mutation: mutation(),
+          });
+          setNotice('Restoration request submitted. Independent review required.');
+          setResult(res);
+          await load();
+        })}>
+          <Fields names={['Incident', 'Identity', 'Access', 'Justification']} />
+          <button disabled={busy}>Submit restoration request</button>
+        </form>
+      </section>}
       {tab === 'Passkeys' && <section><h3>Register a passkey</h3><p>Use a one-use enrollment ticket issued by your operator. A signed-in session alone cannot change approval credentials.</p><form onSubmit={e => form(e, async v => { await registerPasskey(v.Label, v.Ticket); await load(); setNotice('Passkey registered for this signed-in account.'); })}><Fields names={['Label']} /><label>Enrollment ticket<input name="Ticket" type="password" autoComplete="off" required /></label><button disabled={busy}>Register with your authenticator</button></form><h3>Revoke a credential</h3><form onSubmit={e => form(e, async v => { await revokePasskey(v.Credential, v.RevocationTicket); await load(); setNotice('Credential revoked.'); })}><Fields names={['Credential']} /><label>Revocation ticket<input name="RevocationTicket" type="password" autoComplete="off" required /></label><button disabled={busy}>Revoke credential</button></form></section>}
       {tab === 'Audit' && <section><h3>Permanent audit trail</h3><form onSubmit={e => form(e, async v => setResult(await rpc('AuditService', 'QueryAuditEvents', { tenantId, requestId: v.Request, pageSize: 50 })))}><Fields names={['Request']} /><button disabled={busy}>Find request audit</button></form><table><thead><tr><th>Sequence</th><th>Event</th><th>Stream</th><th>Recorded</th><th>Event hash</th></tr></thead><tbody>{audit?.events?.map(event => <tr key={event.sequenceNumber}><td>{event.sequenceNumber}</td><td>{event.eventType}</td><td>{event.streamId}</td><td>{event.recordedAt}</td><td><code>{event.eventHash}</code></td></tr>)}</tbody></table>{!audit?.events?.length && <p>No events in this authorized query.</p>}</section>}
       {result !== null && tab !== 'Overview' && tab !== 'Impact' && <details><summary>Server evidence</summary><Data value={result} /></details>}{next && <button disabled={busy} onClick={() => void work(() => load(next))}>Next page</button>}

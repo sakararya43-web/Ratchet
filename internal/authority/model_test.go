@@ -235,3 +235,4 @@ func TestIdentityDigestIntegrity(t *testing.T) {
 		t.Fatal("tampered identity must have distinct digest")
 	}
 }
+

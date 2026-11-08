@@ -102,3 +102,4 @@ func TestPasskeyDomainSeparationBetweenApprovalAndContainment(t *testing.T) {
 		t.Fatal("SECURITY VIOLATION: containment assertion was accepted as change approval")
 	}
 }
+

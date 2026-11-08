@@ -1,8 +1,8 @@
 {
   "files": {
-    "assets/index-CpFD6ZUY.js": "a7f58a633738602fe4ff294230f733619e4c22b7bf315eb28ad2656d30682bb9",
+    "assets/index-DBonMIlZ.js": "2e4e1370a3d13ec2ef5a968ceaafee13a5bd41456358da510693dcb7c148c653",
     "assets/index-l67yc5Rj.css": "176be6b6461f0ff75f50ccbc10ca2a5c4000de75b6fdce1be26a62e5506d17f9",
-    "index.html": "28e39af5788937ab28a30fcfa0463da76c4d18da1969c65328934e4d579291c3"
+    "index.html": "8103dab47f046ba9886b42192c33eff1eb26896124e618ea8adbd5eea10775e0"
   },
   "sources": {
     "e2e/prototype.helpers.ts": "cf47396d0c13bf0e44cec170cf8013fd3b5fe5c48d83c7b019ba8f41c3ed3e8f",
@@ -12,9 +12,9 @@
     "package.json": "8e720ca04af3592d5a59d5296505156469034ce5bc4c78a571ceeddb6d668603",
     "playwright.prototype.config.ts": "7a1f1271e3bdbd0a35029d044cccd746dea3b5861afb505d361459971af41a62",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
-    "src/App.tsx": "3feee1b08e386ce6e0904a8d44f820f3754c100e6959f89c9236ba346fe940b4",
+    "src/App.tsx": "5d6c4b7162071f0ffbb5487db5b85832442670717532be1cb5993496cbc2d6e0",
     "src/index.css": "c0fce240bdb530b66aae3a5e4ae948613c95a38c0805e289819532f1020ac50b",
-    "src/lib/api.ts": "364b81546377d0dffe4fc2e55473a68786868029d66e8b495b2e74cc99e7c3f9",
+    "src/lib/api.ts": "66b5c5200e58fda1ed7db4a21ff9f258c04695123de3698ae46fa38f7af664c7",
     "src/lib/canon.test.ts": "86cc1be84119c7a46501fb5de0f91e6c25f24b60590e656e21f528f68643a1bd",
     "src/lib/canon.ts": "5b82922ed74335b497a95518c763904327e1018428c819cfd38876da6884e8e8",
     "src/lib/envelope.test.ts": "90602a82fb28424b878b34b2c0f768be034b2d9c09bdf8e8384127b1100eaf65",

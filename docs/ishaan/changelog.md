@@ -12,6 +12,24 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Project completion B - automation and operational console (completed)
+
+- Completed all Phase B requirements sequentially with zero scaffolding and passing tests across all modules.
+- B1 (Temporary & emergency access with target expiry):
+  - Verified and integrated `TemporaryGrantManager` in `internal/connector/temporary.go` supporting automatic expiration scheduling, cancellation upon explicit revocation, and automated revocation command publishing upon grant expiry.
+  - Capability advertised with `ScheduledRevocation: true` and `ProvenReductions: true` in `cmd/ratchet-prototype/bootstrap.go` (`refreshCapability`).
+  - Passkey assertion handler in `internal/approval/handlers.go` updated to support `containment_plan_digest` alongside `change_digest`, routing challenge generation to domain-separated `passkeyevidence.ContainmentChallenge` and verification to `ApprovalVerifier.VerifyContainment`.
+- B2 (Drift watch, report, decision & correction):
+  - Enhanced `internal/connector/watch.go` with cryptographic drift reporting: added `SetSigner(tenantID, connectorID, key)`, `BuildSignedDriftReport(entry)` using canonical `workflow.DriftSigningDigest`, and `PollAndReport(ctx, publisher)`.
+  - Added unit test `TestWatchEngine_SignedDriftReportAndPublish` in `internal/connector/watch_test.go` verifying end-to-end drift detection, canonical signed report generation, and event store publication.
+- B3 (Operational console completion):
+  - Extended `web/src/lib/api.ts` with typed Change emergency/expiry fields (`emergency`, `timeLimitSeconds`, `grantExpiresAt`, `expiryStatus`) and `executeContainment` calling `/api/passkeys/assert/begin` with `containment_plan_digest` followed by ConnectRPC `ExecuteContainment`.
+  - Updated `web/src/App.tsx`:
+    - Infrastructure: Tier-0 highlight visual indicators and node inventory table.
+    - Changes: duration limit input, emergency review toggle, emergency badges, expiration timestamps, and live expiry status badges (`SCHEDULED`, `REVOKING`, `REVOKED`, `FAILED`).
+    - Incidents: full containment plan display (proven minimal cut, disruption cost, severed routes), real WebAuthn passkey assertion containment trigger (`executeContainment`), and complete restoration request modal for all four actions (`ROLE_ASSIGN`, `ENABLE_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, `ISSUE_SESSION`).
+  - Rebuilt production bundle via `scripts/core-web-build.py`: all 18 web tests passed, Vite build succeeded, zero npm audit issues, and regenerated `internal/webassets/assets` with updated reproducible SHA-256 integrity manifest.
+
 ## Project completion A - governance and verified response (completed)
 
 - Completed all Phase A requirements sequentially with zero scaffolding and passing tests across all modules.

@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,7 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/domain"
+	"github.com/sakararya43-web/Ratchet/internal/workflow"
+	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // DriftStatus constants
@@ -51,6 +56,9 @@ type WatchEngine struct {
 	lastRevision  int64
 	knownCommands map[string]bool // command_ids applied by RATCHET connector
 	alerts        []DriftAlert
+	tenantID      string
+	connectorID   string
+	signerKey     ed25519.PrivateKey
 }
 
 // NewWatchEngine creates and initializes a WatchEngine.
@@ -62,6 +70,8 @@ func NewWatchEngine(baseURL string, adapter TargetAdapter, cursorPath string) (*
 		cursorPath:    cursorPath,
 		knownCommands: make(map[string]bool),
 		alerts:        make([]DriftAlert, 0),
+		tenantID:      "tenant-exchange-demo",
+		connectorID:   "connector-sim-01",
 	}
 
 	if cursorPath != "" {
@@ -73,6 +83,15 @@ func NewWatchEngine(baseURL string, adapter TargetAdapter, cursorPath string) (*
 	}
 
 	return we, nil
+}
+
+// SetSigner configures the Ed25519 connector private key and identities for authenticated drift reporting.
+func (we *WatchEngine) SetSigner(tenantID, connectorID string, key ed25519.PrivateKey) {
+	we.mu.Lock()
+	defer we.mu.Unlock()
+	we.tenantID = tenantID
+	we.connectorID = connectorID
+	we.signerKey = key
 }
 
 // RegisterApprovedCommand registers a command ID issued by RATCHET so it is recognized as legitimate.
@@ -121,9 +140,13 @@ func (we *WatchEngine) PollOnce(ctx context.Context) ([]DriftAlert, error) {
 			roleID := entry.Details["role_id"]
 			if !isConnectorBroker {
 				alertID := fmt.Sprintf("drift-rev-%d", entry.Revision)
+				tID := we.tenantID
+				if tID == "" {
+					tID = "tenant-exchange-demo"
+				}
 				alert := DriftAlert{
 					AlertID:        alertID,
-					TenantID:       "tenant-exchange-demo",
+					TenantID:       tID,
 					Revision:       entry.Revision,
 					Timestamp:      entry.Timestamp,
 					ActorID:        entry.ActorID,
@@ -250,4 +273,99 @@ func (we *WatchEngine) saveCursor() error {
 		return err
 	}
 	return os.Rename(tmp, we.cursorPath)
+}
+
+// BuildSignedDriftReport constructs and signs a protobuf SignedDriftReport for an unauthorized IAM mutation.
+func (we *WatchEngine) BuildSignedDriftReport(entry domain.TargetAuditEntry) (*v1.SignedDriftReport, []byte, error) {
+	we.mu.RLock()
+	defer we.mu.RUnlock()
+	if we.signerKey == nil {
+		return nil, nil, fmt.Errorf("signer key not configured on watch engine")
+	}
+	roleID := entry.Details["role_id"]
+	if roleID == "" {
+		roleID = entry.Details["resource_or_role"]
+	}
+	corr := entry.CorrelationID
+	if corr == "" {
+		corr = uuid.NewString()
+	}
+	driftID := uuid.NewString()
+	eventID := uuid.NewString()
+	msgID := uuid.NewString()
+	at := entry.Timestamp.UTC().Format(time.RFC3339Nano)
+
+	report := &v1.DriftReport{
+		DriftId:          driftID,
+		TenantId:         we.tenantID,
+		ConnectorId:      we.connectorID,
+		ObservedRevision: entry.Revision,
+		DetectedAt:       at,
+		Severity:         "HIGH",
+		Envelope: &v1.ConnectorEnvelope{
+			SchemaVersion:  1,
+			TenantId:       we.tenantID,
+			ConnectorId:    we.connectorID,
+			MessageId:      msgID,
+			CorrelationId:  corr,
+			SourceRevision: entry.Revision,
+		},
+		UnapprovedOperation: &v1.AuditEvent{
+			EventId:       eventID,
+			TenantId:      we.tenantID,
+			ActorId:       entry.ActorID,
+			Action:        entry.Action,
+			Target:        entry.Target,
+			Timestamp:     at,
+			CorrelationId: corr,
+			Details:       map[string]string{"resource_or_role": roleID},
+		},
+	}
+	signed := &v1.SignedDriftReport{Report: report}
+	digest, err := workflow.DriftSigningDigest(signed)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to compute drift signing digest: %w", err)
+	}
+	signed.Signature = ed25519.Sign(we.signerKey, digest[:])
+	raw, err := (protojson.MarshalOptions{UseProtoNames: true, EmitDefaultValues: true}).Marshal(signed)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal signed drift report: %w", err)
+	}
+	return signed, raw, nil
+}
+
+// PollAndReport inspects the audit stream for drift and publishes authenticated signed drift reports
+// to the provided publisher (e.g. JetStream or core service).
+func (we *WatchEngine) PollAndReport(ctx context.Context, publisher func(ctx context.Context, tenant string, rawReport []byte) error) ([]DriftAlert, error) {
+	alerts, err := we.PollOnce(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if publisher != nil {
+		we.mu.RLock()
+		hasKey := we.signerKey != nil
+		tID := we.tenantID
+		we.mu.RUnlock()
+		if hasKey {
+			for _, alert := range alerts {
+				entry := domain.TargetAuditEntry{
+					Revision:      alert.Revision,
+					Timestamp:     alert.Timestamp,
+					ActorID:       alert.ActorID,
+					Action:        alert.Action,
+					Target:        alert.TargetIdentity,
+					Details:       alert.Details,
+					CorrelationID: alert.AlertID,
+				}
+				_, raw, err := we.BuildSignedDriftReport(entry)
+				if err != nil {
+					return alerts, err
+				}
+				if err := publisher(ctx, tID, raw); err != nil {
+					return alerts, err
+				}
+			}
+		}
+	}
+	return alerts, nil
 }

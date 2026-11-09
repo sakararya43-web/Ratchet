@@ -139,7 +139,7 @@ func runEnrollment(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	server := &http.Server{Addr: *listen, Handler: api.NewRequestLimits().Wrap(mux), ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}}}
+	server := &http.Server{Addr: *listen, Handler: api.NewRequestLimits().WrapSessions(sessions, mux), ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}}}
 	finished := make(chan error, 1)
 	go func() { finished <- server.ListenAndServeTLS("", "") }()
 	select {

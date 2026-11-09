@@ -39,7 +39,7 @@ def main():
     environment['NODE_EXTRA_CA_CERTS'] = str(PRIVATE / 'ca.pem')
     environment['RATCHET_PYTHON'] = sys.executable
     result = subprocess.run([str(node), str(ROOT / 'web/node_modules/playwright/cli.js'),
-                             'test', '-c', 'playwright.prototype.config.ts'],
+                             'test', '-c', 'playwright.prototype.config.ts', 'prototype.spec.ts'],
                             cwd=ROOT / 'web', env=environment, capture_output=True, encoding='utf-8', errors='replace')
     output = result.stdout + result.stderr
     (PRIVATE / 'browser-output.txt').write_text(output, encoding='utf-8')

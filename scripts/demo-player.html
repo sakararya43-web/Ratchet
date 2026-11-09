@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RATCHET | Prototype demonstration</title>
+  <style>
+    :root {color-scheme:dark;font-family:system-ui,sans-serif;background:#090d16;color:#e2e8f0}
+    body {max-width:1120px;margin:auto;padding:36px 24px 64px;line-height:1.6}
+    .eyebrow {color:#93c5fd;font-size:12px;text-transform:uppercase;letter-spacing:.15em}
+    h1 {font-size:clamp(28px,5vw,44px);line-height:1.15;margin:14px 0}
+    p {color:#adbbcf;max-width:850px} video {width:100%;border:1px solid #36557b;border-radius:12px;background:#000;margin:18px 0}
+    nav {display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 28px} a {color:#bfdbfe;text-decoration:none;border:1px solid #334766;padding:9px 14px;border-radius:7px}
+    a:hover,a:focus-visible {background:#182945;outline:2px solid #60a5fa}
+    .steps {display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:28px 0}
+    article {border:1px solid #25334e;background:#0c1220;padding:20px;border-radius:10px} h2 {font-size:17px;margin:0 0 10px}
+    article p {font-size:14px;margin:0} .scope {border-left:3px solid #60a5fa;padding:4px 20px;margin-top:28px;font-size:14px}
+    code {color:#cbd5e1} @media(max-width:650px){.steps{grid-template-columns:1fr}body{padding:24px 16px}}
+  </style>
+</head>
+<body>
+  <div class="eyebrow">RATCHET / Local access-review prototype</div>
+  <h1>Review the power a change creates.</h1>
+  <p>A recorded journey through independent approval, verified target execution and an audit trail. Captions explain each step; use the presenter notes for live narration.</p>
+  <video controls playsinline preload="metadata" poster="screenshots/01-overview.png" aria-label="Captioned RATCHET prototype walkthrough">
+    <source src="ratchet-demo.webm" type="video/webm">
+    Your browser cannot play this recording. Download the WebM file below.
+  </video>
+  <nav aria-label="Demo artifacts">
+    <a href="ratchet-demo.webm" download>Download recording</a>
+    <a href="demo-ready-walkthrough.md">Presenter notes</a>
+    <a href="recording-evidence.json">Actual run evidence</a>
+    <a href="verification.json">Final checks</a>
+  </nav>
+  <div class="steps">
+    <article><h2>1. Assess consequences</h2><p>Inspect new resources, changed authority and critical access paths before granting a role.</p></article>
+    <article><h2>2. Require independence</h2><p>Ordinary finance access needs its owner. Critical wallet access needs two distinct eligible security leads.</p></article>
+    <article><h2>3. Verify the outcome</h2><p>Confirm target read-back, probe real simulator access, inspect audit history and revoke the demonstration roles.</p></article>
+  </div>
+  <div class="scope"><strong>Scope:</strong> The recording uses a stateful local exchange simulator and native Chromium WebAuthn with virtual CTAP2 devices. It is not a physical hardware-key test or full product certification. Executable containment, complete restoration and automatic expiry/drift correction remain outside this demo.</div>
+  <p>For the prepared live console, run <code>python scripts/demo.py present</code> from the repository. Runtime and private presenter credentials are kept separately from this shareable package.</p>
+</body>
+</html>

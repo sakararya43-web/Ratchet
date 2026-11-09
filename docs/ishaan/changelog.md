@@ -12,12 +12,51 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Focused prototype demo readiness - 2026-11-09
+
+- Preserved the pre-existing checkout in a source-only local snapshot and parked
+  the completion profile without deleting its roots, ledgers or volumes. Selected
+  the accepted access-review prototype for the bounded demonstration.
+- Added reusable native-WebAuthn presenter sessions, exact localhost certificate
+  pinning, real simulator probes, fast rehearsal, captioned recording and a
+  strictly allowlisted shareable-package builder. Private credentials remain in
+  ignored local files. Virtual authenticators are explicitly identified.
+- Improved the overview, request filtering, execution-state badges and readable
+  server errors. All 20 frontend tests, production build and npm audit passed.
+- The full browser approval/refusal/target-access journey passed. A complete
+  5-minute recording passed with independently checked audit continuity and
+  reviewed revocations restoring the starting access; final candidate checks are
+  tracked in `demo-ready-progress.md`.
+- Resolved the existing governance lint findings with named HTTP constants,
+  lowercase errors and an equivalent URL-scheme condition. No authorization,
+  quorum, passkey or target-verification checks were relaxed.
+- This bounded demo does not close completion A/B/C or the full PRD. Original
+  containment, restoration, automation and offline-proof requirements remain.
+
+## Project completion A - governance and verified response (in progress)
+
 ## Core CI test isolation & browser acceptance hardening
 
 - Isolated Playwright test targets: scoped `web/playwright.prototype.config.ts` with explicit `testMatch: /prototype\.spec\.ts$/` to prevent Playwright from automatically executing `authority.spec.ts` against the prototype server (which prematurely consumed one-time enrollment tickets and triggered 429 login rate limiting).
 - Added `web/playwright.authority.config.ts` dedicated configuration for `authority.spec.ts` in `scripts/completion-a-browser.py`.
 - Replaced hardcoded `python` subprocess call with `sys.executable` in `scripts/prototype-foundation.py` to ensure reliable container restart execution across Linux/Ubuntu CI environments.
 - Rebuilt embedded console assets and synchronized `internal/webassets/assets/manifest.json` with new web sources so `git diff --exit-code -- internal/webassets/assets` passes identically in CI.
+
+- Added the independent SQL-backed Authority service, signed actor/body/expiry
+  gateway transport, isolated transactions, exact retry receipts and retained
+  native evidence. Serving credentials cannot change bootstrap pins or rewrite
+  Authority events; mutated cached state is refused against immutable history.
+- Added explicit HTTPS enrollment-only serving and authenticated console gateway.
+  Bootstrap serving mounts no target execution or policy-decision API. Regular
+  serving requires active member proof and the independent Authority's current
+  registry/quorum authorization; mutable target policy cannot grant an Authority
+  vote or deadlock governance during registry/policy transition.
+  Authority publishes public artifacts for the existing root-pinned core loader.
+- Dedicated real PostgreSQL/HTTP native governance race acceptance passes,
+  including membership/threshold rotation, removed/stale members, immutable pins,
+  retry, restart and cached-head tampering. Added its explicit CI gate. Ordinary
+  Authority executable/core/API/policy race suites pass. Corrected nil policy-data
+  handling exposed by acceptance; no security assertion was weakened.
 
 ## Core lint & staticcheck quickfix hardening
 
@@ -146,6 +185,22 @@
 - A4: Updated incident state machine (`incidentWithin`) to support plan-based incidents progressing truthfully to `CONTAINED` upon proven monotonic reduction.
 - A5: Integrated fresh independently reviewed restoration supporting all four increase contracts (`ROLE_ASSIGN`, `ENABLE_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, and `ISSUE_SESSION`) while preventing session resurrection and enforcing approval quorums.
 - ConnectRPC API: Mounted `ExecuteContainment` and typed `RestoreAccess` in `internal/api/containment.go`. Added unit test suites verifying route registration, unauthenticated rejection, and input validation.
+
+- Completed the actual native browser governance journey on the preserved,
+  isolated `ratchet-completion-a-v2` profile: genesis, distinct quorum, policies,
+  member removal/addition, old-quorum threshold change, credential rotation and
+  independently verified core adoption through epoch 4 / policy 1.3.0. The run
+  passed in 57.1 seconds with no browser runtime errors. Earlier profile volumes
+  and private recovery keys remain preserved; no root or ledger was reset.
+- Tightened first operator pin against actual active enrollment, refused duplicate
+  public keys as distinct Authority members, fixed the explicit credential label
+  and retained actual built assets. Targeted Go race suites and all 20 frontend
+  tests/build/audit pass. Changes after `2781fd2` remain uncommitted; final full
+  acceptance and hosted CI are pending, and containment/restoration remain open.
+- At the user's request, prepared the self-contained Antigravity continuation
+  prompt in `antigravity-completion-handoff.md`, distinguishing the accepted
+  prototype from new completion A/B/C and documenting local-only work, required
+  remaining implementation, security constraints and actual acceptance gates.
 
 ## Prototype C - browser journey and acceptance (2026-11-08)
 

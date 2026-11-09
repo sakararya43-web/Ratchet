@@ -27,8 +27,8 @@ for path in target.rglob('*'):
 shutil.copytree(web / 'dist', target, dirs_exist_ok=True)
 # Vite preserves the checkout's HTML newlines. Embed the same bytes on Windows
 # and Linux so the integrity manifest is reproducible across release builders.
-index = target / 'index.html'
-index.write_bytes(index.read_bytes().replace(b'\r\n', b'\n'))
+for text in [p for p in target.rglob('*') if p.suffix in {'.html', '.svg', '.css', '.js', '.txt', '.webmanifest'}]:
+    text.write_bytes(text.read_bytes().replace(b'\r\n', b'\n'))
 sources = {str(p.relative_to(web)).replace('\\', '/'): hashlib.sha256(p.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
            for p in web.rglob('*') if p.is_file() and not {'node_modules', 'dist'} & set(p.relative_to(web).parts)}
 files = {str(p.relative_to(target)).replace('\\', '/'): hashlib.sha256(p.read_bytes()).hexdigest()

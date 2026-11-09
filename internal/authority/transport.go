@@ -39,7 +39,7 @@ type Client struct {
 
 func NewClient(address, tenant string, key ed25519.PrivateKey) (*Client, error) {
 	u, err := url.Parse(address)
-	if err != nil || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" || len(key) != 64 || tenant == "" {
+	if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" || len(key) != 64 || tenant == "" {
 		return nil, ErrRefused
 	}
 	ip := net.ParseIP(u.Hostname())
@@ -85,7 +85,7 @@ func (c *Client) Do(ctx context.Context, actor, path string, input *Input, out a
 		return err
 	}
 	defer func() { _ = response.Body.Close() }()
-	if response.StatusCode != 200 {
+	if response.StatusCode != http.StatusOK {
 		return ErrRefused
 	}
 	decoder := json.NewDecoder(io.LimitReader(response.Body, 16<<20))
@@ -121,17 +121,20 @@ func (s *Service) Handler() http.Handler {
 			return
 		}
 		var result any
-		if r.Method == "GET" && r.URL.Path == "/v1/state" {
+		if r.Method == "GET" && (r.URL.Path == "/v1/state" || r.URL.Path == "/v1/enrollment-state") {
 			state, readErr := s.State(r.Context())
 			if readErr != nil {
 				http.Error(w, "Authority unavailable", http.StatusServiceUnavailable)
 				return
 			}
-			if !s.canView(identity.Actor, state) {
+			if r.URL.Path == "/v1/enrollment-state" {
+				result = s.enrollmentState(identity.Actor, state)
+			} else if !s.canView(identity.Actor, state) {
 				http.Error(w, "Authority member required", http.StatusForbidden)
 				return
+			} else {
+				result = state
 			}
-			result = state
 		} else if r.Method == "POST" && (r.URL.Path == "/v1/prepare" || r.URL.Path == "/v1/apply") {
 			var input Input
 			decoder := json.NewDecoder(bytes.NewReader(raw))
@@ -143,7 +146,13 @@ func (s *Service) Handler() http.Handler {
 			if r.URL.Path == "/v1/prepare" {
 				result, err = s.Prepare(r.Context(), identity.Actor, input)
 			} else {
-				result, err = s.Apply(r.Context(), identity.Actor, input)
+				var state State
+				state, err = s.Apply(r.Context(), identity.Actor, input)
+				if err == nil && !s.canView(identity.Actor, state) {
+					result = s.enrollmentState(identity.Actor, state)
+				} else {
+					result = state
+				}
 			}
 			if err != nil {
 				http.Error(w, "Authority action or context refused", http.StatusConflict)
@@ -158,6 +167,22 @@ func (s *Service) Handler() http.Handler {
 			return
 		}
 	})
+}
+
+func (s *Service) enrollmentState(actor string, state State) State {
+	minimal := map[string]any{}
+	store, err := trust.Import(state.Authority)
+	if err == nil {
+		if genesis, e := store.GetGenesis(); e == nil {
+			minimal["genesis"] = map[string]any{"epoch": genesis.Epoch, "threshold_m": genesis.ThresholdM, "members": []trust.AuthorityMember{}, "genesis_digest": genesis.GenesisDigest}
+		}
+	}
+	raw, _ := json.Marshal(minimal)
+	candidates := map[string]trust.AuthorityMember{}
+	if candidate, ok := state.Candidates[actor]; ok {
+		candidates[actor] = candidate
+	}
+	return State{Candidates: candidates, Authority: raw}
 }
 func (s *Service) canView(actor string, state State) bool {
 	store, err := trust.Import(state.Authority)

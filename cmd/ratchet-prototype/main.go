@@ -42,6 +42,7 @@ func run() error {
 	fs := flag.NewFlagSet(os.Args[1], flag.ContinueOnError)
 	root := fs.String("root", "/data", "private operator volume root")
 	policy := fs.String("policies", "/app/policies", "real Rego directory")
+	costs := fs.String("containment-costs", "", "explicit operator containment cost JSON file")
 	actor := fs.String("actor", "", "verified recipient actor")
 	operation := fs.String("operation", "enroll", "enroll or revoke")
 	credential := fs.String("credential", "", "exact credential hex for revocation")
@@ -81,6 +82,10 @@ func run() error {
 	switch os.Args[1] {
 	case "init":
 		return initialize(ctx, pool, *root, *policy)
+	case "init-live":
+		return initializeLive(ctx, pool, *root, *policy, *costs)
+	case "finalize-live":
+		return finalizeLive(ctx, pool, *root)
 	case "invite":
 		ticket, err := api.ProvisionCredentialAuthorization(ctx, pool, api.Principal{TenantID: tenant, ActorID: *actor}, *operation, *credential, time.Hour)
 		if err != nil {

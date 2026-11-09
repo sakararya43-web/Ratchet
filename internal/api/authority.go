@@ -28,9 +28,9 @@ func AuthorityGateway(clients map[string]*authority.Client, credentials *approva
 			return
 		}
 		w.Header().Set("Cache-Control", "no-store")
-		if r.Method == "GET" && r.URL.Path == "/state" {
+		if r.Method == "GET" && (r.URL.Path == "/state" || r.URL.Path == "/enrollment-state") {
 			var state authority.State
-			if client.Do(r.Context(), principal.ActorID, "/v1/state", nil, &state) != nil {
+			if client.Do(r.Context(), principal.ActorID, "/v1"+r.URL.Path, nil, &state) != nil {
 				http.Error(w, "Authority unavailable or access refused", http.StatusServiceUnavailable)
 				return
 			}

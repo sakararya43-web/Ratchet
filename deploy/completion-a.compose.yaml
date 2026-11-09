@@ -1,36 +1,121 @@
-name: ratchet-completion-a
+name: ratchet-completion-a-v2
+x-runtime: &runtime
+  image: ratchet-completion-a:local
+  network_mode: service:nats
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+x-core-env: &core-env
+  RATCHET_DATABASE_DSN: postgres://ratchet_runtime:${RATCHET_RUNTIME_PASSWORD}@postgres:5432/ratchet?sslmode=disable
+x-authority-env: &authority-env
+  RATCHET_AUTHORITY_DSN: postgres://ratchet_runtime:${AUTH_RUNTIME_PASSWORD}@authority-postgres:5432/ratchet?sslmode=disable
 services:
   postgres:
-    image: postgres:17-alpine
+    image: ratchet-completion-a-db:local
     environment:
       POSTGRES_DB: ratchet
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      RATCHET_MIGRATOR_PASSWORD: ${RATCHET_MIGRATOR_PASSWORD:-migrator}
-      RATCHET_RUNTIME_PASSWORD: ${RATCHET_RUNTIME_PASSWORD:-runtime}
-      RATCHET_PROJECTOR_PASSWORD: ${RATCHET_PROJECTOR_PASSWORD:-projector}
-    ports:
-      - "127.0.0.1:55435:5432"
-    volumes:
-      - completion-a-postgres:/var/lib/postgresql/data
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?private profile env required}
+      RATCHET_MIGRATOR_PASSWORD: ${RATCHET_MIGRATOR_PASSWORD:?private profile env required}
+      RATCHET_RUNTIME_PASSWORD: ${RATCHET_RUNTIME_PASSWORD:?private profile env required}
+      RATCHET_PROJECTOR_PASSWORD: ${RATCHET_PROJECTOR_PASSWORD:?private profile env required}
+    volumes: [completion-postgres:/var/lib/postgresql/data]
     healthcheck:
       test: [CMD-SHELL, pg_isready -U postgres -d ratchet]
       interval: 2s
       timeout: 3s
-      retries: 30
-  authority:
-    build:
-      context: ..
-      dockerfile: deploy/prototype.Dockerfile
-      target: runtime
+      retries: 60
+  authority-postgres:
+    image: ratchet-completion-a-db:local
     environment:
-      RATCHET_AUTHORITY_DSN: postgres://ratchet_runtime:${RATCHET_RUNTIME_PASSWORD:-runtime}@postgres:5432/ratchet?sslmode=disable
-      RATCHET_AUTHORITY_MIGRATION_DSN: postgres://ratchet_migrator:${RATCHET_MIGRATOR_PASSWORD:-migrator}@postgres:5432/ratchet?sslmode=disable
-    ports:
-      - "127.0.0.1:8445:8445"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: [ratchet-authority, --listen, "0.0.0.0:8445"]
+      POSTGRES_DB: ratchet
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD:?private profile env required}
+      RATCHET_MIGRATOR_PASSWORD: ${AUTH_MIGRATOR_PASSWORD:?private profile env required}
+      RATCHET_RUNTIME_PASSWORD: ${AUTH_RUNTIME_PASSWORD:?private profile env required}
+      RATCHET_PROJECTOR_PASSWORD: ${AUTH_PROJECTOR_PASSWORD:?private profile env required}
+    volumes: [completion-authority-postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d ratchet]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+  nats:
+    image: nats:2.11-alpine@sha256:e4bf19f15fd3218814a4e3c9e0064e1334bd8aa20d5984b9f1a0afd084f8cc00
+    command: [--jetstream, --store_dir=/data]
+    volumes: [completion-nats:/data]
+    ports: ["127.0.0.1:8444:8444", "127.0.0.1:58085:8085"]
+  operator:
+    <<: *runtime
+    profiles: [operator]
+    environment:
+      RATCHET_MIGRATION_DSN: postgres://ratchet_migrator:${RATCHET_MIGRATOR_PASSWORD}@postgres:5432/ratchet?sslmode=disable
+    volumes: [completion-core:/data/core, completion-edge:/data/edge, completion-operator:/data/operator, completion-authority:/data/authority]
+    command: [ratchet-prototype, init-live, --containment-costs, /app/completion-a-costs.json]
+  authority-init:
+    <<: *runtime
+    profiles: [operator]
+    environment:
+      RATCHET_AUTHORITY_MIGRATION_DSN: postgres://ratchet_migrator:${AUTH_MIGRATOR_PASSWORD}@authority-postgres:5432/ratchet?sslmode=disable
+    volumes: [completion-authority:/data/authority]
+    command: [ratchet-authority, secure, --initialize, --config, /data/authority/config.json]
+  authority:
+    <<: *runtime
+    environment: *authority-env
+    volumes: [completion-authority:/data/authority]
+    command: [ratchet-authority, secure, --config, /data/authority/config.json]
+  enrollment:
+    <<: *runtime
+    profiles: [enrollment]
+    environment: *core-env
+    volumes: [completion-core:/data/core:ro]
+    command: [ratchetd, enrollment-serve, --config, /data/core/console.json, --listen, '0.0.0.0:8444']
+    healthcheck:
+      test: [CMD, ratchet-prototype, health, --url, 'https://localhost:8444/livez']
+      interval: 3s
+      timeout: 5s
+      retries: 60
+  simulator:
+    <<: *runtime
+    environment:
+      SIM_BROKER_TOKEN: ${SIM_BROKER_TOKEN:?private profile env required}
+    volumes: [completion-simulator:/data/simulator]
+    command: [ratchet-sim, --port, '8085', --state, /data/simulator/state.json]
+  graph:
+    <<: *runtime
+    environment: *core-env
+    volumes: [completion-core:/data/core:ro]
+    command: [ratchetd, graph-serve, --config, /data/core/graph.json, --listen, '127.0.0.1:8443']
+  core:
+    <<: *runtime
+    environment: *core-env
+    volumes: [completion-core:/data/core:ro, completion-authority:/data/authority:ro]
+    command: [ratchetd, console-serve, --config, /data/core/console.json, --listen, '0.0.0.0:8444']
+    healthcheck:
+      test: [CMD, ratchet-prototype, health]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+      start_period: 15s
+  connector:
+    <<: *runtime
+    environment:
+      SIM_BROKER_TOKEN: ${SIM_BROKER_TOKEN:?private profile env required}
+    volumes: [completion-edge:/data/edge]
+    command: [ratchet-connector, --target, 'http://127.0.0.1:8085', --nats, 'nats://127.0.0.1:4222', --key, /data/edge/signing.key, --cursor, /data/edge/cursor.json, --core-key, /data/edge/core.pub, --state, /data/edge/commands, --health-listen, '127.0.0.1:8086']
+    healthcheck:
+      test: [CMD, ratchet-prototype, health, --url, 'http://127.0.0.1:8086/readyz']
+      interval: 3s
+      timeout: 5s
+      retries: 30
 volumes:
-  completion-a-postgres:
+  completion-postgres:
+  completion-authority-postgres:
+  completion-nats:
+  completion-core:
+  completion-edge:
+  completion-operator:
+  completion-authority:
+  completion-simulator:

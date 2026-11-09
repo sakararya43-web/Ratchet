@@ -9,7 +9,8 @@ FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build /out/ /usr/local/bin/
 COPY policies/ /app/policies/
-RUN mkdir -p /data/core /data/edge /data/operator /data/simulator && chown -R 65532:65532 /data
+COPY deploy/completion-a-costs.json /app/completion-a-costs.json
+RUN mkdir -p /data/core /data/edge /data/operator /data/simulator /data/authority && chown -R 65532:65532 /data
 USER 65532:65532
 WORKDIR /app
 CMD ["ratchet-prototype", "health"]

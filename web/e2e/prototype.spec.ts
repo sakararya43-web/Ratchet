@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { call, change, changesTab, submit, state, review, approve, observed, adversarialApproval } from './prototype.helpers';
 
-const local = resolve('..', '.local/prototype');
+const local = resolve('..', '.local', process.env.RATCHET_LOCAL_PROFILE??'prototype');
 const users = JSON.parse(readFileSync(resolve(local, 'users.json'), 'utf8')) as { tenant_id: string; users: { actor_id: string; password: string }[] };
 const tickets = JSON.parse(readFileSync(resolve(local, 'browser-tickets.json'), 'utf8')) as Record<string, string>;
 const tenant = users.tenant_id;
@@ -26,7 +26,7 @@ test('real local prototype: independent browser approval, verified target access
       const cdp = await context.newCDPSession(page);
       await cdp.send('WebAuthn.enable');
       const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
-      await page.goto('/');
+      await page.goto('/#/console');
       await page.getByLabel('Tenant', { exact: true }).fill(tenant);
       await page.getByLabel('Actor', { exact: true }).fill(user.actor_id);
       await page.getByLabel('Password', { exact: true }).fill(user.password);

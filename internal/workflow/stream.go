@@ -13,7 +13,10 @@ import (
 )
 
 type ChangeWindow struct {
-	Changes    []domain.Change
+	Changes []domain.Change
+	// Details[i] is whether the caller may see Changes[i] in detail, decided in the
+	// same snapshot that admitted the change to the window.
+	Details    []bool
 	After, End int64
 	More       bool
 }
@@ -83,12 +86,14 @@ func (s *Service) listWindow(ctx context.Context, actor Actor, status string, af
 			if temporaryOnly && c.Intent.DurationSeconds <= 0 {
 				continue
 			}
-			if _, err := s.visibility(ctx, tx, actor, c, snapshot, active); errors.Is(err, ErrPermission) {
+			detail, err := s.visibility(ctx, tx, actor, c, snapshot, active)
+			if errors.Is(err, ErrPermission) {
 				continue
 			} else if err != nil {
 				return err
 			}
 			page.Changes = append(page.Changes, c)
+			page.Details = append(page.Details, detail)
 		}
 		return nil
 	})

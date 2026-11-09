@@ -1,4 +1,4 @@
-"""Run real Authority browser acceptance with Playwright virtual authenticators."""
+"""Run native browser governance against the explicit live-genesis profile."""
 import json
 import os
 from pathlib import Path
@@ -6,44 +6,40 @@ import shutil
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
-PRIVATE = ROOT / '.local/completion-a'
+os.environ['RATCHET_LOCAL_PROFILE'] = 'completion-a'
+from prototype import PRIVATE, ROOT
 
 
 def main():
-    PRIVATE.mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    environment['NODE_EXTRA_CA_CERTS'] = str(PRIVATE / 'ca.pem')
+    environment['RATCHET_PYTHON'] = sys.executable
     node = shutil.which('node')
     if not node:
-        raise SystemExit('Node.js required for Playwright tests.')
-
-    environment = os.environ.copy()
-    environment['RATCHET_PYTHON'] = sys.executable
-
-    print('Running Phase A Authority browser acceptance suite...')
-    result = subprocess.run(
-        [node, str(ROOT / 'web/node_modules/playwright/cli.js'), 'test', '-c', 'playwright.authority.config.ts'],
-        cwd=ROOT / 'web',
-        env=environment,
-        capture_output=True,
-        text=True,
-    )
-
-    output = result.stdout + result.stderr
+        raise SystemExit('Node is required for native browser acceptance.')
+    process = subprocess.run([node, str(ROOT / 'web/node_modules/playwright/cli.js'), 'test',
+                              '-c', 'playwright.prototype.config.ts', 'authority.spec.ts'],
+                             cwd=ROOT / 'web', env=environment, capture_output=True,
+                             encoding='utf-8', errors='replace')
+    output = process.stdout + process.stderr
     (PRIVATE / 'authority-browser-output.txt').write_text(output, encoding='utf-8')
-    print(output)
-
-    evidence = {
-        'suite': 'authority-browser',
-        'passed': result.returncode == 0,
-        'exit_code': result.returncode,
-    }
-    (PRIVATE / 'authority-evidence.json').write_text(json.dumps(evidence, indent=2), encoding='utf-8')
-
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
-
-    print('Phase A Authority browser acceptance passed.')
+    users = json.loads((PRIVATE / 'users.json').read_text(encoding='utf-8'))
+    for user in users['users']:
+        for field in ['password', 'enrollment_ticket']:
+            if user.get(field):
+                output = output.replace(user[field], '[redacted]')
+    authorization = PRIVATE / 'credential-authorization.json'
+    if authorization.exists():
+        output = output.replace(json.loads(authorization.read_text(encoding='utf-8'))['ticket'], '[redacted]')
+    devices = PRIVATE / 'virtual-authenticators.json'
+    if devices.exists():
+        for credentials in json.loads(devices.read_text(encoding='utf-8')).values():
+            for credential in credentials:
+                if credential.get('privateKey'):
+                    output = output.replace(credential['privateKey'], '[redacted virtual key]')
+    print(output.encode('ascii', 'backslashreplace').decode('ascii'))
+    return process.returncode
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

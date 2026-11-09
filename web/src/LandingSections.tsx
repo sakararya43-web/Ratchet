@@ -1,0 +1,34 @@
+import { ArrowDownRight, ArrowRight, LockKeyhole, Network, ScanLine, ShieldCheck } from 'lucide-react';
+
+export function LandingSections() {
+  return <>
+    <section id="chapter-3" data-chapter="3" className="consequence landing-section">
+      <div className="section-kicker"><span>03 — CONNECT THE CONSEQUENCES</span><span>PERMISSIONS DON’T EXIST IN ISOLATION.</span></div>
+      <div className="consequence-heading"><h2>A small grant.<br/>A much bigger <span className="serif-word">reach.</span></h2><p>An identity inherits a role. That role controls a service. The service can reach a critical resource. Review the whole path before opening the first door.</p></div>
+      <div className="reach-map" aria-label="Illustrative transitive access path: person, role, service, critical resource">
+        {['Person', 'Role', 'Service', 'Critical resource'].map((name, i) => <div className="reach-node" key={name}><span className="reach-index">0{i + 1}</span><div className="reach-symbol">{i === 3 ? <LockKeyhole/> : i === 2 ? <Network/> : <span>{i === 0 ? 'ID' : 'R'}</span>}</div><h3>{name}</h3><span className="reach-caption">{['who is asking', 'what they receive', 'what they control', 'what becomes reachable'][i]}</span>{i < 3 && <ArrowRight className="reach-arrow" size={20}/>}</div>)}
+      </div>
+      <div className="consequence-bottom"><span>RATCHET FOLLOWS THE RELATIONSHIPS.</span><p>The question is bigger than “can this person have this role?”<br/><strong>What power does this change create?</strong></p></div>
+    </section>
+
+    <section id="chapter-4" data-chapter="4" className="bitcoin landing-section">
+      <div className="section-kicker"><span>04 — THE BINANCE CASE</span><span>29 OCTOBER 2026 / WHY THE BOUNDARY MATTERS.</span></div>
+      <div className="bitcoin-story">
+        <div className="bitcoin-sticky"><p className="eyebrow">AFTER THE PERIMETER FAILS</p><h2>After the breach.<br/>Before the <span className="serif-word">signer.</span></h2><p>Binance’s initial findings describe a path from compromised developer devices to an internal wallet-signing service. That path is the problem Ratchet is built to make visible.</p><div className="bitcoin-orbit" aria-hidden="true"><span className="orbit-tick orbit-tick-one"/><span className="orbit-tick orbit-tick-two"/><div className="bitcoin-coin"><Network size={76} strokeWidth={1}/></div><span className="orbit-label">DEVICE → TOKEN → SIGNER</span></div><span className="bitcoin-disclaimer">BINANCE INITIAL REPORT / 3 NOV 2026<br/>RATCHET’S DEMO USES A SIMULATED EXCHANGE.</span></div>
+        <div className="bitcoin-beats">
+          <article className="bitcoin-beat"><span className="beat-index">01 / THE REPORTED ENTRY</span><h3>A developer device.<br/>A route further inside.</h3><p>Binance reported social engineering, malicious downloads and compromised internal tooling. The attacker obtained a deployment credential and used it to reach wallet infrastructure.</p><div className="scenario-ticket"><span>ENTRY <strong>Developer environment</strong></span><span>LEVERAGE <strong>Deployment credential</strong></span><span>CRITICAL REACH <strong>Wallet signing <ScanLine size={14}/></strong></span></div><ArrowDownRight className="beat-arrow" size={38}/></article>
+          <article className="bitcoin-beat"><span className="beat-index">02 / THE REPORTED CONSEQUENCE</span><h3>Withdrawal controls<br/>were not the whole boundary.</h3><p>According to Binance, unauthorized signing enabled transfers outside its withdrawal flow. On-chain delegations persisted after withdrawals were suspended, requiring separate revocation.</p><div className="scenario-verification"><LockKeyhole size={22}/><span>Trace effective authority,<br/>including permissions outside the usual workflow.</span></div><ArrowDownRight className="beat-arrow" size={38}/></article>
+          <article className="bitcoin-beat"><span className="beat-index">03 / RATCHET’S THESIS</span><h3>Govern the path.<br/><span className="serif-word">Verify the change.</span></h3><p>Ratchet assesses what a permission change would unlock, requires independent approvals, and verifies execution against target read-back. Its prototype wallet role requires two distinct security leads.</p><div className="quorum-visual"><span><ShieldCheck size={24}/><small>LEAD 01</small></span><span className="quorum-plus">+</span><span><ShieldCheck size={24}/><small>LEAD 02</small></span><div>Independent approval.<br/>Exact change digest.</div></div><p className="bitcoin-thesis">Our focus: consequence-aware control over authority changes, even when an account inside the perimeter is compromised.</p><div className="incident-source"><a href="https://www.binance.com/fr-AF/blog/community/3229153443759566763" target="_blank" rel="noopener noreferrer">Read Binance’s initial incident report <ArrowRight size={14}/></a><p>The incident motivates the design. This prototype does not establish that it would have prevented the Binance incident.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="chapter-5" data-chapter="5" className="architecture landing-section">
+      <div className="section-kicker"><span>05 — INSIDE RATCHET</span><span>FROM OBSERVED STATE TO VERIFIED CHANGE.</span></div>
+      <div className="architecture-heading"><h2>One change.<br/>An entire <span className="serif-word">chain of evidence.</span></h2><p>A console to review it.<br/>A control plane to enforce it.<br/>A target to prove it.</p></div>
+      <div className="architecture-flow">
+        {[{ icon: Network, title: 'Observe the real state.', label: 'THE GRAPH', text: 'Connectors feed observed identities, roles, resources, and relationships into the access graph. Assessment starts with that versioned picture.' }, { icon: ShieldCheck, title: 'Enforce the decision.', label: 'THE CONTROL PLANE', text: 'Policy selects the independent reviewers. Passkey approvals bind to the verified change digest. The required quorum gates execution.' }, { icon: ScanLine, title: 'Close the evidence loop.', label: 'THE TARGET + AUDIT', text: 'The connector applies the authorized change. Independent read-back verifies the target state, and hash-linked events preserve the record.' }].map((item, i) => <article className="architecture-card" key={item.label}><div className="architecture-card-top"><span>0{i + 1}</span><item.icon size={29} strokeWidth={1}/></div><p className="eyebrow">{item.label}</p><h3>{item.title}</h3><p>{item.text}</p><span className="architecture-connector"><ArrowRight size={20}/></span></article>)}
+      </div><div className="architecture-foot"><span className="live-dot"/><p>Explore this complete access-review loop in the local prototype.</p><a href="#/console?demo=1">See it in the console <ArrowRight size={16}/></a></div>
+    </section>
+  </>;
+}

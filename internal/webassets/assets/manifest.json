@@ -1,22 +1,22 @@
 {
   "files": {
     "assets/index-B2NREd82.css": "56e1c716addae5f832fcd472a13cd18474d6931dc7ef0576f7491381f926e36f",
-    "assets/index-DX_JcN3I.js": "ffbc8df6d62682f71e5957b5027f3fb78e716356bcda858dca9212a0a06fb669",
+    "assets/index-DwEoR1Li.js": "8dcbc33a49a881fddaa2af66c5f62882ba03f8dcde7f4b6f32c54910904b4cf0",
     "favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "index.html": "d426ef3afd78e53228dd14b2c67676d11758a858142dce0df7bb7672b08b9b93"
+    "index.html": "38f62e0db53d20e4eb51df159d58b8c00035f84dfde7731df85dbd92276e2fe5"
   },
   "sources": {
     "e2e/authority.spec.ts": "0e941aa0f2149674256611573729bce6f8ad54b20f9e06f1995e891fc9f2aab7",
     "e2e/landing.spec.ts": "1fd2a3537497819dbf399320be4d6d0946624fdcd7b7e4aef88b9404b2d66efc",
     "e2e/prototype.helpers.ts": "cf47396d0c13bf0e44cec170cf8013fd3b5fe5c48d83c7b019ba8f41c3ed3e8f",
-    "e2e/prototype.spec.ts": "02e1d3d09a80f3c6d856ed8c571e1b98f12e21ce17adb867206b9457fa8da189",
+    "e2e/prototype.spec.ts": "e6556f2e550fa6e4a30d7294ba539e5d7f64be986c320de07f713de6f3bb7d60",
     "index.html": "5d2e6721db89a982294937a185d4eacebfef7ecf266cff29d95290c6a5b93dc6",
     "package-lock.json": "2382db2eb58f954293c40f45860436a534cbe3d9d3580532bb8664065c9d8621",
     "package.json": "2e1ff6b995e779feda5ccdbd816642c5775d9b3ad05da68b72668db4fd3ba249",
     "playwright.prototype.config.ts": "43efa20ad0ebf7081b6f03b9aa1dd577ca6fc4eb4e2363b693166609d0f31c9f",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
     "public/favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "src/App.tsx": "1caa2fdbcc526e62994c2084bd4c6d4f946cfa6f89e535ae20e5375f0636c0d7",
+    "src/App.tsx": "3e8197d23b000855dc06fd12c99036b8beb6097100f570487b295023a8d40489",
     "src/AuthorityPanel.tsx": "882d72b3b1bcb2290a808fd098e3bbaa75d76abef3e6ca34372cba1c0f52f8b7",
     "src/Brand.tsx": "f9a286150d4a532b1342db01221fc0048f63e2b02ed574921af605c45513bc8e",
     "src/Landing.tsx": "510eb867e1a2fb0ee297ea82beec00ef15dc2b736ca21270383f5b97199448f4",

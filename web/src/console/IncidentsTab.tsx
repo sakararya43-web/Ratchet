@@ -10,7 +10,7 @@ const statuses = ['All', 'OPEN', 'CONTAINING', 'CONTAINED', 'RESOLVED'] as const
 type Status = typeof statuses[number];
 
 export function IncidentsTab({ result, refresh }: { result: unknown; refresh: () => Promise<void> }) {
-  const { tenantId, busy, work, notify, focus, bootstrap, go, containment } = useConsole();
+  const { tenantId, busy, work, notify, focus, bootstrap, go, containment, reloadChanges } = useConsole();
   const incidents = ((result ?? {}) as { incidents?: Incident[] }).incidents ?? [];
   const [status, setStatus] = useState<Status>('All');
   const [search, setSearch] = useState('');
@@ -49,14 +49,15 @@ export function IncidentsTab({ result, refresh }: { result: unknown; refresh: ()
       {!containment && <section><h3>Containment and restoration</h3><p className="inline-note" data-testid="containment-unavailable">Containment planning is not enabled on this deployment. The core serves it only when the operator has configured revocation costs, which the minimum-disruption cut needs to weigh each action. Incident records above remain available.</p></section>}
       {containment && <section><h3>Containment planning</h3><p>Enter a compromised identity. RATCHET computes the smallest set of revocations that cuts every route to a tier-0 asset while keeping unrelated work running.</p>
         <form onSubmit={planFor}><label>Identity<input key={focus?.identity ?? ''} defaultValue={focus?.identity ?? ''} name="Identity" required autoComplete="off" placeholder="Choose an identity" list="incident-identities"/></label><datalist id="incident-identities">{(bootstrap?.nodes ?? []).filter(n => n.type === 'Human' || n.type === 'ServiceAccount').map(n => <option key={n.id} value={n.id}>{n.display_name}</option>)}</datalist><button disabled={busy}>Compute containment plan</button></form>
-        {plan && <PlanView plan={plan} onExecute={() => void work(async () => { const res = await executeContainment({ planId: plan.planId, planDigest: plan.planDigest }, tenantId) as { incidentId?: string }; await refresh(); notify('Containment dispatched on the priority stream with passkey confirmation. Awaiting target verification.'); if (res.incidentId) setSelected(res.incidentId); })}
+        {plan && <PlanView plan={plan} onExecute={() => void work(async () => { const res = await executeContainment({ planId: plan.planId, planDigest: plan.planDigest }, tenantId) as { incidentId?: string }; await refresh(); await reloadChanges(); notify('Containment dispatched on the priority stream with passkey confirmation. Awaiting target verification.'); if (res.incidentId) setSelected(res.incidentId); })}
           onOpen={() => void work(async () => { const res = await rpc<{ incident?: Incident } & Document>('IncidentService', 'OpenIncident', { tenantId, planId: plan.planId, planDigest: plan.planDigest, mutation: mutation() }); await refresh(); notify('Incident opened for investigation.'); if (res.incident?.incidentId) setSelected(res.incident.incidentId); })}/>}
       </section>}
       {containment && <section><h3>Request reviewed restoration</h3><p>Restoring revoked access creates a fresh access request that goes through normal independent approval. Terminated sessions are never resurrected.</p>
         <form onSubmit={restore}>{['Incident', 'Identity', 'Access', 'Justification'].map(name => <label key={name}>{name}<input name={name} required autoComplete="off"/></label>)}<button disabled={busy}><Undo2 size={13}/> Submit restoration request</button></form>
         {restoreId && <p className="inline-note">Restoration request <button type="button" className="entity-link" onClick={() => go('Changes', { requestId: restoreId })}>{short(restoreId)}</button> created; it now needs independent approval in Changes.</p>}
       </section>}
-    </div>{selected && <IncidentInspector incidentId={selected} onClose={() => setSelected(null)}/>}</div>
+    </div>{/* Keyed by status so an open inspector reloads when containment changes the incident. */}
+    {selected && <IncidentInspector key={`${selected}:${incidents.find(i => i.incidentId === selected)?.status ?? ''}`} incidentId={selected} onClose={() => setSelected(null)}/>}</div>
   </>;
 }
 

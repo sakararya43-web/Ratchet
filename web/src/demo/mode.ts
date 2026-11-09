@@ -39,3 +39,13 @@ export function switchMode(mode: 'demo' | 'live' | 'auto'): void {
   try { if (mode === 'auto') localStorage.removeItem(KEY); else localStorage.setItem(KEY, mode); } catch { /* The choice applies to this load only. */ }
   location.replace(`${location.pathname}${location.hash}`);
 }
+
+// Demo deep link: #/console?as=alice&tab=incidents opens that persona on that workspace,
+// so a shared link or a recorded clip starts on the right screen. Live mode ignores it.
+export function demoDeepLink(): { actor: string; tab: string } | null {
+  if (!demoMode || !location.hash.startsWith('#/console')) return null;
+  const query = new URLSearchParams(location.hash.split('?')[1] ?? '');
+  const as = query.get('as');
+  if (!as) return null;
+  return { actor: as.startsWith('user:') ? as : `user:${as}`, tab: (query.get('tab') ?? '').toLowerCase().replace(/[-_]/g, ' ') };
+}

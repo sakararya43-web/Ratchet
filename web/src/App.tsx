@@ -15,8 +15,8 @@ import { OverviewTab } from './console/OverviewTab';
 import { PasskeysTab } from './console/PasskeysTab';
 import { PolicyTab } from './console/PolicyTab';
 import { DemoBar, DemoPersonas, DemoTour } from './demo/DemoControls';
-import { demoMode } from './demo/mode';
-import { TENANT } from './demo/personas';
+import { demoDeepLink, demoMode } from './demo/mode';
+import { personas, TENANT } from './demo/personas';
 import { tour } from './demo/tour';
 import './console/console.css';
 
@@ -47,7 +47,7 @@ export function App() {
 }
 
 function Console() {
-  const [enteringDemo, setEnteringDemo] = useState(() => location.hash.includes('demo=1'));
+  const [enteringDemo, setEnteringDemo] = useState(() => location.hash.includes('demo=1') || !!demoDeepLink());
   const [setup, setSetup] = useState<boolean|null>(null);
   const [governance, setGovernance] = useState(false);
   const [containment, setContainment] = useState(false);
@@ -72,7 +72,7 @@ function Console() {
   const autoTour = useRef(demoMode && location.hash.includes('demo=1'));
   const tenantId = identity?.principal.tenant_id;
   const work = useCallback(async (action: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await action(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } }, []);
-  useEffect(() => { void request<{mode:string;governance?:boolean;containment?:boolean}>('/api/setup').then(r=>{const active=r.mode==='AUTHORITY_GENESIS';setSetup(active);setGovernance(active||!!r.governance);setContainment(!!r.containment);if(active)setTab('Passkeys');}).catch(()=>setSetup(false));void (location.hash.includes('demo=1') ? enterDemo() : session()).then(setIdentity).catch(() => { if (location.hash.includes('demo=1')) setError('Automatic demo entry is unavailable. Sign in manually below.'); }).finally(() => setEnteringDemo(false)); }, []);
+  useEffect(() => { void request<{mode:string;governance?:boolean;containment?:boolean}>('/api/setup').then(r=>{const active=r.mode==='AUTHORITY_GENESIS';setSetup(active);setGovernance(active||!!r.governance);setContainment(!!r.containment);if(active)setTab('Passkeys');}).catch(()=>setSetup(false));const link = demoDeepLink(); if (link && personas.some(p => p.id === link.actor)) { void work(() => becomePersona(link.actor, tabs.find(t => t.toLowerCase() === link.tab) ?? 'Overview')).finally(() => setEnteringDemo(false)); return; } void (location.hash.includes('demo=1') ? enterDemo() : session()).then(setIdentity).catch(() => { if (location.hash.includes('demo=1')) setError('Automatic demo entry is unavailable. Sign in manually below.'); }).finally(() => setEnteringDemo(false)); }, []);
   // Only the most recent result request may render: a slower tab load must not
   // overwrite a newer, narrower query such as a request-specific audit search.
   const resultTicket = useRef(0);

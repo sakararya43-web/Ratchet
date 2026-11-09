@@ -1,11 +1,11 @@
 {
   "files": {
-    "assets/backend-R7G-qBCl.js": "6799c78206e00699156505e7891b3350116f4bf682d3a45442b275896cc16b16",
+    "assets/backend-dSAocvQi.js": "4fafee1095d40dc827fb23d921f839fb713c6b941dee5473eed5e2b27465625a",
     "assets/index-C5x3dLQz.css": "d33552cdf72b6228d2eddf214e99c15f0ebcfbca16cc08bfc583a57a7ca99663",
-    "assets/index-DsdNTI0Z.js": "1e9d8a83986dc152aaf15cfdca614b848b634b52444c2f5823c9f70fc5a6544f",
-    "assets/passkey-D9PPDxDW.js": "6937a415e58ed4e144367027649b10de51e5549093f237275dff557e9e7d7a95",
+    "assets/index-DZQsJ8wc.js": "e65985999dd28010c909bb7298cf82a803dd63f1cdee8d6217c0a27d75705c2d",
+    "assets/passkey-BELyddxU.js": "a0e25df9e21ad6121fc381b7d2021df2f087f14754ee3371b567337d282185bd",
     "favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "index.html": "6beb16e338392ad17e02212204b8b00fe7d88064a319c3d5722ed2aaa326ca46"
+    "index.html": "b3256b4cc71f9c5a662d292f41ee9571ac3a34b3b6f9350db44dae9fa726d85b"
   },
   "sources": {
     "e2e/authority.spec.ts": "0e941aa0f2149674256611573729bce6f8ad54b20f9e06f1995e891fc9f2aab7",
@@ -18,7 +18,7 @@
     "playwright.prototype.config.ts": "43efa20ad0ebf7081b6f03b9aa1dd577ca6fc4eb4e2363b693166609d0f31c9f",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
     "public/favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "src/App.tsx": "cdee30cd69f7b593ae3203a4e776d47b7253806176708c0d3c16faf8c167fa7a",
+    "src/App.tsx": "cd6142416d6bf8da1ffa8057b9a1ddba753edd481588c8629ded5102ff209780",
     "src/AuthorityPanel.tsx": "882d72b3b1bcb2290a808fd098e3bbaa75d76abef3e6ca34372cba1c0f52f8b7",
     "src/Brand.tsx": "f9a286150d4a532b1342db01221fc0048f63e2b02ed574921af605c45513bc8e",
     "src/Landing.tsx": "510eb867e1a2fb0ee297ea82beec00ef15dc2b736ca21270383f5b97199448f4",
@@ -28,7 +28,7 @@
     "src/console/EntityInspector.tsx": "821495e1e523fb722928b71c2ad373e31508a644c34f842c026ad2df7513d045",
     "src/console/GraphCanvas.tsx": "d5f7d7632287b25a97a1fc89538d18997b2700f9669fbf5c00a4f0e4aafc9608",
     "src/console/ImpactTab.tsx": "9f2be0e449be55c34e0621bf1afd733140e9ed6a1833affe3bb82445601d98eb",
-    "src/console/IncidentsTab.tsx": "3db97fddeb8d0795aaa578d6be4173c1a8fe46fca3bc8907b4a88f00bb034f2f",
+    "src/console/IncidentsTab.tsx": "78489469a71f02a661ecd9b77ae8dbcea9a6b10429e79a1e6a01f8694c434103",
     "src/console/InfrastructureTab.tsx": "0634541e5c610188a298bd5e0995e6cd7ba75c52022277cc584de49103db8e2f",
     "src/console/OverviewTab.tsx": "965b7f5be3c4e58a6899567fa14837668a3c5f8405a2d4d6343007bdba04dc07",
     "src/console/PasskeysTab.tsx": "babd474275777b8e8917a4325ed14575ffe83b18b50c2f53ea33748f1663ef1d",
@@ -42,7 +42,7 @@
     "src/demo/backend.ts": "1adcd8f7446a17fb9c7e26eec7504397fca2fb09656f5de114e3be7dff42446e",
     "src/demo/data.ts": "219492a3619ebf0185066cc14720f6af195053c09acae513ef2190be8d7ac8dc",
     "src/demo/engine.ts": "2580a5ecbfb54521fd70548ff987985fc2de66df76848e4b2ae40c3596db2d19",
-    "src/demo/mode.ts": "12dcdbdfc7ef4af9e4de2fe5f04d65f7efcd400eb5bd1ad5fe52bd729c04ce9d",
+    "src/demo/mode.ts": "f763ea115efb450d733d1792f7cc64e7b77cb3e23c1489d9337d2829ca88a5f8",
     "src/demo/passkey.ts": "d850f1ef4477e1734189baecc89d9ca40d46b8d357557ed7e2090c630514e6a3",
     "src/demo/personas.ts": "2b07c7677d9ab65e0c6f9c690b941dd0e3b64c9b8f37258c83ee77fc92cbdb70",
     "src/demo/tour.ts": "a24b7dfddd99f5f816177676414c8d52204ed88c0fd8dcabe66d1d0bdad81059",

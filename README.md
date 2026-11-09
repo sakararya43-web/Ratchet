@@ -103,59 +103,94 @@ RATCHET's demo recreates this shape on a simulated crypto exchange. A compromise
 
 ---
 
-## Capabilities
+## The four pillars
 
-| Capability | Where to see it |
+RATCHET is built around four core capabilities. Each one has its own workspace in the console.
+
+### 1. Independent Security Authority
+
+The rules that protect critical systems decide who may create an administrator, change access to a critical system, change an approval rule or weaken a safeguard. Those rules are governed by a **separate authority**, not by the production systems they protect. A policy bundle or approver registry changes only when the **current** M-of-N quorum signs it, so a compromised production account cannot rewrite the protections that are supposed to constrain it.
+
+The **Security policy** workspace reads the active rules straight from the signed policy bundle the core verified. It shows them in the order they are evaluated, with the resource owners they name:
+
+<p align="center"><img src="docs/images/policy-rules.png" alt="Active policy rules parsed from the signed change.rego, in evaluation order" width="900"></p>
+
+Alongside the rules, it shows the Authority behind them: its members, the 2-of-2 quorum, the active bundle with its hash and both signatures.
+
+<p align="center"><img src="docs/images/policy-authority.png" alt="Independent Authority: members, quorum, signed policy bundle and signatures" width="900"></p>
+
+### 2. Permission Change Review
+
+Every request to increase or alter access is treated as a decision that deserves review. It covers who is asking, what they already have, what they want, why, and what the change would enable. The signed policy then decides:
+
+| Outcome | When |
 |---|---|
-| Consequence assessment: newly reachable resources, tier-0 paths, changed powers, weakened safeguards | Console › Changes and Impact |
-| Independent approval with passkeys (WebAuthn). The browser verifies the exact canonical envelope before signing. | Console › Changes › *Review exact change* |
-| Self-approval, duplicate approval and insufficient quorum refused (owner quorum 1, tier-0 quorum 2) | Demo walkthrough |
-| Signed commands to the target plus independent read-back before `EXECUTED` | Real HTTP probes change between 403 and 200 |
-| Tamper-evident, hash-linked audit ledger | Console › Audit |
-| Reviewed revocation that restores the starting access | Demo walkthrough |
-| Restricted, server-redacted views for requesters and owners | Requester cannot list the organisation graph |
-| Independent Authority: M-of-N governed policy and approver registry, separate database | `completion-a` profile, Console › Security policy |
-| Minimum-disruption containment: weighted min-cut over the graph, priority revocation actions, incident lifecycle | `internal/graph/containment.go`, Console › Incidents |
-| Typed restoration flows with fresh independent review | `internal/workflow/execution.go` |
-| Temporary-access expiry and drift-watch correction | `internal/connector`, `internal/workflow` |
-| Kubernetes RBAC adapter and fail-closed admission webhook | `internal/connector/k8s`, `cmd/ratchet-k8s-webhook` |
-| Offline audit-chain and proof-bundle verification | `ratchetctl audit verify` |
+| **Allow** | Graph analysis proves the change only reduces access |
+| **Require independent approval** | The change is legitimate but too sensitive to approve alone, for example one resource owner, or two security leads for any new tier-0 path |
+| **Hold** | More context is needed, or the situation changed after submission |
+| **Reject** | The change is not allowed, for example weakening a tier-0 safeguard |
+
+A requester can never approve their own escalation, and every approval is bound by passkey to the exact change digest. The **Changes** workspace lists every request with its decision and status. Selecting one opens the change inspector beside the table:
+
+<p align="center"><img src="docs/images/changes-workspace.png" alt="Changes workspace: request table with status filters and the change inspector" width="900"></p>
+
+### 3. Impact and Blast-Radius Review
+
+Before a sensitive change is accepted, RATCHET shows what it would actually do: which resources become reachable, whether a new route to a tier-0 asset appears, which identities could be taken over, which safeguards weaken and how the blast radius changes in each criticality tier. A reviewer never has to guess what a powerful permission means.
+
+The **Impact** workspace simulates a draft change without submitting anything. Below, granting the wallet role to the finance intern is flagged as an escalation: the tier-0 blast radius grows, the wallet signer becomes reachable, and both new critical paths are drawn with the proposed edge highlighted.
+
+<p align="center"><img src="docs/images/impact-simulation.png" alt="Impact simulation: before and after access, blast radius per tier and the new tier-0 paths" width="900"></p>
+
+The **Infrastructure** workspace explains *why*. The access graph can be focused on any entity, traced to tier-0 assets and searched by category. Any identity, role or resource opens in a shared inspector with its access, relationships, safeguards and related changes.
+
+| Relationship graph around the tier-0 wallet signer | Entity inspector |
+|:---:|:---:|
+| <img src="docs/images/infrastructure-graph.png" alt="Interactive access graph focused on the wallet signer" width="560"> | <img src="docs/images/entity-inspector.png" alt="Entity inspector for the wallet signer" width="300"> |
+
+### 4. Emergency Containment
+
+When an account, service or permission is believed to be compromised, taking power away must be faster than granting it. RATCHET computes a **minimum-disruption cut**: the smallest set of revocations, session terminations or account restrictions that removes every route to a tier-0 asset while keeping unrelated, legitimate work running. The **Incidents** workspace shows each proposed action with its reason, alongside a business-continuity view of what keeps working and what is isolated. A responder confirms the exact plan with a passkey before it runs on the priority path.
+
+```mermaid
+flowchart LR
+    A["Compromised identity"] --> B["Every route to a tier-0 asset"]
+    B --> C["Minimum-disruption cut<br/>smallest set of revocations"]
+    C --> D["Business continuity<br/>what keeps working · what is isolated"]
+    D --> E["Responder confirms the exact plan<br/>with a passkey"]
+    E --> F["Priority execution<br/>and target read-back"]
+    F --> G["Incident record<br/>in the audit ledger"]
+    G --> H["Restoration only through a<br/>fresh, independently reviewed request"]
+    style C fill:#16241b,stroke:#22c55e,color:#fff
+    style E fill:#1e1b4b,stroke:#818cf8,color:#fff
+```
+
+Containment is accountable: it records who initiated the response, what was restricted and why, and what must happen before normal access is restored.
 
 ---
 
-## Screenshots
+## Capabilities
 
-### Public site
+The landing page walks through the eight console workspaces as you scroll:
 
-| Landing page | The protocol |
-|:---:|:---:|
-| <img src="docs/images/landing-hero.png" alt="Landing page hero" width="440"> | <img src="docs/images/landing-protocol.png" alt="Landing page protocol section" width="440"> |
+<p align="center"><img src="docs/images/landing-tour.png" alt="Landing page tour: eight workspaces, one chain of evidence" width="900"></p>
 
-### Operator console
-
-| Overview, organisation-wide view of a security lead | Infrastructure: observed authorisation graph |
-|:---:|:---:|
-| <img src="docs/images/console-overview.png" alt="Console overview with graph statistics" width="440"> | <img src="docs/images/console-infrastructure.png" alt="Infrastructure graph nodes with criticality tiers" width="440"> |
-| **Audit: one wallet grant from request to verified execution** | **Sign-in** |
-| <img src="docs/images/console-audit-trail.png" alt="Hash-linked audit events for one change" width="440"> | <img src="docs/images/console-sign-in.png" alt="Console sign-in" width="440"> |
-
-The audit view shows the two separate `ChangeApprovalRecorded` events required by the tier-0 quorum, followed by `ChangeExecuting` and `ChangeExecuted`. Each event carries its own hash in the chain.
-
-### Recorded walkthrough
-
-<details>
-<summary><b>Four key moments from the recorded demo rehearsal (click to expand)</b></summary>
-<br>
-
-These frames come from the recorded presenter rehearsal and show the console's dark theme.
-
-| 1 · A valid session cannot approve its own escalation | 2 · The owner reviews the exact consequence |
-|:---:|:---:|
-| <img src="docs/images/walkthrough-1-self-approval-refused.png" alt="Self approval refused" width="440"> | <img src="docs/images/walkthrough-2-owner-review.png" alt="Owner reviewing newly reachable resources" width="440"> |
-| **3 · Tier-0 access: one approval is not enough** | **4 · Quorum reached, execution independently verified** |
-| <img src="docs/images/walkthrough-3-one-of-two.png" alt="One of two approvals recorded; 2 new tier-0 paths" width="440"> | <img src="docs/images/walkthrough-4-quorum-executed.png" alt="Wallet role executed after two approvals" width="440"> |
-
-</details>
+| Capability | Where to see it |
+|---|---|
+| Consequence assessment: newly reachable resources, tier-0 paths, changed powers, weakened safeguards, blast radius per tier | Changes inspector · Impact |
+| Independent approval with passkeys (WebAuthn). The browser verifies the exact canonical envelope before signing. | Changes › *Review and approve* |
+| Self-approval, duplicate approval and insufficient quorum refused (owner quorum 1, tier-0 quorum 2) | Changes inspector (eligible and excluded approvers) · Demo walkthrough |
+| Every decision explained by the signed policy rule that produced it, with graph version and policy bundle hash | Changes inspector · Security policy |
+| Signed commands to the target plus independent read-back before `EXECUTED` | Changes timeline · real HTTP probes change between 403 and 200 |
+| Interactive access graph: focus, neighbourhoods, tier-0 tracing, reach and takeover relationships | Infrastructure |
+| Tamper-evident, hash-linked audit ledger, re-verified end to end in the browser | Audit › *Verify audit chain* |
+| Reviewed revocation that restores the starting access | Demo walkthrough |
+| Restricted, server-redacted views for requesters and owners | Every workspace |
+| Independent Authority: M-of-N governed policy and approver registry | Security policy |
+| Minimum-disruption containment with business continuity, and typed restoration through fresh review | Incidents |
+| Temporary-access expiry and drift-watch correction | Changes (duration and expiry status) |
+| Kubernetes RBAC adapter and fail-closed admission webhook | `internal/connector/k8s`, `cmd/ratchet-k8s-webhook` |
+| Offline audit-chain and proof-bundle verification | `ratchetctl audit verify` |
 
 ---
 
@@ -232,7 +267,19 @@ challenge = SHA-256( "RATCHET_APPROVAL_V1:" ‖ tenant ‖ actor ‖ change_dige
 change_digest = SHA-256( RFC 8785 canonical JSON of the exact approval envelope )
 ```
 
+<img src="docs/images/change-inspector.png" alt="Change inspector: decision explanation, approval requirements, impact and recorded timeline" width="290" align="right">
+
 The browser recomputes `change_digest` independently, in TypeScript and with the same golden test vectors as the Go backend, before it asks the authenticator to sign. If the server shows one change and signs another, the browser refuses.
+
+The change inspector shows everything bound into that digest for a real tier-0 request:
+
+- the decision and the policy rule that produced it, here rule 7 of the signed `change.rego`;
+- the graph version and policy bundle hash it was assessed against;
+- who may approve, and who is excluded, starting with the requester;
+- the access the change adds and its new tier-0 paths;
+- the ledger events from submission to verified execution.
+
+<br clear="right">
 
 ### Tamper-evident audit ledger
 
@@ -245,6 +292,10 @@ flowchart LR
 ```
 
 Changing, removing or reordering any event breaks every later hash. `ratchetctl audit verify --expected-tip=<hex>` also detects a ledger that has been cut short.
+
+The **Audit** workspace does the same check in the browser. *Verify audit chain* exports the canonical bytes of every event, recomputes each hash, and compares the end of the chain with the server's snapshot:
+
+<p align="center"><img src="docs/images/audit-verification.png" alt="Audit chain verified in the browser: every event re-hashed and matched to the server snapshot" width="900"></p>
 
 ---
 
@@ -340,6 +391,10 @@ These rules are enforced in code across the control plane.
 | **R8** | Minimum-disruption containment | Containment cuts paths to tier-0 assets while preserving unrelated access. |
 | **R9** | Proportional visibility | Requesters and owners get server-redacted views. Organisation-wide visibility requires policy authorisation. |
 
+R9 in practice: the requester account can submit and assess its own changes, but organisation-wide records such as Audit, Incidents and Security policy are refused by the core, and the console says so plainly.
+
+<p align="center"><img src="docs/images/restricted-view.png" alt="Restricted view shown to the requester for organisation-wide audit records" width="760"></p>
+
 ---
 
 ## Quick start
@@ -373,6 +428,8 @@ On first start, the launcher generates random database and broker secrets, creat
 1. **Trust the local HTTPS certificate.** Import `.local/prototype/ca.pem` into your OS or browser trust store. Certificate checks stay on, because passkeys need a secure origin.
 2. Open **https://localhost:8444** and sign in with an account from `users.json`.
 3. Under **Passkeys**, register a passkey for each reviewer with its one-use enrollment ticket. Run `python scripts/prototype.py invite --actor <actor>` to issue a fresh ticket.
+
+<p align="center"><img src="docs/images/passkeys.png" alt="Passkeys workspace: registered credentials and their status" width="860"></p>
 
 The [prototype runbook](docs/ishaan/prototype-runbook.md) covers credential management, restarts and recovery in detail.
 
@@ -409,6 +466,10 @@ npm run build      # type-check + production bundle
 ---
 
 ## Demo walkthrough
+
+Every account starts on the **Overview**. Its metrics and attention queue (held requests, pending approvals and active incidents, each with its reason and age) open straight into the record that needs attention:
+
+<p align="center"><img src="docs/images/console-overview.png" alt="Console overview: metrics and the attention queue" width="900"></p>
 
 The demo uses four independent accounts in the tenant `tenant-exchange-demo`:
 

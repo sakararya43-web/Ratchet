@@ -14,9 +14,10 @@ import { InfrastructureTab } from './console/InfrastructureTab';
 import { OverviewTab } from './console/OverviewTab';
 import { PasskeysTab } from './console/PasskeysTab';
 import { PolicyTab } from './console/PolicyTab';
-import { DemoBar, DemoPersonas } from './demo/DemoControls';
+import { DemoBar, DemoPersonas, DemoTour } from './demo/DemoControls';
 import { demoMode } from './demo/mode';
 import { TENANT } from './demo/personas';
+import { tour } from './demo/tour';
 import './console/console.css';
 
 const tabIcons = [LayoutDashboard, GitPullRequest, Network, ScanLine, ScrollText, Siren, ListChecks, Fingerprint];
@@ -66,6 +67,9 @@ function Console() {
   const [restricted, setRestricted] = useState(false);
   // Demo mode: bumped on every persona switch or reset so each workspace starts fresh.
   const [generation, setGeneration] = useState(0);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+  // Arriving from the landing page in demo mode starts the guided tour.
+  const autoTour = useRef(demoMode && location.hash.includes('demo=1'));
   const tenantId = identity?.principal.tenant_id;
   const work = useCallback(async (action: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await action(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } }, []);
   useEffect(() => { void request<{mode:string;governance?:boolean;containment?:boolean}>('/api/setup').then(r=>{const active=r.mode==='AUTHORITY_GENESIS';setSetup(active);setGovernance(active||!!r.governance);setContainment(!!r.containment);if(active)setTab('Passkeys');}).catch(()=>setSetup(false));void (location.hash.includes('demo=1') ? enterDemo() : session()).then(setIdentity).catch(() => { if (location.hash.includes('demo=1')) setError('Automatic demo entry is unavailable. Sign in manually below.'); }).finally(() => setEnteringDemo(false)); }, []);
@@ -117,13 +121,21 @@ function Console() {
   }, []);
   const resetDemo = useCallback(async (actor: string) => {
     const { initDemo } = await import('./demo/backend');
-    await initDemo(); await becomePersona(actor);
+    await initDemo(); setTourStep(null); await becomePersona(actor);
   }, [becomePersona]);
   const go = useCallback((target: Tab, nextFocus: Focus = null) => {
     auditFilter.current = target === 'Audit' && nextFocus?.requestId ? nextFocus.requestId : '';
     setInspecting(null); setFocus(nextFocus); setTab(target);
     if (target === tab && target === 'Audit') void work(async () => load());
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Each tour step signs in as its persona (only when it changes) and opens its workspace.
+  const showStep = useCallback(async (index: number) => {
+    const step = tour[index];
+    if (step.persona !== identity?.principal.actor_id) await becomePersona(step.persona, step.tab, step.focus ?? null);
+    else go(step.tab, step.focus ?? null);
+    setTourStep(index);
+  }, [identity, becomePersona, go]);
+  useEffect(() => { if (identity && autoTour.current) { autoTour.current = false; void work(() => showStep(0)); } }, [identity, work, showStep]);
   const context: ConsoleContextValue | null = useMemo(() => identity ? {
     tenantId: identity.principal.tenant_id, actor: identity.principal.actor_id, scope: bootstrap?.scope ?? 'SELF', organization: bootstrap?.scope === 'ORGANIZATION', containment,
     bootstrap, changes, busy, focus, go, inspect: setInspecting, work, notify: setNotice, reloadChanges,
@@ -131,7 +143,7 @@ function Console() {
   if (!identity && enteringDemo) return <main className="demo-opening"><Brand/><p role="status">Opening the requester demo…</p></main>;
   if (!identity || !context) return <div className="login-shell"><div className="login-art"><a href="#" aria-label="Ratchet home"><Brand/></a><div><p className="eyebrow">THE SECURITY CONTROL PLANE</p><h1>Access with<br/><span className="serif-word">intention.</span></h1><Mechanism/><p>Independent review.<br/>Verifiable change.</p></div><span className="login-edition">{demoMode ? 'RATCHET / DEMO EXCHANGE' : 'RATCHET / LOCAL PROTOTYPE'}</span></div><main className="login"><a href="#" className="back-link"><ArrowLeft size={16}/> Back to Ratchet</a><div className="login-form"><span className="login-icon"><Fingerprint size={28}/></span><p className="eyebrow">AUTHORIZED PERSONNEL</p><h2>Welcome to<br/>the control plane.</h2>{demoMode ? <DemoPersonas busy={busy} onPick={actor => void work(() => becomePersona(actor))}/> : <><p>Sign in with your operator-issued account.</p><form onSubmit={e => form(e, async v => { setIdentity(await login(v.Tenant, v.Actor, v.Password)); })}><Fields names={['Tenant', 'Actor']} /><label>Password<input name="Password" type="password" autoComplete="current-password" required /></label><button className="button-primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}<ArrowRight size={18}/></button></form></>}{error && <p role="alert">{error}</p>}<p className="login-note"><ShieldCheck size={16}/> Approval actions require a separately enrolled passkey.</p></div><span className="login-edition">IDENTITY FIRST. AUTHORITY VERIFIED.</span></main></div>;
   const authority = !restricted && governance && tenantId ? <AuthorityPanel tenant={tenantId} actor={identity.principal.actor_id}/> : null;
-  return <ConsoleContext.Provider value={context}><div className="console-shell"><a className="skip-link" href="#/console" onClick={e => { e.preventDefault(); document.getElementById("console-content")?.focus(); }}>Skip to content</a><aside className="console-sidebar"><a href="#" className="sidebar-brand" aria-label="Ratchet home"><Brand/></a><div className="workspace-label"><span className="live-dot"/> CONTROL PLANE <span>01</span></div><nav aria-label="Console">{tabs.filter(t=>!setup||t==='Passkeys'||t==='Security policy').map(t => { const Icon = tabIcons[tabs.indexOf(t)]; return <button disabled={busy} key={t} aria-current={t === tab ? 'page' : undefined} onClick={() => { auditFilter.current = ''; setFocus(null); setInspecting(null); setTab(t); }}><Icon size={18}/>{t}{t === tab && <span className="nav-active-dot"/>}</button>; })}</nav><div className="sidebar-foot"><div className="sidebar-note"><ShieldCheck size={21}/><p>Independent review.<br/>Verifiable change.</p></div><a href="#">Back to website <ArrowUpRight size={14}/></a></div></aside><div className="console-workspace"><header className="console-topbar"><div className="console-breadcrumb">Workspace <span>/</span> <strong>{tab}</strong></div>{demoMode && <DemoBar actor={identity.principal.actor_id} busy={busy} onSwitch={actor => void work(() => becomePersona(actor, tab))} onReset={() => void work(() => resetDemo(identity.principal.actor_id))}/>}<div className="account"><span className="avatar">{identity.principal.actor_id.replace('user:', '').slice(0,2).toUpperCase()}</span><span data-testid="signed-in-actor">{tenantId} / {identity.principal.actor_id}</span><button aria-label="Sign out" title="Sign out" disabled={busy} onClick={() => void work(async () => { await request('/api/auth/logout', {}); reset(); })}><LogOut size={17}/></button></div></header>
+  return <ConsoleContext.Provider value={context}><div className="console-shell"><a className="skip-link" href="#/console" onClick={e => { e.preventDefault(); document.getElementById("console-content")?.focus(); }}>Skip to content</a><aside className="console-sidebar"><a href="#" className="sidebar-brand" aria-label="Ratchet home"><Brand/></a><div className="workspace-label"><span className="live-dot"/> CONTROL PLANE <span>01</span></div><nav aria-label="Console">{tabs.filter(t=>!setup||t==='Passkeys'||t==='Security policy').map(t => { const Icon = tabIcons[tabs.indexOf(t)]; return <button disabled={busy} key={t} aria-current={t === tab ? 'page' : undefined} onClick={() => { auditFilter.current = ''; setFocus(null); setInspecting(null); setTab(t); }}><Icon size={18}/>{t}{t === tab && <span className="nav-active-dot"/>}</button>; })}</nav><div className="sidebar-foot"><div className="sidebar-note"><ShieldCheck size={21}/><p>Independent review.<br/>Verifiable change.</p></div><a href="#">Back to website <ArrowUpRight size={14}/></a></div></aside><div className="console-workspace"><header className="console-topbar"><div className="console-breadcrumb">Workspace <span>/</span> <strong>{tab}</strong></div>{demoMode && <DemoBar actor={identity.principal.actor_id} busy={busy} onSwitch={actor => void work(() => becomePersona(actor, tab))} onTour={() => void work(() => showStep(tourStep ?? 0))} onReset={() => void work(() => resetDemo(identity.principal.actor_id))}/>}<div className="account"><span className="avatar">{identity.principal.actor_id.replace('user:', '').slice(0,2).toUpperCase()}</span><span data-testid="signed-in-actor">{tenantId} / {identity.principal.actor_id}</span><button aria-label="Sign out" title="Sign out" disabled={busy} onClick={() => void work(async () => { await request('/api/auth/logout', {}); reset(); })}><LogOut size={17}/></button></div></header>
     <main key={generation} className="console-main" id="console-content" tabIndex={-1}><div className="heading"><div><p className="eyebrow">WORKSPACE / {String(tabs.indexOf(tab)+1).padStart(2,'0')}</p><h2>{tab}</h2><p>{tabDescriptions[tab]}</p></div><button className="refresh-button" disabled={busy} onClick={() => void work(async () => { setBootstrap(await request<Bootstrap>('/api/console/bootstrap')); await load(); })}><RefreshCw size={15} className={busy ? 'is-spinning' : ''}/> Refresh</button></div>
       {location.hash.includes('demo=1') && identity.principal.actor_id === 'user:rahul-assistant' && <p className="demo-banner">DEMO WORKSPACE | Requester account | Independent reviewers approve sensitive changes.</p>}{error && <p role="alert">{error}</p>}{notice && <p role="status" className="notice">{notice}</p>}{busy && <p role="status">Processing your request. Complete the passkey prompt if one is open.</p>}
       {bootstrap && <p className="muted">Graph version {bootstrap.graph_version} | {bootstrap.scope === 'SELF' ? 'Your identity only; organization visibility requires investigator authorization.' : 'Organization visibility authorized by core policy.'}</p>}
@@ -148,5 +160,6 @@ function Console() {
       {tab === 'Passkeys' && <PasskeysTab result={result} reload={() => load()}/>}
       {next && (tab === 'Audit' || tab === 'Security policy') && <button disabled={busy} onClick={() => void work(() => load(next))}>Next page</button>}
     <footer className="console-footer"><span>RATCHET / SECURITY CONTROL PLANE</span><span>Every change has a consequence.</span></footer></main></div>
+    {demoMode && tourStep !== null && <DemoTour step={tourStep} busy={busy} onStep={i => void work(() => showStep(i))} onClose={() => setTourStep(null)}/>}
     {inspecting && <div className="inspector-float"><EntityInspector nodeId={inspecting} onClose={() => setInspecting(null)}/></div>}</div></ConsoleContext.Provider>;
 }

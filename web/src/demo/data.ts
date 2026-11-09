@@ -35,7 +35,7 @@ export const nodes: DemoNode[] = [
 ];
 
 // The organisation before the story. Rahul holds wallet access from a reviewed,
-// time-limited month-end grant: that is what makes his compromise dangerous.
+// time-limited month-end grant: that is what makes the compromise dangerous.
 export const edges: DemoEdge[] = [
   { source: 'user:rahul', target: 'group:finance', kind: 'MEMBER_OF' },
   { source: 'user:meera', target: 'group:finance', kind: 'MEMBER_OF' },
@@ -106,7 +106,7 @@ export const seedIncidents = [
   { id: 'inc-2001', title: 'Unapproved change to admin MFA policy', severity: 'MEDIUM', status: 'RESOLVED', identity: 'user:david', rootCause: 'DRIFT', hoursAgo: 72, resolvedHoursAgo: 70,
     actions: ['Drift detected: MFA requirement disabled outside RATCHET', 'Change reverted by the connector and read back', 'Resolved after owner confirmation'] },
   { id: 'inc-2002', title: 'Suspicious escalation from Rahul Sharma’s session', severity: 'CRITICAL', status: 'OPEN', identity: 'user:rahul', rootCause: 'SUSPICIOUS_ESCALATION', hoursAgo: 0.5,
-    actions: ['Safeguard-weakening request rejected by policy', 'Exchange Administrator request held for two security leads', 'Session flagged: unusual device location'] },
+    actions: ['Safeguard-weakening request rejected by policy', 'Exchange Administrator request sent to two security leads', 'Session flagged: unusual device location'] },
 ];
 
 // Relative cost of each revocation kind for the minimum-disruption cut (operator configuration).

@@ -1,0 +1,642 @@
+{
+  "title": "RATCHET: product demo (3 minutes)",
+  "site": "https://sakararya43-web.github.io/Ratchet/",
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  },
+  "deviceScaleFactor": 2,
+  "narration": "voice",
+  "verified": "Every url and interaction below was replayed in a fresh Chromium at 1600x900 against the live site and reached its end state.",
+  "beats": [
+    {
+      "id": "hook",
+      "chapter": "Hook",
+      "start": "0:00",
+      "durationSeconds": 13,
+      "captureMethod": "screenshot",
+      "url": "https://sakararya43-web.github.io/Ratchet/",
+      "interactions": [
+        {
+          "type": "wait",
+          "ms": 1500
+        }
+      ],
+      "visual": "Landing hero, 'Power needs a boundary.' Slow push-in toward the headline.",
+      "caption": "One stolen session.",
+      "vo": "One stolen session should not cost a company everything. Yet attackers keep turning a single valid login into control of the systems that matter most, one quiet permission at a time.",
+      "words": 31
+    },
+    {
+      "id": "meet-ratchet",
+      "chapter": "Meet RATCHET",
+      "start": "0:13",
+      "durationSeconds": 11,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/",
+      "interactions": [
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "scroll",
+          "y": 1740,
+          "durationMs": 5000
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        }
+      ],
+      "visual": "Landing page scrolls from the hero to 'Good intentions. Hard boundaries.' and 'A small grant. A much bigger reach.'",
+      "caption": "Built for DataNova 2026",
+      "vo": "This is RATCHET, built for the DataNova 2026 Global Data-Thon. Before any access change happens, it shows what that change would unlock, and who must approve it.",
+      "words": 27
+    },
+    {
+      "id": "pick-a-role",
+      "chapter": "Pick a role",
+      "start": "0:24",
+      "durationSeconds": 13,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"demo-personas\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1000
+        },
+        {
+          "type": "hover",
+          "selector": "[data-testid=\"demo-personas\"] button:has-text(\"Rahul Sharma\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "hover",
+          "selector": "[data-testid=\"demo-personas\"] button:has-text(\"Priya Patel\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "hover",
+          "selector": "[data-testid=\"demo-personas\"] button:has-text(\"Bob Chen\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "hover",
+          "selector": "[data-testid=\"demo-personas\"] button:has-text(\"Alice Vance\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "click",
+          "selector": "[data-testid=\"demo-personas\"] button:has-text(\"Alice Vance\")"
+        },
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 2000
+        }
+      ],
+      "visual": "Persona sign-in: the cursor passes over all four people, then picks Alice Vance, security lead.",
+      "caption": "Fictional exchange · mock data",
+      "vo": "The live demo runs Northwind, a fictional crypto exchange with mock data, right in your browser. You can sign in as any of four people. We will be Alice, a security lead.",
+      "words": 32
+    },
+    {
+      "id": "overview",
+      "chapter": "Assess",
+      "start": "0:37",
+      "durationSeconds": 12,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=overview",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "scroll",
+          "y": 760,
+          "durationMs": 3500
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "hover",
+          "selector": "button.queue-item:has-text(\"inc-2002\")"
+        },
+        {
+          "type": "wait",
+          "ms": 2000
+        }
+      ],
+      "visual": "Overview as Alice: metrics, then the attention queue with the CRITICAL incident inc-2002 and req-1007 awaiting approval.",
+      "caption": "Signed in as Alice · Security lead",
+      "vo": "Alice sees the whole organisation, and the attention queue already shows trouble: a critical incident on Rahul's laptop session, and a risky access request waiting for review right now.",
+      "words": 29
+    },
+    {
+      "id": "rejected",
+      "chapter": "Assess",
+      "start": "0:49",
+      "durationSeconds": 13,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=changes",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "scroll",
+          "y": 560,
+          "durationMs": 2500
+        },
+        {
+          "type": "wait",
+          "ms": 800
+        },
+        {
+          "type": "click",
+          "selector": "tr:has-text(\"req-1006\")"
+        },
+        {
+          "type": "wait",
+          "ms": 3500
+        }
+      ],
+      "visual": "Changes table; req-1006 opens: REJECTED, rule 2 of change.rego, 'tier-0 safeguard weakening is prohibited'.",
+      "caption": "Rejected by signed policy",
+      "vo": "Earlier tonight, someone using Rahul's session tried to cut the withdrawal rule down to a single approval. The signed policy rejected it outright, because nobody may weaken a tier zero safeguard.",
+      "words": 31
+    },
+    {
+      "id": "review",
+      "chapter": "Assess",
+      "start": "1:02",
+      "durationSeconds": 15,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=changes",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1000
+        },
+        {
+          "type": "scroll",
+          "y": 560,
+          "durationMs": 2000
+        },
+        {
+          "type": "wait",
+          "ms": 600
+        },
+        {
+          "type": "click",
+          "selector": "tr:has-text(\"req-1007\") button:has-text(\"Review exact change\")"
+        },
+        {
+          "type": "wait",
+          "selector": "button:has-text(\"Approve reviewed change with passkey\")"
+        },
+        {
+          "type": "wait",
+          "ms": 2000
+        },
+        {
+          "type": "scroll",
+          "y": 1136,
+          "durationMs": 4000
+        },
+        {
+          "type": "wait",
+          "ms": 2500
+        }
+      ],
+      "visual": "req-1007 'Review exact change': 0 of 2 approvals, newly reachable tier-0 resources, then 'Canonical envelope digest verified in this browser'.",
+      "caption": "Two independent leads · no self-approval",
+      "vo": "Next, the same session asked to become Exchange Administrator. RATCHET sends that request to two independent security leads and refuses self approval. Before any passkey prompt, the browser rechecks the exact change it would sign.",
+      "words": 35
+    },
+    {
+      "id": "impact",
+      "chapter": "Assess",
+      "start": "1:17",
+      "durationSeconds": 14,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=impact",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1000
+        },
+        {
+          "type": "select",
+          "selector": "select[name=\"Identity\"]",
+          "value": "user:rahul"
+        },
+        {
+          "type": "wait",
+          "ms": 500
+        },
+        {
+          "type": "fill",
+          "selector": "input[name=\"Access\"]",
+          "value": "role:exchange-admin"
+        },
+        {
+          "type": "wait",
+          "ms": 600
+        },
+        {
+          "type": "click",
+          "selector": "button:has-text(\"Compute impact on server\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "scroll",
+          "y": 620,
+          "durationMs": 4000
+        },
+        {
+          "type": "wait",
+          "ms": 2500
+        }
+      ],
+      "visual": "Impact simulation for Rahul + Exchange Administrator: 'Escalation detected', before/after access, tier-0 blast radius 1 to 3, new critical paths.",
+      "caption": "Simulation only · nothing is changed",
+      "vo": "So what would approval actually unlock? The impact simulation answers before anyone even decides: admin rights over the hot wallet signer and the customer database, plus the power to change the withdrawal rule.",
+      "words": 33
+    },
+    {
+      "id": "trace",
+      "chapter": "Assess",
+      "start": "1:31",
+      "durationSeconds": 13,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=infrastructure",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "select",
+          "selector": "label.compact-select:has-text(\"Focus\") select",
+          "value": "user:rahul"
+        },
+        {
+          "type": "wait",
+          "ms": 1000
+        },
+        {
+          "type": "click",
+          "selector": "button:has-text(\"Trace to tier 0\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "scroll",
+          "y": 300,
+          "durationMs": 2500
+        },
+        {
+          "type": "wait",
+          "ms": 4000
+        }
+      ],
+      "visual": "Access graph traced from Rahul: laptop session to Rahul to Wallet Operator to Hot Wallet Signer, highlighted in orange.",
+      "caption": "Route to a tier-0 asset",
+      "vo": "The access graph shows why this is urgent. Rahul's laptop session can act as Rahul, and an approved month end wallet grant already reaches the hot wallet signer, a tier zero asset.",
+      "words": 32
+    },
+    {
+      "id": "policy",
+      "chapter": "Govern",
+      "start": "1:44",
+      "durationSeconds": 12,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=security-policy",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "scroll",
+          "y": 420,
+          "durationMs": 3000
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "scroll",
+          "y": 1451,
+          "durationMs": 4000
+        },
+        {
+          "type": "wait",
+          "ms": 2500
+        }
+      ],
+      "visual": "Active policy rules in evaluation order (02 REJECT, 07 two security leads), then the Independent Authority: members, 2 of 2 quorum, signed bundle v1.1.0.",
+      "caption": "Signed by two independent leads",
+      "vo": "These rules are not a switch an attacker can flip. They live in a policy bundle signed by two independent security leads, and every decision names its rule.",
+      "words": 28
+    },
+    {
+      "id": "plan",
+      "chapter": "Contain",
+      "start": "1:56",
+      "durationSeconds": 15,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=incidents",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1000
+        },
+        {
+          "type": "click",
+          "selector": "tr:has-text(\"inc-2002\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1200
+        },
+        {
+          "type": "scroll",
+          "y": 746,
+          "durationMs": 2500
+        },
+        {
+          "type": "fill",
+          "selector": "input[name=\"Identity\"]",
+          "value": "user:rahul"
+        },
+        {
+          "type": "wait",
+          "ms": 500
+        },
+        {
+          "type": "click",
+          "selector": "button:has-text(\"Compute containment plan\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "scroll",
+          "y": 1567,
+          "durationMs": 4500
+        },
+        {
+          "type": "wait",
+          "ms": 3000
+        }
+      ],
+      "visual": "Incident inc-2002 opens; containment plan for user:rahul: 2 actions (terminate session, revoke Wallet Operator); business continuity: 11 activities keep running, only wallet signing is isolated.",
+      "caption": "Smallest cut · business keeps running",
+      "vo": "So Alice plans a containment. RATCHET searches for the smallest cut that removes every route to tier zero: end the laptop session and revoke the wallet role. Finance reports keep working for everyone, Rahul included.",
+      "words": 35
+    },
+    {
+      "id": "contain",
+      "chapter": "Contain",
+      "start": "2:11",
+      "durationSeconds": 13,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=incidents",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 800
+        },
+        {
+          "type": "click",
+          "selector": "tr:has-text(\"inc-2002\")"
+        },
+        {
+          "type": "fill",
+          "selector": "input[name=\"Identity\"]",
+          "value": "user:rahul"
+        },
+        {
+          "type": "click",
+          "selector": "button:has-text(\"Compute containment plan\")"
+        },
+        {
+          "type": "wait",
+          "selector": "button:has-text(\"Execute containment with passkey confirmation\")"
+        },
+        {
+          "type": "scroll",
+          "y": 1755,
+          "durationMs": 1500
+        },
+        {
+          "type": "wait",
+          "ms": 1000
+        },
+        {
+          "type": "click",
+          "selector": "button:has-text(\"Execute containment with passkey confirmation\")"
+        },
+        {
+          "type": "wait",
+          "selector": ".demo-passkey"
+        },
+        {
+          "type": "wait",
+          "ms": 2500
+        },
+        {
+          "type": "click",
+          "selector": ".demo-passkey button.button-primary"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "scroll",
+          "y": 0,
+          "durationMs": 2500
+        },
+        {
+          "type": "wait",
+          "ms": 3500
+        }
+      ],
+      "visual": "Execute containment: the labelled SIMULATED PASSKEY dialog, 'Use passkey', then the incident reads CONTAINED and Rahul keeps only finance read access.",
+      "caption": "Passkey simulated in this demo",
+      "vo": "Alice confirms that exact plan with a passkey, which is simulated in this demo. Each action is recorded with its result, and the incident is marked as contained within seconds.",
+      "words": 30
+    },
+    {
+      "id": "audit",
+      "chapter": "Prove",
+      "start": "2:24",
+      "durationSeconds": 12,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=audit",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "click",
+          "selector": "button:has-text(\"Verify audit chain\")"
+        },
+        {
+          "type": "wait",
+          "selector": "text=Chain integrity verified"
+        },
+        {
+          "type": "wait",
+          "ms": 4000
+        }
+      ],
+      "visual": "Verify audit chain: 'Chain integrity verified', every event re-hashed in the browser, end hash matches the server snapshot.",
+      "caption": "Tamper-evident · verified in your browser",
+      "vo": "Every step lands in a tamper evident ledger. One click recomputes every link of the hash chain right here in your browser, and the whole chain checks out.",
+      "words": 28
+    },
+    {
+      "id": "switch-role",
+      "chapter": "Your turn",
+      "start": "2:36",
+      "durationSeconds": 14,
+      "captureMethod": "recording",
+      "url": "https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=audit",
+      "interactions": [
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"signed-in-actor\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "hover",
+          "selector": "select[aria-label=\"View the demo as\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 800
+        },
+        {
+          "type": "select",
+          "selector": "select[aria-label=\"View the demo as\"]",
+          "value": "user:rahul"
+        },
+        {
+          "type": "wait",
+          "selector": "[data-testid=\"access-restricted\"]"
+        },
+        {
+          "type": "wait",
+          "ms": 3000
+        },
+        {
+          "type": "hover",
+          "selector": "[data-testid=\"demo-bar\"] button:has-text(\"Guided tour\")"
+        },
+        {
+          "type": "wait",
+          "ms": 1500
+        },
+        {
+          "type": "hover",
+          "selector": "[data-testid=\"demo-bar\"] button:has-text(\"Reset\")"
+        },
+        {
+          "type": "wait",
+          "ms": 2000
+        }
+      ],
+      "visual": "'View as' switches to Rahul: the same Audit page now shows 'Security lead access required'. Cursor visits Guided tour and Reset.",
+      "caption": "Switch roles any time",
+      "vo": "Want a different view? Switch roles at any time from the top bar. As Rahul, the requester, the audit ledger is off limits. There is a guided tour and a reset button too.",
+      "words": 33
+    },
+    {
+      "id": "close",
+      "chapter": "Close",
+      "start": "2:50",
+      "durationSeconds": 10,
+      "captureMethod": "constructed",
+      "visual": "End card (constructed, not product UI): RATCHET wordmark, 'Know what changes. Before it changes.', the demo URL, 'Built for the DataNova 2026 Global Data-Thon', github.com/sakararya43-web/Ratchet.",
+      "caption": "sakararya43-web.github.io/Ratchet",
+      "vo": "Try it yourself at the link below. There is no sign up and nothing to install. RATCHET: know what changes, before it changes.",
+      "words": 23
+    }
+  ],
+  "totalSeconds": 180
+}

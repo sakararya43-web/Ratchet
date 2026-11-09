@@ -34,6 +34,17 @@ function boundImpactView(impact: BoundImpact): Impact {
    removedPowers: a.removed_powers?.map(p => ({ nodeId: p.node_id, action: p.action })) })) };
 }
 type AuditEvent = { sequenceNumber: string; eventType: string; eventHash: string; streamId: string; recordedAt: string };
+// The server pages one ledger snapshot oldest-first behind a signed cursor. Follow it
+// (up to 1,000 requests) and show newest first, so new requests are never on a later page.
+async function allChanges(tenantId: string): Promise<Change[]> {
+  const all: Change[] = []; let pageToken = '';
+  for (let page = 0; page < 5; page++) {
+    const r = await rpc<{ requests?: Change[]; nextPageToken?: string }>('ChangeService', 'ListChanges', { tenantId, pageSize: 200, pageToken });
+    all.push(...(r.requests ?? [])); pageToken = r.nextPageToken ?? '';
+    if (!pageToken) break;
+  }
+  return all.reverse();
+}
 // Criticality tiers belong to resources and safeguards only; other node types report the protobuf default of 0.
 function tiered(node: { type: string }) { return node.type === 'Resource' || node.type === 'Safeguard'; }
 function Data({ value }: { value: unknown }) { return <pre className="data" tabIndex={0}>{JSON.stringify(value, null, 2)}</pre>; }
@@ -83,7 +94,7 @@ function Console() {
     setResult(null); setNext(''); setRestricted(false);
     if (setup && tab!=='Passkeys') return;
     if (tab === 'Infrastructure' || tab === 'Impact') return;
-    if (tab === 'Changes') { const r = await rpc<{ requests?: Change[]; nextPageToken?: string }>('ChangeService', 'ListChanges', { tenantId, pageSize: 50, pageToken }); setChanges(r.requests ?? []); setNext(r.nextPageToken ?? ''); return; }
+    if (tab === 'Changes') { setChanges(await allChanges(tenantId)); return; }
     if (tab === 'Passkeys') { setResult(await request('/api/passkeys/list')); return; }
     const [service, method] = tab === 'Overview' ? ['OverviewService', 'GetAttentionItems'] : tab === 'Security policy' ? ['ChangeService', 'ListPolicyHistory'] : tab === 'Incidents' ? ['IncidentService', 'ListIncidents'] : ['AuditService', 'QueryAuditEvents'];
     try {
@@ -98,7 +109,7 @@ function Console() {
   useEffect(() => {
     if (!identity || tab !== 'Changes' || busy || next) return;
     let cancelled = false;
-    const timer = setTimeout(() => { void rpc<{ requests?: Change[] }>('ChangeService', 'ListChanges', { tenantId, pageSize: 50 }).then(r => { if (!cancelled) setChanges(r.requests ?? []); }).catch(e => { if (!cancelled) setError(String(e)); }); }, 2000);
+    const timer = setTimeout(() => { void allChanges(tenantId!).then(all => { if (!cancelled) setChanges(all); }).catch(e => { if (!cancelled) setError(String(e)); }); }, 2000);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [identity, tab, busy, changes, next]);
   function form(e: FormEvent<HTMLFormElement>, action: (values: Record<string, string>) => Promise<void>) { e.preventDefault(); const element = e.currentTarget; const data = Object.fromEntries(new FormData(element)) as Record<string, string>; void work(async () => { await action(data); element.reset(); }); }

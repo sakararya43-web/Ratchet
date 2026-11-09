@@ -1,9 +1,9 @@
 {
   "files": {
     "assets/index-B2NREd82.css": "56e1c716addae5f832fcd472a13cd18474d6931dc7ef0576f7491381f926e36f",
-    "assets/index-DWFwZDY5.js": "9b8894124d68972e95ad5a22253c61e0361b7febd447b360e6fb90fa85ca0c90",
+    "assets/index-DNRLREv-.js": "412b1f0ba5ca2373f9dc5da498deef0caa97799c9c540c83fdb04ddbc6114c44",
     "favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "index.html": "b01db43c0d2ab3dd7f976d5af3ce38fae4f893c780727686775ae0dcf84e523f"
+    "index.html": "7cdf40ab4114abbcd2b222c3c57aac759ff6c979c15775b62e6b38d495e3f321"
   },
   "sources": {
     "e2e/authority.spec.ts": "0e941aa0f2149674256611573729bce6f8ad54b20f9e06f1995e891fc9f2aab7",
@@ -13,10 +13,10 @@
     "index.html": "5d2e6721db89a982294937a185d4eacebfef7ecf266cff29d95290c6a5b93dc6",
     "package-lock.json": "2382db2eb58f954293c40f45860436a534cbe3d9d3580532bb8664065c9d8621",
     "package.json": "2e1ff6b995e779feda5ccdbd816642c5775d9b3ad05da68b72668db4fd3ba249",
-    "playwright.prototype.config.ts": "af0a73e4a29b130cb1ad753128cc247d0c9277efd79a7ef5caf96a6990c2a624",
+    "playwright.prototype.config.ts": "43efa20ad0ebf7081b6f03b9aa1dd577ca6fc4eb4e2363b693166609d0f31c9f",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
     "public/favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "src/App.tsx": "4d828e2e9b0fc1a3828ba856d64c822396364f128d0ace22412fd613528cb817",
+    "src/App.tsx": "bf73b5f006027106a438245418c9987eed4f42dc7a51f74c17f754a5ad201d54",
     "src/AuthorityPanel.tsx": "882d72b3b1bcb2290a808fd098e3bbaa75d76abef3e6ca34372cba1c0f52f8b7",
     "src/Brand.tsx": "f9a286150d4a532b1342db01221fc0048f63e2b02ed574921af605c45513bc8e",
     "src/Landing.tsx": "510eb867e1a2fb0ee297ea82beec00ef15dc2b736ca21270383f5b97199448f4",

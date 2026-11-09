@@ -1,4 +1,34 @@
-import { ArrowDownRight, ArrowRight, LockKeyhole, Network, ScanLine, ShieldCheck } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, Fingerprint, GitPullRequest, LayoutDashboard, ListChecks, LockKeyhole, Network, ScanLine, ScrollText, ShieldCheck, Siren } from 'lucide-react';
+
+// Each workspace arrives as the reader scrolls; the schematics are illustrative, the console is real.
+const workspaces = [
+  { icon: LayoutDashboard, name: 'Overview', title: 'Know what needs you.', text: 'An attention queue of held requests, pending approvals and active incidents, beside the decisions RATCHET made and why.', visual: 'queue' },
+  { icon: GitPullRequest, name: 'Changes', title: 'Review the exact change.', text: 'Every request with its decision, the signed policy rule that produced it, eligible and excluded approvers, and a passkey bound to its digest.', visual: 'quorum' },
+  { icon: Network, name: 'Infrastructure', title: 'Follow the authority.', text: 'An interactive access graph. Focus on an identity, trace every route to a tier-0 asset and see who can take over whom.', visual: 'graph' },
+  { icon: ScanLine, name: 'Impact', title: 'Simulate before you grant.', text: 'Before and after, side by side: new resources, controllable identities, blast radius per tier and the exact new critical path.', visual: 'delta' },
+  { icon: ScrollText, name: 'Security policy', title: 'Rules with signatures.', text: 'The active policy read from the signed bundle, the Authority quorum that signed it and every activation since.', visual: 'rules' },
+  { icon: Siren, name: 'Incidents', title: 'Cut the path, keep the business.', text: 'A minimum-disruption containment plan: which revocations sever tier-0 reach and which legitimate work keeps running.', visual: 'cut' },
+  { icon: ListChecks, name: 'Audit', title: 'Verify, don’t trust.', text: 'An append-only ledger your browser can re-hash end to end, with every event linked to its request or incident.', visual: 'chain' },
+  { icon: Fingerprint, name: 'Passkeys', title: 'Your signature, bound.', text: 'Credentials enrolled with one-use tickets, and the privileged actions each one is required for.', visual: 'key' },
+] as const;
+
+function TourVisual({ kind }: { kind: string }) {
+  if (kind === 'queue') return <div className="tour-visual tour-queue">{['HELD · context changed', 'AWAITING · 1 of 2 leads', 'AWAITING · resource owner'].map((t, i) => <span key={t} style={{ ['--i' as string]: i }}>{t}</span>)}</div>;
+  if (kind === 'quorum') return <div className="tour-visual tour-quorum"><span>LEAD 01 ✓</span><span>LEAD 02 ✓</span><span className="tour-self">REQUESTER ✕</span></div>;
+  if (kind === 'graph') return <div className="tour-visual tour-graph">{['ID', 'R', 'S', '0'].map((t, i) => <span key={t} style={{ ['--i' as string]: i }} className={i === 3 ? 'is-critical' : ''}>{t}</span>)}</div>;
+  if (kind === 'delta') return <div className="tour-visual tour-delta">{[['T0', 1], ['T1', 0], ['T2', 2], ['T3', 0]].map(([t, n]) => <span key={t as string} style={{ ['--n' as string]: n as number }}><i/>{t}</span>)}</div>;
+  if (kind === 'rules') return <div className="tour-visual tour-rules">{['REJECT · weakens tier-0 safeguard', 'REQUIRE 2 · new tier-0 path', 'REQUIRE 1 · resource owner'].map(t => <span key={t}>{t}</span>)}</div>;
+  if (kind === 'cut') return <div className="tour-visual tour-cut"><span>finance reports · kept</span><span>ledger view · kept</span><span className="is-critical">wallet signing · isolated</span></div>;
+  if (kind === 'chain') return <div className="tour-visual tour-chain">{['#0718', '#0719', '#0720', '#0721'].map((t, i) => <span key={t} style={{ ['--i' as string]: i }}>{t}</span>)}</div>;
+  return <div className="tour-visual tour-key"><Fingerprint size={46} strokeWidth={1}/></div>;
+}
+
+function ConsoleTour() {
+  return <div className="console-tour">
+    <div className="tour-sticky"><p className="eyebrow">INSIDE THE CONSOLE</p><h3>Eight workspaces.<br/><span className="serif-word">One chain of evidence.</span></h3><p>Scroll through what a reviewer, an owner and a responder work with. Every view reads the same graph, requests and ledger.</p><span className="tour-progress" aria-hidden="true"><i/></span></div>
+    <ol className="tour-beats">{workspaces.map((w, i) => <li className="tour-beat" key={w.name}><span className="beat-index">{String(i + 1).padStart(2, '0')} / {w.name.toUpperCase()}</span><div className="tour-head"><w.icon size={22} strokeWidth={1.3}/><h4>{w.title}</h4></div><p>{w.text}</p><TourVisual kind={w.visual}/></li>)}</ol>
+  </div>;
+}
 
 export function LandingSections() {
   return <>
@@ -29,6 +59,7 @@ export function LandingSections() {
       <div className="architecture-flow">
         {[{ icon: Network, title: 'Observe the real state.', label: 'THE GRAPH', text: 'Connectors feed observed identities, roles, resources, and relationships into the access graph. Assessment starts with that versioned picture.' }, { icon: ShieldCheck, title: 'Enforce the decision.', label: 'THE CONTROL PLANE', text: 'Policy selects the independent reviewers. Passkey approvals bind to the verified change digest. The required quorum gates execution.' }, { icon: ScanLine, title: 'Close the evidence loop.', label: 'THE TARGET + AUDIT', text: 'The connector applies the authorized change. Independent read-back verifies the target state, and hash-linked events preserve the record.' }].map((item, i) => <article className="architecture-card" key={item.label}><div className="architecture-card-top"><span>0{i + 1}</span><item.icon size={29} strokeWidth={1}/></div><p className="eyebrow">{item.label}</p><h3>{item.title}</h3><p>{item.text}</p><span className="architecture-connector"><ArrowRight size={20}/></span></article>)}
       </div><div className="architecture-foot"><span className="live-dot"/><p>Explore this complete access-review loop in the local prototype.</p><a href="#/console?demo=1">See it in the console <ArrowRight size={16}/></a></div>
+      <ConsoleTour/>
     </section>
   </>;
 }

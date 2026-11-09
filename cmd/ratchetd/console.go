@@ -367,7 +367,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/setup", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"mode": "RUNNING", "governance": len(governanceClients) > 0})
+		_ = json.NewEncoder(w).Encode(map[string]any{"mode": "RUNNING", "governance": len(governanceClients) > 0, "containment": len(config.ContainmentCosts) > 0})
 	})
 	nativeDecisions, err := api.NewKubernetesDecisionHandler(service)
 	if err != nil {

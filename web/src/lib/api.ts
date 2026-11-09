@@ -23,6 +23,9 @@ export interface Change {
   timeLimitSeconds?: number;
   grantExpiresAt?: string;
   expiryStatus?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  policyBundleHash?: string;
 }
 export type Document = Record<string, unknown>;
 let csrf = '';

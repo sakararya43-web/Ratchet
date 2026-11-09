@@ -59,7 +59,7 @@ try {
   await expect(page.getByTestId('signed-in-actor')).toContainText(account.actor_id);
   await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeEnabled();
   await page.screenshot({path:resolve(output,'console-desktop.png'),fullPage:true});
-  const tabs=['Overview','Changes','Infrastructure','Impact','Policy history','Incidents','Audit','Passkeys'];
+  const tabs=['Overview','Changes','Infrastructure','Impact','Security policy','Incidents','Audit','Passkeys'];
   for(const tab of tabs){
     await page.getByRole('navigation',{name:'Console',exact:true}).getByRole('button',{name:tab,exact:true}).click();
     await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeEnabled();

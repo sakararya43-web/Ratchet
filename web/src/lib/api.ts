@@ -3,7 +3,27 @@ import { verifyChallenge, verifyEnvelope } from './envelope.ts';
 export interface Principal { tenant_id: string; actor_id: string }
 export interface Session { principal: Principal; csrf_token: string }
 export interface Bootstrap { principal: Principal; graph_version: number; scope: string; nodes: { id: string; type: string; display_name: string; tier?: number }[]; edges: { id: string; source: string; target: string; kind: string }[] }
-export interface Change { requestId: string; tenantId: string; requestedBy?: string; canonicalApprovalEnvelopeJson?: string; graphVersion?: string; requiredApproverGroups?: string[]; kind: string; targetIdentity: string; requestedAccess: string; status: string; revision: string; changeDigest: string; requiredQuorum?: number; decisionReasons?: string[]; justification?: string }
+export interface Change {
+  requestId: string;
+  tenantId: string;
+  requestedBy?: string;
+  canonicalApprovalEnvelopeJson?: string;
+  graphVersion?: string;
+  requiredApproverGroups?: string[];
+  kind: string;
+  targetIdentity: string;
+  requestedAccess: string;
+  status: string;
+  revision: string;
+  changeDigest: string;
+  requiredQuorum?: number;
+  decisionReasons?: string[];
+  justification?: string;
+  emergency?: boolean;
+  timeLimitSeconds?: number;
+  grantExpiresAt?: string;
+  expiryStatus?: string;
+}
 export type Document = Record<string, unknown>;
 let csrf = '';
 export class ApiError extends Error {
@@ -78,6 +98,25 @@ export async function assertDigest(digest: string, tenantId: string, actorId: st
   const response = credential.response as AuthenticatorAssertionResponse;
   const verified = await request<{ submission: unknown }>('/api/passkeys/assert/finish', { session_id: begin.session_id, credential_id: hex(credential.rawId), client_data_json: encode(response.clientDataJSON), authenticator_data: encode(response.authenticatorData), signature: encode(response.signature) });
   return verified.submission;
+}
+
+export async function executeContainment(plan: { planId: string; planDigest: string }, tenantId: string): Promise<unknown> {
+  const me = await session();
+  if (me.principal.tenant_id !== tenantId) throw new Error('Authenticated tenant changed');
+  const begin = await request<Options>('/api/passkeys/assert/begin', { containment_plan_digest: plan.planDigest });
+  const o = begin.options.publicKey;
+  const credential = await navigator.credentials.get({ publicKey: { ...o, challenge: decode(o.challenge as string), allowCredentials: descriptors(o.allowCredentials) } as PublicKeyCredentialRequestOptions }) as PublicKeyCredential | null;
+  if (!credential) throw new Error('Containment execution cancelled');
+  const response = credential.response as AuthenticatorAssertionResponse;
+  const verified = await request<{ submission: unknown }>('/api/passkeys/assert/finish', { session_id: begin.session_id, credential_id: hex(credential.rawId), client_data_json: encode(response.clientDataJSON), authenticator_data: encode(response.authenticatorData), signature: encode(response.signature) });
+  return rpc('ContainmentService', 'ExecuteContainment', {
+    tenantId,
+    planId: plan.planId,
+    responderId: me.principal.actor_id,
+    approvedPlanDigest: plan.planDigest,
+    assertionResponseJson: JSON.stringify(verified.submission),
+    mutation: mutation(),
+  });
 }
 
 export function revokePasskey(credential: string, ticket: string): Promise<unknown> {

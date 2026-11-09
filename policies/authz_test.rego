@@ -24,7 +24,7 @@ test_only_security_lead_can_reduce if {
 }
 
 test_sensitive_operations_require_security_lead if {
-    every operation in {"investigate", "policy_history", "containment_plan", "audit_export", "audit_query", "checkpoint_manage", "incident_manage", "incident_view", "restore", "drift_manage"} {
+    every operation in {"investigate", "policy_history", "containment_plan", "audit_export", "audit_query", "checkpoint_manage", "incident_manage", "incident_view", "restore", "drift_manage", "containment_execute"} {
         not allow with input as {"operation": operation, "actor": "owner", "actor_groups": [], "owners": ["owner"]}
         allow with input as {"operation": operation, "actor": "lead", "actor_groups": ["role:security-lead"], "owners": []}
     }

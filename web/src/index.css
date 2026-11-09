@@ -1636,6 +1636,43 @@ no animation library or scroll interception. */
   border-color:#dfb6a8;
 }
 
+.status-badge[data-status=REVOKING],.status-badge[data-status=EXPIRED] {
+  color:#6c650e;
+  background:#f2efcd;
+  border-color:#d4cd8a;
+}
+
+.status-badge[data-status=REVOKED] {
+  color:#5c6750;
+  background:#eef0e7;
+  border-color:#b5c0a5;
+}
+
+.emergency-badge {
+  display:inline-block;
+  margin-left:10px;
+  padding:3px 8px;
+  border:1px solid var(--accent);
+  border-radius:3px;
+  color:var(--accent);
+  font:600 10px/1.4 Consolas,monospace;
+  letter-spacing:.06em;
+  vertical-align:middle;
+}
+
+.console-main tr.tier-zero td {
+  background:#f7e5df;
+}
+
+.console-main tr.tier-zero td:first-child {
+  box-shadow:inset 3px 0 0 var(--accent);
+}
+
+.tier-zero-label {
+  color:#8e382d;
+  font-weight:600;
+}
+
 .console-main .review {
   border:1px solid #969f7c;
   box-shadow:0 0 0 4px #d7dec946;

@@ -316,7 +316,9 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	if len(governanceClients) > 0 {
-		apiMux.Handle("/authority/", http.StripPrefix("/authority", api.AuthorityGateway(governanceClients, credentials, verifier, nil)))
+		apiMux.Handle("/authority/", http.StripPrefix("/authority", api.AuthorityGateway(governanceClients, credentials, verifier, func(ctx context.Context, p api.Principal) error {
+			return service.Authorize(ctx, workflow.Actor{TenantID: p.TenantID, ID: p.ActorID}, "governance")
+		})))
 	}
 	apiMux.Handle("/console/bootstrap", api.ConsoleBootstrap(service, graphKey))
 	apiMux.Handle("/console/approval-review", api.ConsoleApprovalReview(service))

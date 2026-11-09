@@ -9,7 +9,7 @@ const accounts=JSON.parse(readFileSync(resolve(local,'users.json'),'utf8')) as {
 const initial=JSON.parse(readFileSync(resolve(local,'initial-policy.json'),'utf8')) as {version:string;description:string;modules:Record<string,string>;data:unknown};
 const python=process.env.RATCHET_PYTHON!;
 
-async function panel(page:Page){await page.getByRole('navigation').getByRole('button',{name:'Policy history',exact:true}).click();await expect(page.getByTestId('authority-panel')).toBeVisible();await page.getByRole('button',{name:'Refresh Authority',exact:true}).click();await expect(page.getByRole('button',{name:'Enroll my Authority passkey',exact:true})).toBeEnabled();}
+async function panel(page:Page){await page.getByRole('navigation').getByRole('button',{name:'Security policy',exact:true}).click();await expect(page.getByTestId('authority-panel')).toBeVisible();await page.getByRole('button',{name:'Refresh Authority',exact:true}).click();await expect(page.getByRole('button',{name:'Enroll my Authority passkey',exact:true})).toBeEnabled();}
 async function current(page:Page):Promise<AuthorityState>{return page.evaluate(async()=>{const response=await fetch('/api/authority/state');if(!response.ok)throw new Error('Current Authority state unavailable');return response.json();});}
 async function confirm(page:Page,success=true){
  await expect(page.getByTestId('authority-preview')).toBeVisible();const response=page.waitForResponse(r=>r.url().endsWith('/api/authority/apply'));

@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 	"time"
@@ -96,7 +97,12 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	if e == nil || e.Tenant != c.TenantID || !now.Before(e.capability.Expires) || e.capability.Expires.After(now.Add(24*time.Hour)) {
 		return cmd, ErrDependency
 	}
-	if c.Intent.Kind != "ROLE_ASSIGN" && c.Intent.Kind != "ROLE_REVOKE" {
+	switch c.Intent.Kind {
+	case "ROLE_ASSIGN", "ROLE_REVOKE",
+		"RESTRICT_ACCOUNT", "ENABLE_ACCOUNT",
+		"REMOVE_SERVICE_PERMISSION", "RESTORE_SERVICE_PERMISSION",
+		"TERMINATE_SESSION", "ISSUE_SESSION":
+	default:
 		return cmd, domain.ErrInvalid
 	}
 	if c.Intent.DurationSeconds > 0 && (!e.capability.ScheduledRevocation || c.Intent.Kind != "ROLE_ASSIGN") {
@@ -123,11 +129,12 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	}
 	exists := false
 	roleExists := false
+	isRoleOp := c.Intent.Kind == "ROLE_ASSIGN" || c.Intent.Kind == "ROLE_REVOKE"
 	for _, node := range source.Nodes {
 		exists = exists || node.ID == c.Intent.Target
 		roleExists = roleExists || (node.ID == c.Intent.Access && node.Type == "Role")
 	}
-	if !exists || !roleExists {
+	if !exists || (isRoleOp && !roleExists) {
 		return cmd, ErrDependency
 	}
 	roles := []string{}
@@ -139,7 +146,8 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	slices.Sort(roles)
 	roles = slices.Compact(roles)
 	beforeRoles := slices.Clone(roles)
-	if c.Intent.Kind == "ROLE_ASSIGN" {
+	switch c.Intent.Kind {
+	case "ROLE_ASSIGN":
 		if c.Intent.DurationSeconds > 0 && slices.Contains(roles, c.Intent.Access) {
 			// An existing permanent grant cannot silently become timer-owned.
 			return cmd, domain.ErrInvalid
@@ -147,8 +155,18 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 		if !slices.Contains(roles, c.Intent.Access) {
 			roles = append(roles, c.Intent.Access)
 		}
-	} else {
+	case "ROLE_REVOKE":
 		roles = slices.DeleteFunc(roles, func(role string) bool { return role == c.Intent.Access })
+	case "RESTORE_SERVICE_PERMISSION":
+		if roleExists && !slices.Contains(roles, c.Intent.Access) {
+			roles = append(roles, c.Intent.Access)
+		}
+	case "REMOVE_SERVICE_PERMISSION":
+		if roleExists {
+			roles = slices.DeleteFunc(roles, func(role string) bool { return role == c.Intent.Access })
+		}
+	case "ENABLE_ACCOUNT", "RESTRICT_ACCOUNT", "ISSUE_SESSION", "TERMINATE_SESSION":
+		// Target identity/session state mutated on connector; role assignments unchanged.
 	}
 	slices.Sort(roles)
 	roles = slices.Compact(roles)
@@ -161,7 +179,10 @@ func (e *Execution) prepare(ctx context.Context, tx pgx.Tx, c domain.Change, id 
 	cmd.DispatchedAt = now
 	cmd.BeforeRoles = beforeRoles
 	cmd.TraceParent = telemetry.Parent(ctx)
-	if c.Intent.DurationSeconds > 0 {
+	if c.Intent.IncidentID != "" {
+		cmd.Purpose = "RESTORE_ACCESS"
+		cmd.IncidentReference = c.Intent.IncidentID
+	} else if c.Intent.DurationSeconds > 0 {
 		cmd.GrantExpiresAt = now.Add(time.Duration(c.Intent.DurationSeconds) * time.Second)
 		cmd.Purpose = "TEMPORARY_GRANT"
 		if cmd.GrantExpiresAt.Before(cmd.Deadline) {
@@ -249,6 +270,20 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 	defer func() { resultSpan.End(err) }()
 	ctx, verificationSpan := s.observer.Start(ctx, "verification", tenant, r.CorrelationID)
 	defer func() { verificationSpan.End(err) }()
+	var commandRaw []byte
+	var isContainment bool
+	var containmentCmd PreparedCommand
+	_ = s.Store.WithTenantTx(ctx, tenant, func(tx pgx.Tx, _ time.Time) error {
+		if err := tx.QueryRow(ctx, `SELECT command_payload FROM ratchet.execution_attempts WHERE tenant_id=$1 AND command_id=$2::uuid`, tenant, r.CommandID).Scan(&commandRaw); err == nil {
+			if json.Unmarshal(commandRaw, &containmentCmd) == nil && containmentCmd.Purpose == "CONTAINMENT" {
+				isContainment = true
+			}
+		}
+		return nil
+	})
+	if isContainment {
+		return s.recordContainmentResult(ctx, tenant, r, containmentCmd)
+	}
 	request, err := s.Store.ReadChange(ctx, tenant, r.RequestID)
 	if err != nil {
 		return err
@@ -319,8 +354,9 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 		if r.ObservedTenant != tenant || r.ObservedTarget != c.Intent.Target || r.ObservedAt.Before(command.DispatchedAt) || r.ObservedAt.After(now.Add(time.Minute)) || observedDigest != r.ObservationDigest {
 			return nil, ErrPermission
 		}
+		isRoleOp := command.Envelope.Intent.Kind == "ROLE_ASSIGN" || command.Envelope.Intent.Kind == "ROLE_REVOKE"
 		if !r.Success {
-			if !r.AppliedAt.IsZero() || r.ObservedRevision != command.ExpectedRevision || !slices.Equal(roles, command.BeforeRoles) {
+			if !r.AppliedAt.IsZero() || r.ObservedRevision != command.ExpectedRevision || (isRoleOp && !slices.Equal(roles, command.BeforeRoles)) {
 				return nil, ErrPermission
 			}
 			events, err := domain.Decide(c, domain.Command{Kind: "EXECUTION_FAILED", At: now, ExecutionID: r.CommandID, Reason: "connector refused change; unchanged state independently observed"})
@@ -334,7 +370,7 @@ func (s *Service) RecordExecutionResult(ctx context.Context, tenant string, raw 
 			events[0].Change.Facts = facts
 			return events, nil
 		}
-		if !applicationTimeValid(command, r) || r.ObservedRevision != command.ExpectedRevision+1 || !slices.Equal(roles, command.ExpectedRoles) {
+		if !applicationTimeValid(command, r) || r.ObservedRevision != command.ExpectedRevision+1 || (isRoleOp && !slices.Equal(roles, command.ExpectedRoles)) {
 			return nil, ErrPermission
 		}
 		events, err := domain.Decide(c, domain.Command{Kind: "VERIFIED", At: now, ExecutionID: r.CommandID, Verified: true})
@@ -413,4 +449,167 @@ func (s *Service) Reconcile(ctx context.Context, args JobArgs) error {
 		return nil
 	}
 	return err
+}
+
+func (s *Service) recordContainmentResult(ctx context.Context, tenant string, r ExecutionResult, command PreparedCommand) error {
+	if r.SchemaVersion != 1 || r.Tenant != tenant || r.Connector != command.Connector {
+		return ErrPermission
+	}
+	if r.CommandID != command.CommandID || r.RequestID != command.RequestID || r.CorrelationID != command.CorrelationID || r.EnvelopeDigest != command.EnvelopeDigest {
+		return ErrPermission
+	}
+	if r.ObservedTenant != tenant || r.ObservedTarget != command.Envelope.Intent.Target {
+		return ErrPermission
+	}
+	roles := slices.Clone(r.ObservedRoles)
+	slices.Sort(roles)
+	observedDigest, err := canon.New().Digest(struct {
+		Tenant, Target string
+		Roles          []string
+		Revision       int64
+		At             time.Time
+	}{r.ObservedTenant, r.ObservedTarget, roles, r.ObservedRevision, r.ObservedAt})
+	if err != nil || observedDigest != r.ObservationDigest {
+		return ErrPermission
+	}
+	if !r.ReadBackVerified || !r.Success {
+		return s.Store.WithTenantTx(ctx, tenant, func(tx pgx.Tx, now time.Time) error {
+			incident, err := s.incidentWithin(ctx, tx, tenant, command.IncidentReference, 0)
+			if err != nil {
+				return err
+			}
+			reviewIncident := Incident{
+				ID:              incident.ID,
+				Tenant:          tenant,
+				CorrelationID:   incident.CorrelationID,
+				Identity:        incident.Identity,
+				PlanID:          incident.PlanID,
+				PlanDigest:      incident.PlanDigest,
+				Status:          "REVIEW",
+				OpenedAt:        incident.OpenedAt,
+				Revision:        incident.Revision + 1,
+				OpenFingerprint: incident.OpenFingerprint,
+			}
+			raw, err := json.Marshal(reviewIncident)
+			if err != nil {
+				return err
+			}
+			msgID, err := uuid.Parse(r.MessageID)
+			if err != nil {
+				msgID = uuid.New()
+			}
+			_, err = s.Store.AppendWithin(ctx, tx, eventstore.Command{
+				TenantID:        tenant,
+				ID:              uuid.NewSHA1(msgID, []byte("residual-review")),
+				StreamID:        "incident:" + incident.ID,
+				ExpectedVersion: incident.Revision,
+				ActorReference:  uuid.NewSHA1(uuid.NameSpaceOID, []byte(tenant+":connector:"+command.Connector)),
+				Events:          []eventstore.Event{{Type: "IncidentResidualReviewRequired", Facts: raw}},
+			})
+			return err
+		})
+	}
+	return s.Store.WithTenantTx(ctx, tenant, func(tx pgx.Tx, now time.Time) error {
+		incident, err := s.incidentWithin(ctx, tx, tenant, command.IncidentReference, 0)
+		if err != nil {
+			return err
+		}
+		proposal, err := s.containmentProposal(ctx, tx, tenant, incident.PlanID)
+		if err != nil {
+			return err
+		}
+		rBytes, err := json.Marshal(r)
+		if err != nil {
+			return err
+		}
+		msgID, err := uuid.Parse(r.MessageID)
+		if err != nil {
+			msgID = uuid.New()
+		}
+		if _, err := s.Store.AppendWithin(ctx, tx, eventstore.Command{
+			TenantID:       tenant,
+			ID:             uuid.NewSHA1(msgID, []byte("action-verified")),
+			StreamID:       "containment:" + proposal.Body.ID,
+			ActorReference: uuid.NewSHA1(uuid.NameSpaceOID, []byte(tenant+":connector:"+command.Connector)),
+			Events:         []eventstore.Event{{Type: "ContainmentActionVerified", Facts: rBytes}},
+		}); err != nil {
+			return err
+		}
+		events, err := s.Store.StreamWithin(ctx, tx, tenant, "containment:"+proposal.Body.ID)
+		if err != nil {
+			return err
+		}
+		verifiedReqIDs := make(map[string]bool)
+		for _, ev := range events {
+			if ev.Type == "ContainmentActionVerified" {
+				var content struct {
+					Payload json.RawMessage `json:"payload"`
+				}
+				var payload struct {
+					Facts json.RawMessage `json:"facts"`
+				}
+				if json.Unmarshal(ev.Entry.Canonical, &content) == nil && json.Unmarshal(content.Payload, &payload) == nil {
+					var result ExecutionResult
+					if json.Unmarshal(payload.Facts, &result) == nil && result.Success && result.ReadBackVerified {
+						verifiedReqIDs[result.RequestID] = true
+					}
+				}
+			}
+		}
+
+		allActionsVerified := len(proposal.Body.Plan.Actions) > 0
+		for i := range proposal.Body.Plan.Actions {
+			actionReqID := uuid.NewSHA1(uuid.NameSpaceOID, []byte(proposal.Body.ID+fmt.Sprintf(":%d", i))).String()
+			if !verifiedReqIDs[actionReqID] {
+				allActionsVerified = false
+				break
+			}
+		}
+
+		if allActionsVerified {
+			// Check connector source is not in resync quarantine
+			var sourceQuarantine bool
+			_ = tx.QueryRow(ctx, `SELECT needs_resync FROM ratchet.graph_sources WHERE tenant_id=$1 AND connector_id=$2`, tenant, command.Connector).Scan(&sourceQuarantine)
+			if sourceQuarantine {
+				return nil
+			}
+
+			// Verify current residual reach is zero before transitioning incident to CONTAINED
+			currentSnapshot, _, err := s.context(ctx, tx, Actor{TenantID: tenant, ID: "containment-verifier"}, "containment_verify", nil)
+			if err == nil && currentSnapshot != nil {
+				paths, err := currentSnapshot.PathsTo(incident.Identity, 1000, 1_000_000)
+				if err == nil && len(paths.Routes) > 0 {
+					return nil // Residual reach remains on current graph
+				}
+			}
+
+			containedIncident := Incident{
+				ID:              incident.ID,
+				Tenant:          tenant,
+				CorrelationID:   incident.CorrelationID,
+				Identity:        incident.Identity,
+				PlanID:          proposal.Body.ID,
+				PlanDigest:      proposal.Digest,
+				Status:          "CONTAINED",
+				OpenedAt:        incident.OpenedAt,
+				Revision:        incident.Revision + 1,
+				OpenFingerprint: incident.OpenFingerprint,
+				ContainedAt:     now,
+			}
+			containedRaw, err := json.Marshal(containedIncident)
+			if err != nil {
+				return err
+			}
+			_, err = s.Store.AppendWithin(ctx, tx, eventstore.Command{
+				TenantID:        tenant,
+				ID:              uuid.NewSHA1(msgID, []byte("incident-contained")),
+				StreamID:        "incident:" + incident.ID,
+				ExpectedVersion: incident.Revision,
+				ActorReference:  uuid.NewSHA1(uuid.NameSpaceOID, []byte(tenant+":connector:"+command.Connector)),
+				Events:          []eventstore.Event{{Type: "IncidentContained", Facts: containedRaw}},
+			})
+			return err
+		}
+		return nil
+	})
 }

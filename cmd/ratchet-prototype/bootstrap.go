@@ -192,7 +192,18 @@ func refreshCapability(root string) error {
 	if err = writeJSON(filepath.Join(root, "core", "identity.json"), map[string]string{"core_public_key": hex.EncodeToString(ed25519.PrivateKey(coreKey).Public().(ed25519.PublicKey)), "connector_public_key": hex.EncodeToString(ed25519.PrivateKey(key).Public().(ed25519.PublicKey)), "genesis_digest": config.Tenants[0].Genesis}); err != nil {
 		return err
 	}
-	capability := workflow.Capability{Tenant: tenant, Connector: connectorID, Protocol: "RATCHET_EXEC_V1", Expires: time.Now().UTC().Add(23 * time.Hour), BoundCommands: true, AtomicPreconditions: true, DurableDedup: true, IndependentReadBack: true}
+	capability := workflow.Capability{
+		Tenant:              tenant,
+		Connector:           connectorID,
+		Protocol:            "RATCHET_EXEC_V1",
+		Expires:             time.Now().UTC().Add(23 * time.Hour),
+		BoundCommands:       true,
+		AtomicPreconditions: true,
+		DurableDedup:        true,
+		IndependentReadBack: true,
+		ScheduledRevocation: true,
+		ProvenReductions:    true,
+	}
 	digest, err := canon.New().Digest(struct {
 		Domain string `json:"domain"`
 		Body   any    `json:"body"`

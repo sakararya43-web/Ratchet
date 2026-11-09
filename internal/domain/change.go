@@ -79,6 +79,14 @@ func (i Intent) Validate() error {
 		if len(i.Parameters) == 0 && i.Access != "remove" {
 			return ErrInvalid
 		}
+	case "RESTRICT_ACCOUNT", "ENABLE_ACCOUNT":
+		if len(i.Parameters) != 0 {
+			return ErrInvalid
+		}
+	case "TERMINATE_SESSION", "REMOVE_SERVICE_PERMISSION", "RESTORE_SERVICE_PERMISSION", "ISSUE_SESSION":
+		if i.Access == "" || len(i.Parameters) != 0 {
+			return ErrInvalid
+		}
 	default:
 		return fmt.Errorf("%w: unsupported kind", ErrInvalid)
 	}

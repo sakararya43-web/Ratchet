@@ -6,7 +6,13 @@ if(!['prototype','completion-a'].includes(profile))throw new Error('Unknown loca
 const local = resolve('..', '.local', profile);
 
 export default defineConfig({
-  testDir: './e2e', fullyParallel: false, workers: 1, retries: 0, timeout: 180_000,
+  testDir: './e2e',
+  // Each local profile owns its journeys; the Authority spec needs the live-genesis profile.
+  testMatch: profile === 'completion-a' ? /authority\.spec\.ts$/ : /(prototype|landing)\.spec\.ts$/,
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
+  timeout: 180_000,
   expect: { timeout: 30_000 }, outputDir: resolve(local, 'browser-artifacts'),
   reporter: [['line'], ['json', { outputFile: resolve(local, 'browser-results.json') }]],
   use: {

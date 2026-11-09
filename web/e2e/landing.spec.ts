@@ -22,7 +22,7 @@ test('landing chapters, interactive protocol and console entry', async ({ page }
   await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Enter console' }).click();
   await expect(page.getByTestId('signed-in-actor')).toContainText('user:rahul-assistant');
   await expect(page).toHaveURL(/#\/console\?demo=1$/);
-  for (const tab of ['Policy history', 'Incidents', 'Audit']) {
+  for (const tab of ['Security policy', 'Incidents', 'Audit']) {
     const response = page.waitForResponse(r => r.url().includes(tab === 'Incidents' ? '/ListIncidents' : tab === 'Audit' ? '/QueryAuditEvents' : '/ListPolicyHistory'));
     await page.getByRole('navigation', { name: 'Console' }).getByRole('button', { name: tab, exact: true }).click();
     const denied = await response;

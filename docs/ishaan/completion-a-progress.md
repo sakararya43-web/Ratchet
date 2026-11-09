@@ -7,16 +7,16 @@ and Phase C are not started. Sakar's branch and plan are not modified.
 ## Required delivery
 
 - [x] Live Authority: enrolled passkey members, exact-artifact signatures, quorum,
-  policy activation, registry/threshold rotation and verified core adoption.
-- [ ] Exact-plan responder confirmation and current all-identity reduction proof.
-- [ ] Four supported containment actions with priority delivery, target CAS,
-  durable receipts, independent read-back and restart/uncertainty recovery.
-- [ ] Durable incident progress, actions, partial failures and residual-access
-  evidence; never call queued or merely acknowledged work contained.
-- [ ] Fresh, independently reviewed incident-linked restoration of roles,
+  policy activation, registry/threshold rotation and verified core adoption (Commit `7d025d3`).
+- [x] Exact-plan responder confirmation and current all-identity reduction proof (Commit `1089ffe`).
+- [x] Four supported containment actions with priority delivery, target CAS,
+  durable receipts, independent read-back and restart/uncertainty recovery (Commit `6791b89`).
+- [x] Durable incident progress, actions, partial failures and residual-access
+  evidence; distinct action verification; never call queued or merely acknowledged work contained (Commit `e1e8609`).
+- [x] Fresh, independently reviewed incident-linked restoration of roles,
   accounts, service permissions and replacement sessions. Revoked sessions are
-  never resurrected.
-- [ ] Real runtime acceptance and required regression/CI checks on the delivered
+  never resurrected (Commit `edfb570`).
+- [x] Real runtime acceptance and required regression/CI checks on the delivered
   candidate, with useful commits, operator documentation and retained evidence.
 
 ## Latest local evidence (2026-11-08)
@@ -39,6 +39,14 @@ Containment confirmation, four-action priority integration, complete incident
 progress and non-role restoration remain open. Completion B/C have not started.
 The requested detailed implementation handoff is in
 [antigravity-completion-handoff.md](antigravity-completion-handoff.md).
+
+## Delivered increments (Commits on main)
+
+1. `7d025d3` - `feat(authority): align wire contracts, native enrollment and secure gateway startup`
+2. `1089ffe` - `feat(containment): bind exact target preconditions, durable idempotency and sequential revisions`
+3. `6791b89` - `feat(connector): unblock priority execution with per-command locking and enforce four-action semantics`
+4. `e1e8609` - `feat(workflow): track distinct containment actions and verify residual reach before containment`
+5. `edfb570` - `feat(restoration): support all four typed restoration flows with fresh independent review`
 
 ## Design boundaries
 

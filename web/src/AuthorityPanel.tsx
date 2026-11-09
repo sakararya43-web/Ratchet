@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { assertDigest, request } from './lib/api';
-import { verifyAuthorityPreview, type AuthorityInput, type AuthorityPreview, type AuthorityState, type Member } from './lib/authority';
+import { digestHex, verifyAuthorityPreview, type AuthorityInput, type AuthorityPreview, type AuthorityState, type Member } from './lib/authority';
 
 export function AuthorityPanel({tenant,actor}:{tenant:string;actor:string}){
  const[state,setState]=useState<AuthorityState|null>(null),[preview,setPreview]=useState<AuthorityPreview|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
@@ -35,7 +35,12 @@ export function AuthorityPanel({tenant,actor}:{tenant:string;actor:string}){
   const ids=String(form.get('members')).split(',').map(v=>v.trim()).filter(Boolean);const members=ids.map(id=>{const m=state?.candidates[id];if(!m)throw new Error(`Enrolled candidate required: ${id}`);return m;});
   await prepare({operation:'registry_propose',threshold:Number(form.get('threshold')),members});
  });}
- return <section data-testid="authority-panel"><h3>Independent Authority</h3><p>Registry epoch {epoch}; required distinct-member signatures {state?.authority.genesis?.threshold_m??'not established'}. Every change requires an exact-artifact passkey confirmation.</p>
+ const genesis=state?.authority.genesis;
+ const activeBundle=state?.authority.active_bundle;
+ return <section data-testid="authority-panel"><h3>Independent Security Authority</h3><p>Every policy, membership or threshold change requires an exact-artifact passkey confirmation from the current quorum.</p>
+ <div className="overview-stats"><div><span>Registry epoch</span><strong data-testid="authority-epoch">{genesis?genesis.epoch:'Uninitialized'}</strong></div><div><span>Required quorum</span><strong data-testid="authority-threshold">{genesis?`${genesis.threshold_m} of ${genesis.members.length}`:'Pending genesis'}</strong></div><div><span>Active members</span><strong>{genesis?.members.filter(m=>m.is_active).length??0}</strong></div><div><span>Active policy</span><strong>{activeBundle?`v${activeBundle.bundle_version}`:'—'}</strong></div></div>
+ {genesis&&<details><summary>Authority members</summary><ul data-testid="authority-members">{genesis.members.map(m=><li key={m.actor_id}>{m.actor_id}{m.actor_id===actor&&' (you)'} — {m.is_active?'active':'inactive'} <code>{m.credential_id.slice(0,16)}…</code></li>)}</ul></details>}
+ {activeBundle&&<p data-testid="authority-active-bundle">Active policy v{activeBundle.bundle_version}: {activeBundle.description} <code>{digestHex(activeBundle.bundle_digest).slice(0,32)}…</code></p>}
  {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}<button disabled={busy} onClick={()=>void work(load)}>Refresh Authority</button><label htmlFor="authority-credential">Authority credential</label><select id="authority-credential" value={selectedCredential} onChange={e=>setSelectedCredential(e.target.value)}>{credentials.map(key=><option key={key.credential_id} value={key.credential_id}>{key.credential_id}</option>)}</select><button disabled={busy||!selectedCredential} onClick={()=>void work(enroll)}>Enroll my Authority passkey</button>
  {preview&&<article data-testid="authority-preview"><h4>Confirm {preview.input.operation}</h4><p>Review the complete input below. The browser verified its signing digest; changed context requires a new review.</p><pre>{JSON.stringify(preview.input,null,2)}</pre><button disabled={busy} onClick={()=>void work(confirm)}>Confirm Authority operation with passkey</button><button disabled={busy} onClick={()=>setPreview(null)}>Cancel Authority review</button></article>}
  {epoch>0&&currentMember&&<><form onSubmit={propose}><h4>Propose policy</h4><label>Version<input name="version" required /></label><label>Description<input name="description" required /></label><label>Rego modules as JSON<textarea name="modules" required rows={8}/></label><label>Policy data as JSON<textarea name="data" required rows={4}/></label><button disabled={busy}>Review policy proposal</button></form>

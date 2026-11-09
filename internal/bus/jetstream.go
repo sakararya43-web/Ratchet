@@ -101,13 +101,17 @@ func (b *Broker) Relay(ctx context.Context, store *eventstore.Store, tenant stri
 	defer ticker.Stop()
 	for {
 		publication, cancel := context.WithTimeout(ctx, 3*time.Second)
+		priorityWorked, priorityErr := store.DeliverPriority(publication, tenant, publish)
 		worked, err := store.DeliverOne(publication, tenant, publish)
 		cancel()
+		if priorityErr != nil {
+			logger.Warn("priority containment delivery pending", "tenant", tenant, "error", priorityErr)
+		}
 		if err != nil {
 			backlog, _ := store.OutboxBacklog(ctx, tenant)
 			logger.Warn("outbox delivery pending", "tenant", tenant, "pending", backlog.Pending, "attempts", backlog.Attempts)
 		}
-		if worked && err == nil {
+		if (priorityWorked && priorityErr == nil) || (worked && err == nil) {
 			continue
 		}
 		select {
@@ -138,6 +142,15 @@ func (b *Broker) ConsumeExecution(ctx context.Context, tenant, connector string,
 		return eventstore.ErrInvalid
 	}
 	return b.consume(ctx, tenant, "EXEC_"+StreamName(connector, "KEY"), "exec."+connector, "native-commands-v1", handler, logger)
+}
+
+// ConsumeContainment binds the connector's dedicated priority containment stream.
+// Priority containment commands cannot be starved by ordinary execution backlog.
+func (b *Broker) ConsumeContainment(ctx context.Context, tenant, connector string, handler func(context.Context, []byte) error, logger *slog.Logger) error {
+	if !tenantToken.MatchString(connector) || connector == "results" {
+		return eventstore.ErrInvalid
+	}
+	return b.consume(ctx, tenant, "CONTAIN_"+StreamName(connector, "KEY"), "contain."+connector, "native-containment-v1", handler, logger)
 }
 
 func (b *Broker) Ready(ctx context.Context) error {
@@ -201,6 +214,26 @@ func (b *Broker) EnsureExecution(ctx context.Context, tenant, connector string) 
 	}
 	name := StreamName(tenant, "EXEC_"+StreamName(connector, "KEY"))
 	subject := "ratchet." + tenant + ".exec." + connector
+	old, err := b.js.StreamInfo(name, nats.Context(ctx))
+	if err == nil {
+		if len(old.Config.Subjects) != 1 || old.Config.Subjects[0] != subject || old.Config.Storage != nats.FileStorage {
+			return eventstore.ErrInvalid
+		}
+		return nil
+	}
+	if !errors.Is(err, nats.ErrStreamNotFound) {
+		return err
+	}
+	_, err = b.js.AddStream(&nats.StreamConfig{Name: name, Subjects: []string{subject}, Storage: nats.FileStorage, Retention: nats.LimitsPolicy, MaxMsgSize: 1 << 20, MaxAge: 24 * time.Hour, Duplicates: 2 * time.Minute}, nats.Context(ctx))
+	return err
+}
+
+func (b *Broker) EnsureContainment(ctx context.Context, tenant, connector string) error {
+	if !tenantToken.MatchString(tenant) || !tenantToken.MatchString(connector) || connector == "results" {
+		return eventstore.ErrInvalid
+	}
+	name := StreamName(tenant, "CONTAIN_"+StreamName(connector, "KEY"))
+	subject := "ratchet." + tenant + ".contain." + connector
 	old, err := b.js.StreamInfo(name, nats.Context(ctx))
 	if err == nil {
 		if len(old.Config.Subjects) != 1 || old.Config.Subjects[0] != subject || old.Config.Storage != nats.FileStorage {

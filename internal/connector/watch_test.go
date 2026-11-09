@@ -3,6 +3,8 @@ package connector_test
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +16,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/cmd/ratchet-sim/server"
 	"github.com/sakararya43-web/Ratchet/internal/connector"
 	"github.com/sakararya43-web/Ratchet/internal/connector/sim"
+	"github.com/sakararya43-web/Ratchet/internal/workflow"
 )
 
 func TestWatchEngine_DriftDetectionAndRevert(t *testing.T) {
@@ -226,5 +229,88 @@ func TestTemporaryGrantManager_ScheduleAndRevoke(t *testing.T) {
 		if g.IdentityID == "user:rahul-assistant" && g.RoleID == "role:finance-analyst" {
 			t.Fatalf("VIOLATION: expired temporary grant still active in target after revocation!")
 		}
+	}
+}
+
+func TestWatchEngine_SignedDriftReportAndPublish(t *testing.T) {
+	ctx := context.Background()
+
+	store, err := domain.NewStore("")
+	if err != nil {
+		t.Fatalf("failed to init store: %v", err)
+	}
+
+	brokerToken := "sim-broker-secret"
+	srv := server.NewServer(store, brokerToken)
+	ts := httptest.NewServer(srv.Routes())
+	defer ts.Close()
+
+	tenantID := "tenant-test-01"
+	connectorID := "connector-sim-01"
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	adapter := sim.NewAdapter(ts.URL, brokerToken, tenantID, connectorID)
+	tmpDir := t.TempDir()
+	cursorFile := filepath.Join(tmpDir, "watch_cursor.json")
+
+	we, err := connector.NewWatchEngine(ts.URL, adapter, cursorFile)
+	if err != nil {
+		t.Fatalf("failed to create watch engine: %v", err)
+	}
+	we.SetSigner(tenantID, connectorID, priv)
+
+	// Inject unapproved drift
+	injectReq, _ := json.Marshal(map[string]string{
+		"actor_id":        "attacker:external",
+		"target_identity": "user:rahul",
+		"role_id":         "role:wallet-operator",
+	})
+	resp, err := http.Post(ts.URL+"/api/v1/test/inject-drift", "application/json", bytes.NewReader(injectReq))
+	if err != nil || resp.StatusCode != http.StatusCreated {
+		t.Fatalf("drift injection failed: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	var publishedReports [][]byte
+	alerts, err := we.PollAndReport(ctx, func(ctx context.Context, tenant string, rawReport []byte) error {
+		if tenant != tenantID {
+			t.Errorf("expected tenant %s, got %s", tenantID, tenant)
+		}
+		publishedReports = append(publishedReports, rawReport)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("PollAndReport failed: %v", err)
+	}
+	if len(alerts) != 1 {
+		t.Fatalf("expected 1 alert, got %d", len(alerts))
+	}
+	if len(publishedReports) != 1 {
+		t.Fatalf("expected 1 published report, got %d", len(publishedReports))
+	}
+
+	// Verify report signature with connector public key
+	entry := domain.TargetAuditEntry{
+		Revision:      alerts[0].Revision,
+		Timestamp:     alerts[0].Timestamp,
+		ActorID:       alerts[0].ActorID,
+		Action:        alerts[0].Action,
+		Target:        alerts[0].TargetIdentity,
+		Details:       alerts[0].Details,
+		CorrelationID: alerts[0].AlertID,
+	}
+	signedReport, _, err := we.BuildSignedDriftReport(entry)
+	if err != nil {
+		t.Fatalf("BuildSignedDriftReport failed: %v", err)
+	}
+	digest, err := workflow.DriftSigningDigest(signedReport)
+	if err != nil {
+		t.Fatalf("DriftSigningDigest failed: %v", err)
+	}
+	if !ed25519.Verify(pub, digest[:], signedReport.Signature) {
+		t.Fatal("drift report signature verification failed against connector public key")
 	}
 }

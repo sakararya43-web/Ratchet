@@ -117,7 +117,12 @@ func runEnrollment(ctx context.Context, args []string, out io.Writer) error {
 	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", sessions.Routes()))
 	passkeys := approval.MakePasskeyHandlerFactory(credentials, origin.Hostname(), []string{config.Origin})(ports.PasskeyDeps{RPID: origin.Hostname(), RPOrigins: []string{config.Origin}, SessionAPI: sessions})
 	mux.Handle("/api/passkeys/", sessions.Require(http.StripPrefix("/api/passkeys", passkeys)))
-	mux.Handle("/api/authority/", sessions.Require(http.StripPrefix("/api/authority", api.AuthorityGateway(clients, credentials, verifier, config.AuthorityBootstrapActors))))
+	mux.Handle("/api/authority/", sessions.Require(http.StripPrefix("/api/authority", api.AuthorityGateway(clients, credentials, verifier, func(_ context.Context, p api.Principal) error {
+		if slices.Contains(config.AuthorityBootstrapActors, p.ActorID) {
+			return nil
+		}
+		return authority.ErrRefused
+	}))))
 	mux.HandleFunc("GET /api/setup", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"mode":"AUTHORITY_GENESIS"}`))

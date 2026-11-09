@@ -69,3 +69,25 @@ func (av *ApprovalVerifier) Verify(
 	}
 	return ports.VerifiedApproval{}, fmt.Errorf("credential is not enrolled or has been revoked")
 }
+
+// VerifyContainment validates that the passkey assertion comes from an enrolled RATCHET passkey
+// and signs exactly planDigest bound to the containment domain.
+func (av *ApprovalVerifier) VerifyContainment(
+	ctx context.Context,
+	sub ports.ApprovalSubmission,
+	planDigest ports.Digest,
+) (ports.VerifiedApproval, error) {
+	if av.store == nil {
+		return ports.VerifiedApproval{}, fmt.Errorf("credential store required")
+	}
+	user, err := av.store.User(ctx, sub.TenantID, sub.ActorID)
+	if err != nil {
+		return ports.VerifiedApproval{}, err
+	}
+	for _, credential := range user.Credentials {
+		if hex.EncodeToString(credential.ID) == hex.EncodeToString(sub.CredentialID) {
+			return passkeyevidence.VerifyContainment(ctx, sub, planDigest, credential.PublicKey, av.webauthn.Config.RPID, av.webauthn.Config.RPOrigins)
+		}
+	}
+	return ports.VerifiedApproval{}, fmt.Errorf("credential is not enrolled or has been revoked")
+}

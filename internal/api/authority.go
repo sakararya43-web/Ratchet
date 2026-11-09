@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -14,19 +15,15 @@ import (
 // AuthorityGateway derives identity from the authenticated core session. The
 // separate Authority independently checks the signed transport, pinned member
 // key, exact artifact purpose, current epoch, quorum and native assertion.
-func AuthorityGateway(clients map[string]*authority.Client, credentials *approval.CredentialStore, verifier ports.ApprovalVerifier, bootstrapActors []string) http.Handler {
+func AuthorityGateway(clients map[string]*authority.Client, credentials *approval.CredentialStore, verifier ports.ApprovalVerifier, authorize func(context.Context, Principal) error) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := SessionPrincipal(r.Context())
 		if !ok {
 			http.Error(w, "session required", http.StatusUnauthorized)
 			return
 		}
-		if len(bootstrapActors) > 0 && !slices.Contains(bootstrapActors, principal.ActorID) {
-			http.Error(w, "configured genesis actor required", http.StatusForbidden)
-			return
-		}
 		client := clients[principal.TenantID]
-		if client == nil || credentials == nil || verifier == nil {
+		if client == nil || credentials == nil || verifier == nil || authorize == nil || authorize(r.Context(), principal) != nil {
 			http.Error(w, "Authority access refused", http.StatusForbidden)
 			return
 		}

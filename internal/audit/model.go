@@ -66,19 +66,25 @@ func ComputeEventDigest(digester *canon.Digester, prevHash ports.Digest, event *
 
 // StoredCredentialRecord captures an enrolled public key for historical verification.
 type StoredCredentialRecord struct {
-	TenantID   string    `json:"tenant_id"`
-	ActorID    string    `json:"actor_id"`
-	PublicKey  []byte    `json:"public_key"` // X.509 PKIX
-	EnrolledAt time.Time `json:"enrolled_at"`
-	IsRevoked  bool      `json:"is_revoked"`
+	TenantID     string     `json:"tenant_id"`
+	ActorID      string     `json:"actor_id"`
+	PublicKey    []byte     `json:"public_key"` // X.509 PKIX
+	EnrolledAt   time.Time  `json:"enrolled_at"`
+	IsRevoked    bool       `json:"is_revoked"`
+	RevokedAt    *time.Time `json:"revoked_at,omitempty"`
+	CredentialID []byte     `json:"credential_id,omitempty"`
+	RPID         string     `json:"rp_id,omitempty"`
+	Origins      []string   `json:"origins,omitempty"`
 }
 
 // AuditExportBundle is the complete self-contained package exported for offline verification.
 type AuditExportBundle struct {
-	TenantID            string                   `json:"tenant_id"`
-	ExportedAt          time.Time                `json:"exported_at"`
-	Events              []AuditEvent             `json:"events"`
-	Checkpoints         []trust.AuditCheckpoint  `json:"checkpoints"`
-	Genesis             trust.GenesisState       `json:"genesis"`
-	CredentialHistory   []StoredCredentialRecord `json:"credential_history"`
+	TenantID          string                    `json:"tenant_id"`
+	ExportedAt        time.Time                 `json:"exported_at"`
+	Events            []AuditEvent              `json:"events"`
+	Checkpoints       []trust.AuditCheckpoint   `json:"checkpoints"`
+	Genesis           trust.GenesisState        `json:"genesis"`
+	CredentialHistory []StoredCredentialRecord  `json:"credential_history"`
+	PolicyHistory     []*trust.PolicyBundle     `json:"policy_history,omitempty"`
+	RegistryHistory   []*trust.RegistryProposal `json:"registry_history,omitempty"`
 }

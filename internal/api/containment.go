@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"net/http"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -11,6 +12,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/canon"
 	"github.com/sakararya43-web/Ratchet/internal/domain"
 	"github.com/sakararya43-web/Ratchet/internal/graph"
+	"github.com/sakararya43-web/Ratchet/internal/ports"
 	"github.com/sakararya43-web/Ratchet/internal/workflow"
 	v1 "github.com/sakararya43-web/Ratchet/proto/ratchet/v1"
 	"github.com/sakararya43-web/Ratchet/proto/ratchet/v1/ratchetv1connect"
@@ -31,6 +33,7 @@ func NewContainmentHandler(service *workflow.Service, costs map[string]int64) (h
 	a := &containmentAPI{service, maps.Clone(costs)}
 	mux := http.NewServeMux()
 	mux.Handle(ratchetv1connect.ContainmentServicePlanContainmentProcedure, connect.NewUnaryHandler(ratchetv1connect.ContainmentServicePlanContainmentProcedure, a.PlanContainment, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
+	mux.Handle(ratchetv1connect.ContainmentServiceExecuteContainmentProcedure, connect.NewUnaryHandler(ratchetv1connect.ContainmentServiceExecuteContainmentProcedure, a.ExecuteContainment, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(8<<20)))
 	mux.Handle(ratchetv1connect.ContainmentServiceRestoreAccessProcedure, connect.NewUnaryHandler(ratchetv1connect.ContainmentServiceRestoreAccessProcedure, a.RestoreAccess, connect.WithReadMaxBytes(1<<20), connect.WithSendMaxBytes(1<<20)))
 	return mux, nil
 }
@@ -47,11 +50,110 @@ func (a *containmentAPI) RestoreAccess(ctx context.Context, r *connect.Request[v
 	if revision != 0 || r.Msg.IncidentId == "" {
 		return nil, changeError(domain.ErrInvalid)
 	}
-	change, err := a.service.Submit(ctx, p, workflow.Submit{CommandID: id, CorrelationID: r.Msg.Mutation.CorrelationId, MinGraphVersion: r.Msg.Mutation.MinGraphVersion, Justification: r.Msg.Justification, Intent: domain.Intent{Kind: "ROLE_ASSIGN", Target: r.Msg.TargetIdentity, Access: r.Msg.AccessToRestore, IncidentID: r.Msg.IncidentId}})
+	kind := ""
+	if view, err := a.service.GetIncident(ctx, p, r.Msg.IncidentId); err == nil {
+		for _, action := range view.Proposal.Body.Plan.Actions {
+			if action.Target == r.Msg.TargetIdentity {
+				switch action.Kind {
+				case "RESTRICT_ACCOUNT":
+					if r.Msg.AccessToRestore == "" || r.Msg.AccessToRestore == action.Access {
+						kind = "ENABLE_ACCOUNT"
+					}
+				case "REMOVE_SERVICE_PERMISSION":
+					if r.Msg.AccessToRestore == action.Access || strings.HasPrefix(r.Msg.AccessToRestore, "perm:") || strings.HasPrefix(r.Msg.AccessToRestore, "grant:") {
+						kind = "RESTORE_SERVICE_PERMISSION"
+					}
+				case "TERMINATE_SESSION":
+					if r.Msg.AccessToRestore == action.Access || strings.HasPrefix(r.Msg.AccessToRestore, "session:") {
+						kind = "ISSUE_SESSION"
+					}
+				case "ROLE_REVOKE":
+					if r.Msg.AccessToRestore == action.Access {
+						kind = "ROLE_ASSIGN"
+					}
+				}
+			}
+			if kind != "" {
+				break
+			}
+		}
+	}
+	if kind == "" {
+		if r.Msg.AccessToRestore == "" {
+			kind = "ENABLE_ACCOUNT"
+		} else if strings.HasPrefix(r.Msg.AccessToRestore, "perm:") || strings.HasPrefix(r.Msg.AccessToRestore, "grant:") {
+			kind = "RESTORE_SERVICE_PERMISSION"
+		} else if strings.HasPrefix(r.Msg.AccessToRestore, "session:") {
+			kind = "ISSUE_SESSION"
+		} else {
+			kind = "ROLE_ASSIGN"
+		}
+	}
+	change, err := a.service.Submit(ctx, p, workflow.Submit{
+		CommandID:       id,
+		CorrelationID:   r.Msg.Mutation.CorrelationId,
+		MinGraphVersion: r.Msg.Mutation.MinGraphVersion,
+		Justification:   r.Msg.Justification,
+		Intent: domain.Intent{
+			Kind:       kind,
+			Target:     r.Msg.TargetIdentity,
+			Access:     r.Msg.AccessToRestore,
+			IncidentID: r.Msg.IncidentId,
+		},
+	})
 	if err != nil {
 		return nil, changeError(err)
 	}
 	return connect.NewResponse(&v1.RestoreAccessResponse{ChangeRequestId: change.ID}), nil
+}
+
+func (a *containmentAPI) ExecuteContainment(ctx context.Context, r *connect.Request[v1.ExecuteContainmentRequest]) (*connect.Response[v1.ExecuteContainmentResponse], error) {
+	p, err := actor(ctx, r.Msg.TenantId, r.Msg.ResponderId)
+	if err != nil {
+		return nil, err
+	}
+	id, revision, err := mutation(r.Msg.Mutation)
+	if err != nil {
+		return nil, err
+	}
+	if revision != 0 || r.Msg.PlanId == "" || r.Msg.ApprovedPlanDigest == "" {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	planDigest, err := ports.DigestFromHex(r.Msg.ApprovedPlanDigest)
+	if err != nil {
+		return nil, changeError(domain.ErrInvalid)
+	}
+	res, err := a.service.ExecuteContainment(ctx, p, workflow.ExecuteContainmentInput{
+		CommandID:       id,
+		CorrelationID:   r.Msg.Mutation.CorrelationId,
+		PlanID:          r.Msg.PlanId,
+		PlanDigest:      planDigest,
+		AssertionJSON:   r.Msg.AssertionResponseJson,
+		ResponderID:     r.Msg.ResponderId,
+		MinGraphVersion: r.Msg.Mutation.MinGraphVersion,
+	})
+	if err != nil {
+		return nil, changeError(err)
+	}
+	var results []*v1.ExecResult
+	for _, er := range res.ExecutionResults {
+		results = append(results, &v1.ExecResult{
+			CommandId:           er.ActionID,
+			TenantId:            r.Msg.TenantId,
+			RequestId:           r.Msg.PlanId,
+			Success:             er.Success,
+			ErrorMessage:        er.ErrorMessage,
+			AppliedAt:           er.AppliedAt.Format(time.RFC3339Nano),
+			TargetRevisionAfter: er.TargetRevisionAfter,
+			ReadBackVerified:    er.ReadBackVerified,
+		})
+	}
+	return connect.NewResponse(&v1.ExecuteContainmentResponse{
+		Executed:          res.Executed,
+		IncidentId:        res.IncidentID,
+		ExecutionResults:  results,
+		VerifiedLatencyMs: res.VerifiedLatencyMs,
+	}), nil
 }
 func (a *containmentAPI) PlanContainment(ctx context.Context, r *connect.Request[v1.PlanContainmentRequest]) (*connect.Response[v1.PlanContainmentResponse], error) {
 	p, err := actor(ctx, r.Msg.TenantId, "")

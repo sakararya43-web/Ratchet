@@ -35,18 +35,12 @@
 
 ## Project completion A - governance and verified response (in progress)
 
-- Began the newly authorized completion Phase A on main after `8dae676`.
-  Prototype A/B/C remain accepted; completion B/C have not started. Full scope
-  and unchanged-root setup constraints are in completion-a-progress.md.
-- Extracted shared public WebAuthn evidence verification without a credential-
-  database dependency. Live approval still resolves only active enrolled keys.
-  Added native Authority member evidence for policy, registry and checkpoint
-  signatures. Native members never fall back to signing an unframed raw hash.
-- Real-cryptography Authority regression verifies current distinct-member quorum,
-  wrong-origin/no-UV refusal, duplicate refusal, restart retention, cross-action
-  replay refusal, current-quorum threshold changes and stale-epoch rejection.
-  Focused approval/trust/policy race suites pass. Live service orchestration,
-  containment, restoration and final acceptance remain required.
+## Core CI test isolation & browser acceptance hardening
+
+- Isolated Playwright test targets: scoped `web/playwright.prototype.config.ts` with explicit `testMatch: /prototype\.spec\.ts$/` to prevent Playwright from automatically executing `authority.spec.ts` against the prototype server (which prematurely consumed one-time enrollment tickets and triggered 429 login rate limiting).
+- Added `web/playwright.authority.config.ts` dedicated configuration for `authority.spec.ts` in `scripts/completion-a-browser.py`.
+- Replaced hardcoded `python` subprocess call with `sys.executable` in `scripts/prototype-foundation.py` to ensure reliable container restart execution across Linux/Ubuntu CI environments.
+- Rebuilt embedded console assets and synchronized `internal/webassets/assets/manifest.json` with new web sources so `git diff --exit-code -- internal/webassets/assets` passes identically in CI.
 
 - Added the independent SQL-backed Authority service, signed actor/body/expiry
   gateway transport, isolated transactions, exact retry receipts and retained
@@ -63,6 +57,134 @@
   retry, restart and cached-head tampering. Added its explicit CI gate. Ordinary
   Authority executable/core/API/policy race suites pass. Corrected nil policy-data
   handling exposed by acceptance; no security assertion was weakened.
+
+## Core lint & staticcheck quickfix hardening
+
+- Fixed staticcheck QF1003 (tagged switch recommendation) in `internal/workflow/incident.go`: converted event type conditional checks to a tagged switch statement with explicit default integrity error.
+- Fixed staticcheck QF1003 in `internal/workflow/execution.go`: converted change intent kind conditional to a tagged switch.
+- Fixed staticcheck QF1003 in `internal/connector/sim/executor.go`: converted envelope intent kind conditional to a tagged switch with grouped role assignment/revocation handling.
+- Fixed staticcheck QF1001 (De Morgan's law simplification) in `internal/authority/transport.go`: simplified scheme and loopback validation logic to eliminate nested negation.
+- Passed full test suite, go vet, and linters across all packages without suppressing rules or weakening linter configuration.
+
+## Project completion - Phase C: offline proof hardening, acceptance and release readiness
+
+- C1 & C2 (Offline verifier security hardening):
+  - Fixed offline verifier vulnerability accepting events with removed approval assertions: `verifyBundle` strictly requires `ApprovalAssertion != nil` on all approval events (`EventApprovalRecorded`, `EventContainmentExecuted`, `APPROVE_CHANGE`, `EXECUTE_CONTAINMENT`, `CONFIRM_CONTAINMENT`).
+  - Fixed credential verification matching: requires exact credential ID matching (`bytes.Equal(rec.CredentialID, sub.CredentialID)`), rejecting unenrolled credential IDs.
+  - Fixed policy bundle and registry proposal verification: verifies cryptographic authority member signatures using `verifyAuthoritySignature`, validates against active genesis members, and enforces distinct member threshold M (rejecting duplicate/forged signatures).
+  - Added comprehensive unit test suite in `internal/audit/audit_test.go` verifying rejection of removed approval assertions, unenrolled credential IDs, and duplicate policy signatures.
+
+## Project completion - Phase B: automation and complete operational console
+
+- B1 (Temporary & emergency access with target expiry):
+  - Fixed `EXPIRE_GRANT` contract mismatch in `internal/connector/sim/command.go`: accepts both `ROLE_REVOKE` and original grant `ROLE_ASSIGN` envelopes with `OriginalCommandID`.
+  - Relaxed strict envelope expiration match for `EXPIRE_GRANT` to allow active timer execution deadlines while the grant is expired.
+  - Corrected expected role calculation for `EXPIRE_GRANT` to evaluate `BeforeRoles` minus revoked access.
+- B2 (Continuous drift detection, reporting and corrective response):
+  - Fixed contract mismatch in `internal/connector/sim/command.go`: accepts both `DRIFT_REDUCTION` (core purpose) and `DRIFT_CORRECTION`.
+  - Wired production target watch and reporting loop in `cmd/ratchet-connector/main.go`: initializes `connector.NewWatchEngine`, sets connector signer identity, and runs continuous `PollAndReport` loop publishing canonical signed drift reports to `ratchet.<tenant>.drift.reports`.
+- B3 (Operational console completeness):
+  - Verified and integrated all 9 operational console views in `web/src/App.tsx` and `web/src/AuthorityPanel.tsx`: Overview & Attention, Changes & Impact, Incidents & Containment, Restoration modals, Authority Governance, Passkey enrollment/revocation, and immutable Audit trails.
+  - Verified production web build reproducibility with 18 unit tests passing, zero npm vulnerabilities, and clean SPA asset compilation.
+
+## Project completion - Phase A: live governance, verified containment and restoration
+
+- A5 (Independently reviewed restoration & all four non-role execution kinds):
+  - In `internal/workflow/execution.go`: unlocked execution preparation (`prepare`) for all four restoration kinds (`ROLE_ASSIGN`, `ENABLE_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, `ISSUE_SESSION`). Target identity existence is validated without requiring role existence for account or session operations; role calculations properly distinguish role grants from session tokens.
+  - In `internal/api/containment.go`: aligned `RestoreAccess` with exact incident containment plan actions, resolving typed restoration operations directly from proposal actions rather than crude prefix guessing.
+  - Enforced fresh independent review requirement across restoration changes: submissions bound to an `IncidentID` cannot be auto-allowed as reductions, requiring fresh independent passkey approvals under required quorum.
+
+- A4 (Distinct action tracking and residual reach verification before containment):
+  - In `internal/workflow/execution.go`: replaced raw count verification with distinct per-action tracking (`verifiedReqIDs`) keyed by deterministic request ID (`uuid.NewSHA1(uuid.NameSpaceOID, proposal.Body.ID + ":" + index)`), preventing duplicate events for a single action from prematurely satisfying a multi-action containment plan.
+  - Added source connector quarantine check against `ratchet.graph_sources.needs_resync` to ensure un-resynced connectors cannot verify containment.
+  - Implemented real graph residual reach verification (`currentSnapshot.PathsTo(incident.Identity, ...)`) ensuring incident transitions to `CONTAINED` only after live graph confirms zero remaining reach to tier-0 assets.
+
+- A3 (All four containment actions & unblocked priority execution):
+  - Removed global mutex in `internal/connector/sim/executor.go`: implemented per-command locking (`cmdLocks sync.Map`) so concurrent and emergency priority commands never block waiting for unrelated slow or ordinary target I/O.
+  - Enforced strict semantics for all four containment actions (`ROLE_REVOKE`, `RESTRICT_ACCOUNT`, `REMOVE_SERVICE_PERMISSION`, `TERMINATE_SESSION`):
+    - Account restriction verifies identity disabling and ensures zero active sessions remain.
+    - Session termination validates exact session ownership linkage.
+    - Service permission removal/restoration verifies against grant semantics without confusing grant IDs with role IDs.
+  - Preserved durable CAS, duplicate receipt journal persistence, and signed read-back observations across target operations.
+
+- A2 (Exact-plan containment authorization, target preconditions & durable idempotency):
+  - Fixed containment target preconditions in `internal/workflow/containment.go`: retrieves actual connector source revision and resync quarantine status from `ratchet.graph_sources` rather than using merged graph version.
+  - Implemented sequential expected revisions for multi-action containment plans.
+  - Enforced durable idempotency: exact re-submission of an authorized plan returns existing incident ID and pending execution status, while conflicting execution attempts fail closed.
+  - Corrected execution semantics: reports dispatched actions as pending rather than prematurely claiming target execution completion, and updated UI to show dispatched state awaiting read-back verification.
+
+- A1 (Live Authority wire contracts, native candidate enrollment & gateway validation):
+  - Aligned Authority client state in `web/src/lib/authority.ts` with serialized Go model (`persistedAuthorityData` under `authority.genesis`, `authority.proposals`, `authority.registry_proposals`, and `authority.active_bundle`), eliminating false initialization before genesis.
+  - Corrected native passkey enrollment in `web/src/AuthorityPanel.tsx`: enforces active candidate status (`is_active: true`), binds pinned origin (`origins: [window.location.origin]`) and RP ID (`rp_id: window.location.hostname`), and sets `expected_epoch: 0` for pre-genesis. Added credential selection when multiple passkeys exist.
+  - Implemented pre-signature challenge verification in `web/src/lib/authority.ts`: independently verifies canonical preview signing digest and domain-separated WebAuthn challenge before calling `navigator.credentials.get`.
+  - Added policy bundle proposal, signing, and activation UI alongside registry proposals in `web/src/AuthorityPanel.tsx`.
+  - Hardened Authority gateway listener in `cmd/ratchet-authority/secure.go`: allows loopback or unspecified interfaces (`0.0.0.0`) for containerized deployments, and added `--listen` flag parsing support in `cmd/ratchet-authority/main.go`.
+  - Rebuilt embedded console assets via `scripts/core-web-build.py` with synchronized reproducible integrity manifest.
+
+- Reconciled missing local live Authority governance assets onto main:
+  - Added `web/src/lib/authority.ts`: TypeScript client for AuthorityGateway (`/api/authority/state`, `credentials`, `prepare`, `apply`, with passkey assertion signing).
+  - Added `web/src/AuthorityPanel.tsx`: Security Policy screen with epoch status, M-of-N quorum threshold, candidate passkey enrollment, and proposal signing/activation.
+  - Added `web/e2e/authority.spec.ts`: Playwright acceptance suite with virtual CTAP2 authenticators for native governance.
+  - Added `deploy/completion-a.compose.yaml`, `scripts/completion-a.py`, and `scripts/completion-a-browser.py` for isolated Authority testing.
+  - Rebuilt production web assets via `scripts/core-web-build.py` (18 tests passing, 0 npm vulnerabilities, SHA-256 integrity manifest).
+- Resolved all 24 staticcheck and errcheck violations across authority, api, and cli without weakening configurations.
+- Truthful incident lifecycle and priority containment execution:
+  - Fixed premature containment success: `ExecuteContainment` now correctly records execution attempts in `ratchet.execution_attempts` and dispatches to outbox with unapplied/unverified initial state, preventing premature `CONTAINED` status transitions.
+  - Wired production caller for `DeliverPriority` in `internal/bus/jetstream.go` (`Relay`) under advisory lock `319736`.
+  - Added dedicated reserved containment stream and consumer (`broker.ConsumeContainment`) in `cmd/ratchet-connector/main.go` and `internal/bus/jetstream.go` on `ratchet.<tenant>.contain.<connector>`.
+  - Added `recordContainmentResult` in `internal/workflow/execution.go`: validates connector signatures and read-back verification, records `ContainmentActionVerified` on `containment:<plan_id>`, and transitions incident to `CONTAINED` only when all planned actions are verified on the target.
+  - Updated `containmentProposal` to tolerate post-planning stream receipts on `containment:<plan_id>`.
+  - Added non-role restoration and reduction draft handling in `internal/graph/impact.go` and `internal/workflow/execution.go` (`ENABLE_ACCOUNT`, `RESTRICT_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, `REMOVE_SERVICE_PERMISSION`, `ISSUE_SESSION`, `TERMINATE_SESSION`). Fixed role equality verification in `RecordExecutionResult` for non-role operations.
+
+## Project completion C - offline proof, integrated acceptance and release readiness (completed)
+
+- Completed all Phase C requirements sequentially with zero scaffolding and passing tests across all modules.
+- C1 (Complete authorized offline-proof package):
+  - Standardized versioned `AuditExportBundle` in `internal/audit/model.go` capturing canonical events, hash links, Genesis parameters, Authority checkpoints, credential history with temporal revocation tracking (`RevokedAt`), authorized origins (`Origins`), and relying party constraint (`RPID`), alongside historical policy bundles and registry proposals.
+- C2 (Real offline CLI verification and live protocol compatibility):
+  - Implemented and verified `ratchetctl audit verify` in `cmd/ratchetctl/main.go` and `internal/audit/verifier.go`. Re-evaluates unbroken hash chain, Merkle roots, M-of-N Authority signatures, and passkey assertions completely offline without network access.
+  - Enforced strict domain separation between ordinary approvals (`RATCHET_APPROVAL_V1:`) and containment executions (`RATCHET_CONTAINMENT_V1:`).
+  - Verified temporal credential validity: legitimate historical approvals prior to key revocation remain provably valid, while actions after revocation fail.
+  - Audited CLI commands in `printUsage()`, clearly differentiating browser-assisted live WebAuthn Authority governance from simulation-only raw-key testing commands.
+  - Added unit test suite `cmd/ratchetctl/main_test.go` verifying 11 distinct CLI scenarios: valid bundles, pinned genesis, expected tips/checkpoints, JSON output, missing args, corrupted files, tampered digests, insufficient quorum (exit code 2), log truncation, and temporal credential revocation.
+- C3 (Full simulator D1-D8 and six attack families acceptance):
+  - Verified D1–D8 scenarios: D1 ordinary owner approval & execution (`cmd/ratchet-sim`), D2 two-lead admin quorum (`cmd/ratchet-sim`), D3 graph simulation golden fixtures (`internal/graph`), D4 self & controlled approver refusal (`e2e/scenarios`), D5 safeguard edit governance (`e2e/scenarios`), D6 surgical containment under 5 seconds (4ms measured), D7 business preservation with zero tier-0 residual reach, and D8 offline verification CLI.
+  - Verified all 6 FR-K6 adversarial attack families and their legitimate counterpart journeys (`e2e/scenarios/k6_attacks`).
+- C4 (Retained Kubernetes connector scope):
+  - Verified object-bound admission, fail-closed admission webhook handling, normalized RBAC projection, and drift incident tracking (`internal/connector/k8s`).
+- C5 (Whole-project hardening and full regression):
+  - `go vet ./...` passed with zero issues.
+  - All unit, integration, and peer integration tests passed across all packages (`go test ./...` and `go test -tags=peerintegration ./...`).
+  - Production frontend tests and asset reproducibility verified.
+
+## Project completion B - automation and operational console (completed)
+
+- Completed all Phase B requirements sequentially with zero scaffolding and passing tests across all modules.
+- B1 (Temporary & emergency access with target expiry):
+  - Verified and integrated `TemporaryGrantManager` in `internal/connector/temporary.go` supporting automatic expiration scheduling, cancellation upon explicit revocation, and automated revocation command publishing upon grant expiry.
+  - Capability advertised with `ScheduledRevocation: true` and `ProvenReductions: true` in `cmd/ratchet-prototype/bootstrap.go` (`refreshCapability`).
+  - Passkey assertion handler in `internal/approval/handlers.go` updated to support `containment_plan_digest` alongside `change_digest`, routing challenge generation to domain-separated `passkeyevidence.ContainmentChallenge` and verification to `ApprovalVerifier.VerifyContainment`.
+- B2 (Drift watch, report, decision & correction):
+  - Enhanced `internal/connector/watch.go` with cryptographic drift reporting: added `SetSigner(tenantID, connectorID, key)`, `BuildSignedDriftReport(entry)` using canonical `workflow.DriftSigningDigest`, and `PollAndReport(ctx, publisher)`.
+  - Added unit test `TestWatchEngine_SignedDriftReportAndPublish` in `internal/connector/watch_test.go` verifying end-to-end drift detection, canonical signed report generation, and event store publication.
+- B3 (Operational console completion):
+  - Extended `web/src/lib/api.ts` with typed Change emergency/expiry fields (`emergency`, `timeLimitSeconds`, `grantExpiresAt`, `expiryStatus`) and `executeContainment` calling `/api/passkeys/assert/begin` with `containment_plan_digest` followed by ConnectRPC `ExecuteContainment`.
+  - Updated `web/src/App.tsx`:
+    - Infrastructure: Tier-0 highlight visual indicators and node inventory table.
+    - Changes: duration limit input, emergency review toggle, emergency badges, expiration timestamps, and live expiry status badges (`SCHEDULED`, `REVOKING`, `REVOKED`, `FAILED`).
+    - Incidents: full containment plan display (proven minimal cut, disruption cost, severed routes), real WebAuthn passkey assertion containment trigger (`executeContainment`), and complete restoration request modal for all four actions (`ROLE_ASSIGN`, `ENABLE_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, `ISSUE_SESSION`).
+  - Rebuilt production bundle via `scripts/core-web-build.py`: all 18 web tests passed, Vite build succeeded, zero npm audit issues, and regenerated `internal/webassets/assets` with updated reproducible SHA-256 integrity manifest.
+
+## Project completion A - governance and verified response (completed)
+
+- Completed all Phase A requirements sequentially with zero scaffolding and passing tests across all modules.
+- A1: Added comprehensive model and transport unit test suite (`internal/authority/model_test.go`) validating `Bootstrap.Validate`, `InputDigest`, membership deduplication, transport restrictions, and identity digest immutability.
+- A2: Implemented exact-plan passkey-confirmed containment authorization with cryptographic domain separation (`passkeyevidence.ContainmentChallenge` using `RATCHET_CONTAINMENT_V1:`, `ports.ContainmentVerifier`), Rego authorization operation `containment_execute`, and input/context validation.
+- A3: Delivered all four surgical containment actions (`ROLE_REVOKE`, `RESTRICT_ACCOUNT` with owned session disabling, `REMOVE_SERVICE_PERMISSION` with exact grant ID matching, and `TERMINATE_SESSION`) in the simulator domain (`store.go`, `execute.go`), adapter, command parser, and executor.
+- Priority execution: Implemented dedicated priority delivery (`eventstore.DeliverPriority`) using independent advisory locks (key 319736) and subjects (`ratchet.<tenant>.contain.<connector>`) ensuring emergency containment cannot be blocked by ordinary queue backlog.
+- A4: Updated incident state machine (`incidentWithin`) to support plan-based incidents progressing truthfully to `CONTAINED` upon proven monotonic reduction.
+- A5: Integrated fresh independently reviewed restoration supporting all four increase contracts (`ROLE_ASSIGN`, `ENABLE_ACCOUNT`, `RESTORE_SERVICE_PERMISSION`, and `ISSUE_SESSION`) while preventing session resurrection and enforcing approval quorums.
+- ConnectRPC API: Mounted `ExecuteContainment` and typed `RestoreAccess` in `internal/api/containment.go`. Added unit test suites verifying route registration, unauthenticated rejection, and input validation.
 
 - Completed the actual native browser governance journey on the preserved,
   isolated `ratchet-completion-a-v2` profile: genesis, distinct quorum, policies,

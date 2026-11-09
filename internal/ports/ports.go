@@ -77,6 +77,12 @@ type ApprovalVerifier interface {
 	Verify(ctx context.Context, sub ApprovalSubmission, changeDigest Digest) (VerifiedApproval, error)
 }
 
+// ContainmentVerifier checks that the passkey assertion is valid, comes from an enrolled
+// RATCHET passkey, and signs exactly the containment plan digest in the containment domain.
+type ContainmentVerifier interface {
+	VerifyContainment(ctx context.Context, sub ApprovalSubmission, planDigest Digest) (VerifiedApproval, error)
+}
+
 // VerifiedBundle contains the verified Rego policy modules and metadata
 // after passing M-of-N signature verification against the approver registry.
 type VerifiedBundle struct {

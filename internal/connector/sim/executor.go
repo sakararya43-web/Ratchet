@@ -22,13 +22,23 @@ import (
 type ResultPublisher func(context.Context, string, string, []byte) error
 
 type Executor struct {
-	mu                           sync.Mutex
+	cmdLocks                     sync.Map
 	tenant, connector, directory string
 	core                         ed25519.PublicKey
 	key                          ed25519.PrivateKey
 	adapter                      *Adapter
 	publish                      ResultPublisher
 }
+
+func (e *Executor) lockCommand(cmdID string) func() {
+	val, _ := e.cmdLocks.LoadOrStore(cmdID, &sync.Mutex{})
+	mtx := val.(*sync.Mutex)
+	mtx.Lock()
+	return func() {
+		mtx.Unlock()
+	}
+}
+
 type commandRecord struct {
 	Version  int                                 `json:"version"`
 	Identity ports.Digest                        `json:"identity"`
@@ -50,12 +60,12 @@ func NewExecutor(tenant, connectorID, directory string, core ed25519.PublicKey, 
 // and acknowledges only after JetStream confirms publication. The target's own
 // atomic CAS/receipt journal closes the crash gap between mutation and result.
 func (e *Executor) Handle(ctx context.Context, raw []byte) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
 	command, err := authenticateCommand(raw, e.tenant, e.connector, e.core, time.Now().UTC(), true)
 	if err != nil {
 		return err
 	}
+	unlock := e.lockCommand(command.CommandID)
+	defer unlock()
 	identity, err := commandIdentity(command)
 	if err != nil {
 		return err
@@ -81,18 +91,51 @@ func (e *Executor) Handle(ctx context.Context, raw []byte) error {
 	if result, ok := record.Results[command.MessageID]; ok {
 		return e.publishResult(ctx, result)
 	}
-	action := "ASSIGN_ROLE"
-	if command.Envelope.Intent.Kind == "ROLE_REVOKE" {
+	var action string
+	switch command.Envelope.Intent.Kind {
+	case "ROLE_REVOKE":
 		action = "REVOKE_ROLE"
+	case "RESTRICT_ACCOUNT":
+		action = "RESTRICT_ACCOUNT"
+	case "ENABLE_ACCOUNT":
+		action = "ENABLE_ACCOUNT"
+	case "TERMINATE_SESSION":
+		action = "TERMINATE_SESSION"
+	case "ISSUE_SESSION":
+		action = "ISSUE_SESSION"
+	case "REMOVE_SERVICE_PERMISSION":
+		action = "REMOVE_SERVICE_PERMISSION"
+	case "RESTORE_SERVICE_PERMISSION":
+		action = "RESTORE_SERVICE_PERMISSION"
+	default:
+		action = "ASSIGN_ROLE"
 	}
 	target := &connector.ExecCommand{Deadline: command.Deadline, CommandID: command.CommandID, RequestID: command.RequestID, TenantID: command.Tenant, Action: action, TargetIdentity: command.Envelope.Intent.Target, ResourceOrRole: command.Envelope.Intent.Access, ExpectedTargetRevision: command.ExpectedRevision}
 	observed, receipt, err := e.adapter.ObserveCommand(ctx, target)
 	if err != nil {
 		return err
 	}
+	preimageMatches := true
+	switch command.Envelope.Intent.Kind {
+	case "ROLE_ASSIGN", "ROLE_REVOKE":
+		preimageMatches = slices.Equal(observed.CurrentRoles, command.BeforeRoles)
+	case "RESTRICT_ACCOUNT":
+		preimageMatches = !observed.IsRestricted
+	case "ENABLE_ACCOUNT":
+		preimageMatches = observed.IsRestricted
+	case "TERMINATE_SESSION":
+		preimageMatches = slices.Contains(observed.ActiveSessions, command.Envelope.Intent.Access)
+	case "ISSUE_SESSION":
+		preimageMatches = !observed.IsRestricted
+	case "REMOVE_SERVICE_PERMISSION":
+		preimageMatches = slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access) || len(command.BeforeRoles) == 0 || slices.Equal(observed.CurrentRoles, command.BeforeRoles)
+	case "RESTORE_SERVICE_PERMISSION":
+		preimageMatches = !slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access) || len(command.BeforeRoles) == 0 || slices.Equal(observed.CurrentRoles, command.BeforeRoles)
+	}
+
 	// Never write during reconciliation or after expiration, and never write over
 	// a changed preimage. A recovered receipt is sufficient to skip execution.
-	if !command.VerifyOnly && receipt == nil && time.Now().Before(command.Deadline) && observed.ObservedRevision == command.ExpectedRevision && slices.Equal(observed.CurrentRoles, command.BeforeRoles) {
+	if !command.VerifyOnly && receipt == nil && time.Now().Before(command.Deadline) && observed.ObservedRevision == command.ExpectedRevision && preimageMatches {
 		writeCtx, cancel := context.WithDeadline(ctx, command.Deadline)
 		_, _ = e.adapter.Execute(writeCtx, target)
 		cancel()
@@ -106,9 +149,36 @@ func (e *Executor) Handle(ctx context.Context, raw []byte) error {
 	if receipt != nil {
 		result.AppliedAt = receipt.AppliedAt
 		result.Success = receipt.Revision == command.ExpectedRevision+1 && !receipt.AppliedAt.Before(command.DispatchedAt) && !receipt.AppliedAt.After(command.Deadline) && !receipt.AppliedAt.After(at)
-		result.ReadBackVerified = result.Success && observed.ObservedRevision == receipt.Revision && slices.Equal(observed.CurrentRoles, command.ExpectedRoles)
+		verified := result.Success && observed.ObservedRevision == receipt.Revision
+		switch action {
+		case "ASSIGN_ROLE":
+			verified = verified && slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access)
+		case "REVOKE_ROLE":
+			verified = verified && !slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access)
+		case "REMOVE_SERVICE_PERMISSION":
+			verified = verified && !slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access)
+		case "RESTRICT_ACCOUNT":
+			verified = verified && observed.IsRestricted && len(observed.ActiveSessions) == 0
+		case "ENABLE_ACCOUNT":
+			verified = verified && !observed.IsRestricted
+		case "TERMINATE_SESSION":
+			verified = verified && !slices.Contains(observed.ActiveSessions, command.Envelope.Intent.Access)
+		case "ISSUE_SESSION":
+			verified = verified && (command.Envelope.Intent.Access == "" || slices.Contains(observed.ActiveSessions, command.Envelope.Intent.Access))
+		case "RESTORE_SERVICE_PERMISSION":
+			verified = verified && slices.Contains(observed.CurrentRoles, command.Envelope.Intent.Access)
+		default:
+			if len(command.ExpectedRoles) > 0 {
+				verified = verified && slices.Equal(observed.CurrentRoles, command.ExpectedRoles)
+			}
+		}
+		result.ReadBackVerified = verified
 	} else {
-		result.ReadBackVerified = observed.ObservedRevision == command.ExpectedRevision && slices.Equal(observed.CurrentRoles, command.BeforeRoles)
+		verified := observed.ObservedRevision == command.ExpectedRevision
+		if len(command.BeforeRoles) > 0 {
+			verified = verified && slices.Equal(observed.CurrentRoles, command.BeforeRoles)
+		}
+		result.ReadBackVerified = verified
 	}
 	result.ObservationDigest, err = protocolObservationDigest(result)
 	if err != nil {

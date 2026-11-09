@@ -126,11 +126,43 @@ func main() {
 		if err = broker.EnsureExecution(ctx, *tenantID, *connectorID); err != nil {
 			log.Fatal(err)
 		}
+		if err = broker.EnsureContainment(ctx, *tenantID, *connectorID); err != nil {
+			log.Fatal(err)
+		}
 		go func() {
 			err := broker.ConsumeExecution(ctx, *tenantID, *connectorID, executor.Handle, logger)
 			if err != nil && ctx.Err() == nil {
 				consumerError <- err
 				cancel()
+			}
+		}()
+		go func() {
+			err := broker.ConsumeContainment(ctx, *tenantID, *connectorID, executor.Handle, logger)
+			if err != nil && ctx.Err() == nil {
+				consumerError <- err
+				cancel()
+			}
+		}()
+		watchEngine, err := connector.NewWatchEngine(*targetURL, adapter, *cursorPath+".watch")
+		if err != nil {
+			log.Fatal(err)
+		}
+		watchEngine.SetSigner(*tenantID, *connectorID, signingKey)
+		go func() {
+			ticker := time.NewTicker(2 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					_, err := watchEngine.PollAndReport(ctx, func(pCtx context.Context, tenant string, rawReport []byte) error {
+						return broker.Publish(pCtx, "ratchet."+tenant+".drift.reports", uuid.NewString(), rawReport)
+					})
+					if err != nil && ctx.Err() == nil {
+						logger.Warn("drift polling error", "error", err)
+					}
+				}
 			}
 		}()
 	}

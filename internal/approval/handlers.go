@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/sakararya43-web/Ratchet/internal/passkeyevidence"
 	"github.com/sakararya43-web/Ratchet/internal/ports"
 )
 
@@ -225,9 +226,10 @@ func (h *Handler) revoke(w http.ResponseWriter, r *http.Request) {
 }
 
 type AssertBeginRequest struct {
-	TenantID     string `json:"tenant_id"`
-	ActorID      string `json:"actor_id"`
-	ChangeDigest string `json:"change_digest"`
+	TenantID          string `json:"tenant_id,omitempty"`
+	ActorID           string `json:"actor_id,omitempty"`
+	ChangeDigest      string `json:"change_digest,omitempty"`
+	ContainmentDigest string `json:"containment_plan_digest,omitempty"`
 }
 
 func (h *Handler) assertBegin(w http.ResponseWriter, r *http.Request) {
@@ -240,9 +242,15 @@ func (h *Handler) assertBegin(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	digest, err := ports.DigestFromHex(in.ChangeDigest)
+	rawDigest := in.ChangeDigest
+	isContainment := false
+	if in.ContainmentDigest != "" {
+		rawDigest = in.ContainmentDigest
+		isContainment = true
+	}
+	digest, err := ports.DigestFromHex(rawDigest)
 	if err != nil || digest.IsZero() {
-		http.Error(w, "exact change digest required", http.StatusBadRequest)
+		http.Error(w, "exact digest required", http.StatusBadRequest)
 		return
 	}
 	user, err := h.store.User(r.Context(), t, a)
@@ -260,7 +268,12 @@ func (h *Handler) assertBegin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "challenge unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	challenge := ComputeApprovalChallenge(t, a, digest, nonce)
+	var challenge []byte
+	if isContainment {
+		challenge = passkeyevidence.ContainmentChallenge(t, a, digest, nonce)
+	} else {
+		challenge = ComputeApprovalChallenge(t, a, digest, nonce)
+	}
 	options.Response.Challenge = challenge
 	data.Challenge = base64.RawURLEncoding.EncodeToString(challenge)
 	id := h.store.SaveSession(t, a, digest.String(), nonce, data)
@@ -313,8 +326,12 @@ func (h *Handler) assertFinish(w http.ResponseWriter, r *http.Request) {
 	sub := ports.ApprovalSubmission{TenantID: t, ActorID: a, CredentialID: id, ClientDataJSON: client, AuthenticatorData: auth, Signature: signature, ChallengeNonce: s.ChallengeNonce}
 	verified, err := h.verifier.Verify(r.Context(), sub, digest)
 	if err != nil {
-		http.Error(w, "assertion refused", http.StatusUnauthorized)
-		return
+		var errContain error
+		verified, errContain = h.verifier.VerifyContainment(r.Context(), sub, digest)
+		if errContain != nil {
+			http.Error(w, "assertion refused", http.StatusUnauthorized)
+			return
+		}
 	}
 	writeJSON(w, 200, map[string]any{"verified": true, "user_verified": verified.UserVerified, "change_digest": digest.String(), "submission": sub})
 }

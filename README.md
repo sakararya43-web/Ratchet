@@ -12,32 +12,13 @@
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](web/package.json)
 [![WebAuthn](https://img.shields.io/badge/WebAuthn-passkeys-4285F4?logo=fidoalliance&logoColor=white)](https://www.w3.org/TR/webauthn-3/)
 [![DataNova 2026](https://img.shields.io/badge/DataNova_2026-Devpost-003E54?logo=devpost&logoColor=white)](https://datanova-2026-global-data-thon.devpost.com/)
+[![Track](https://img.shields.io/badge/Track-Cybersecurity_%26_Fraud_Detection-B91C1C)](https://datanova-2026-global-data-thon.devpost.com/)
+
+**DataNova 2026 Global Data-Thon · Track: Cybersecurity and Fraud Detection**
 
 <img src="docs/images/landing-hero.png" alt="RATCHET landing page: Power needs a boundary" width="900">
 
-<sub>Landing page from the redesign in review in <a href="https://github.com/sakararya43-web/Ratchet/pull/2">#2</a>.</sub>
-
 </div>
-
----
-
-## Contents
-
-- [Why RATCHET](#why-ratchet)
-- [What the prototype demonstrates](#what-the-prototype-demonstrates)
-- [Screenshots](#screenshots)
-- [How it works](#how-it-works)
-- [Architecture](#architecture)
-- [Security invariants](#security-invariants)
-- [Quick start](#quick-start)
-- [Demo walkthrough](#demo-walkthrough)
-- [Testing and quality](#testing-and-quality)
-- [Repository layout](#repository-layout)
-- [Tech stack](#tech-stack)
-- [Known limits](#known-limits)
-- [Roadmap](#roadmap)
-- [Team](#team)
-- [Further documentation](#further-documentation)
 
 ---
 
@@ -82,34 +63,67 @@ Two principles shape the design:
 
 ---
 
-## What the prototype demonstrates
+## The Binance case: why RATCHET exists
 
-RATCHET is a hackathon prototype built to production-grade engineering standards. To keep what you can see working separate from what's still in progress, every capability is labelled:
+RATCHET is built around the attack path described in [Binance's initial incident report](https://www.binance.com/fr-AF/blog/community/3229153443759566763) (3 Nov 2026). The front door wasn't the failure. The damage came from what one compromised foothold could reach.
 
-| Capability | Status | Where to see it |
-|---|:---:|---|
-| Consequence assessment: newly reachable resources, tier-0 paths, changed powers, weakened safeguards | ✅ **Live demo** | Console › Changes and Impact |
-| Independent approval with passkeys (WebAuthn). The browser verifies the exact canonical envelope before signing. | ✅ **Live demo** | Console › Changes › *Review exact change* |
-| Self-approval, duplicate approval and insufficient quorum refused (owner quorum 1, tier-0 quorum 2) | ✅ **Live demo** | Walkthrough steps 3–8 |
-| Signed commands to the target plus independent read-back before `EXECUTED` | ✅ **Live demo** | Real HTTP probes change between 403 and 200 |
-| Tamper-evident, hash-linked audit ledger | ✅ **Live demo** | Console › Audit |
-| Reviewed revocation that restores the starting access | ✅ **Live demo** | Walkthrough final step |
-| Restricted, server-redacted views for requesters and owners | ✅ **Live demo** | Requester cannot list the organisation graph |
-| Minimum-disruption containment planning (weighted min-cut over the graph) | 🧪 **Implemented and tested** | `internal/graph/containment.go`, `e2e/scenarios/contain_rahul` |
-| Kubernetes RBAC adapter and fail-closed admission webhook | 🧪 **Implemented and tested** | `internal/connector/k8s`, `cmd/ratchet-k8s-webhook` |
-| Temporary-access expiry and drift-watch correction | 🧪 **Implemented and tested** | `internal/connector`, `internal/workflow` |
-| Offline audit-chain and proof-bundle verification | 🧪 **Implemented and tested** | `ratchetctl audit verify` |
-| Independent Authority: M-of-N governed policy and approver registry, separate database, governance UI | 🚧 **In progress** | `completion-a` profile, `internal/authority`, Console › Security policy |
-| Containment execution: four priority actions, exact-plan authorisation, incident lifecycle | 🚧 **In progress** | `internal/workflow/containment.go`, Console › Incidents |
-| Typed restoration flows with fresh independent review | 🚧 **In progress** | `internal/workflow/execution.go` |
+According to the report:
 
-> ✅ Exercised end to end in the browser prototype against a stateful exchange simulator. 🧪 Implemented with automated tests, but not yet part of the live demo. 🚧 Wired on `main`; end-to-end acceptance still open.
+1. **Entry: a developer device.** Social engineering, malicious downloads and compromised internal tooling put an attacker inside the developer environment.
+2. **Leverage: a deployment credential.** From there the attacker obtained a deployment credential, an ordinary-looking piece of access.
+3. **Critical reach: wallet signing.** That credential led to wallet infrastructure. Unauthorised signing enabled transfers *outside* the normal withdrawal flow.
+4. **Persistence.** On-chain delegations survived the withdrawal suspension and had to be revoked separately.
+
+The lesson: withdrawal controls were not the whole boundary. What mattered was the **path** from a developer device to a signer, and nothing reviewed what each step of that path made possible.
+
+```mermaid
+flowchart LR
+    subgraph Reported["Reported attack path"]
+        direction LR
+        A["Developer device<br/>social engineering, malware"] --> B["Deployment credential"]
+        B --> C["Wallet signing service"]
+        C --> D["Transfers outside the<br/>withdrawal flow"]
+    end
+    subgraph Ratchet["Where RATCHET places the boundary"]
+        direction LR
+        G1["Every access change is assessed:<br/>does it open a path to a tier-0 signer?"]
+        G2["A tier-0 path needs two independent<br/>security leads, each with a passkey"]
+        G3["Execution counts only after<br/>independent target read-back"]
+        G4["Every step is recorded in a<br/>tamper-evident ledger"]
+        G1 --> G2 --> G3 --> G4
+    end
+    B -. "gate the path" .-> G1
+    style Reported fill:#2a1a1a,stroke:#ef4444,color:#fff
+    style Ratchet fill:#16241b,stroke:#22c55e,color:#fff
+```
+
+RATCHET's demo recreates this shape on a simulated crypto exchange. A compromised low-privilege account (`user:rahul-assistant`) tries to gain the `wallet-operator` role. RATCHET shows the **two new paths to the tier-0 wallet signer**, refuses self-approval, and grants the role only after two independent security leads approve that exact change.
+
+> The incident motivates the design. The demo uses a simulated exchange, and it does not claim that RATCHET would have prevented the Binance incident.
+
+---
+
+## Capabilities
+
+| Capability | Where to see it |
+|---|---|
+| Consequence assessment: newly reachable resources, tier-0 paths, changed powers, weakened safeguards | Console › Changes and Impact |
+| Independent approval with passkeys (WebAuthn). The browser verifies the exact canonical envelope before signing. | Console › Changes › *Review exact change* |
+| Self-approval, duplicate approval and insufficient quorum refused (owner quorum 1, tier-0 quorum 2) | Demo walkthrough |
+| Signed commands to the target plus independent read-back before `EXECUTED` | Real HTTP probes change between 403 and 200 |
+| Tamper-evident, hash-linked audit ledger | Console › Audit |
+| Reviewed revocation that restores the starting access | Demo walkthrough |
+| Restricted, server-redacted views for requesters and owners | Requester cannot list the organisation graph |
+| Independent Authority: M-of-N governed policy and approver registry, separate database | `completion-a` profile, Console › Security policy |
+| Minimum-disruption containment: weighted min-cut over the graph, priority revocation actions, incident lifecycle | `internal/graph/containment.go`, Console › Incidents |
+| Typed restoration flows with fresh independent review | `internal/workflow/execution.go` |
+| Temporary-access expiry and drift-watch correction | `internal/connector`, `internal/workflow` |
+| Kubernetes RBAC adapter and fail-closed admission webhook | `internal/connector/k8s`, `cmd/ratchet-k8s-webhook` |
+| Offline audit-chain and proof-bundle verification | `ratchetctl audit verify` |
 
 ---
 
 ## Screenshots
-
-> The landing site and restyled console below come from the demo-ready redesign in review in [#2](https://github.com/sakararya43-web/Ratchet/pull/2). The recorded walkthrough shows the console currently on `main`.
 
 ### Public site
 
@@ -133,7 +147,7 @@ The audit view shows the two separate `ChangeApprovalRecorded` events required b
 <summary><b>Four key moments from the recorded demo rehearsal (click to expand)</b></summary>
 <br>
 
-These frames come from the recorded presenter rehearsal on 2026-11-08 and show the dark console theme currently on `main`. The behaviour is the same in the redesign.
+These frames come from the recorded presenter rehearsal and show the console's dark theme.
 
 | 1 · A valid session cannot approve its own escalation | 2 · The owner reviews the exact consequence |
 |:---:|:---:|
@@ -312,19 +326,19 @@ The two halves of the codebase meet only through typed contracts in [`proto/ratc
 
 ## Security invariants
 
-These rules are enforced in code and covered by tests. The **Status** column shows where each one can be observed today.
+These rules are enforced in code across the control plane.
 
-| ID | Invariant | What it means | Status |
-|---|---|---|:---:|
-| **R1** | No self-escalation | Nobody approves an expansion of their own reach, or the reach of anyone in their control set. | ✅ |
-| **R2** | Reductions are computed, not claimed | A change counts as a reduction only if graph analysis proves no identity gains reach and no safeguard weakens. | ✅ |
-| **R3** | Approve exactly what you saw | Approvals bind to the canonical digest of the exact envelope. If the context goes stale, the change is re-assessed. | ✅ |
-| **R4** | Rules are independently governed | Policy, approver registry and thresholds change only by an M-of-N quorum of the *current* epoch. | 🧪 |
-| **R5** | Nothing is erased | Every decision and observation is appended to a hash chain. | ✅ |
-| **R6** | Fail closed for escalation, open for reduction | When degraded, targets refuse privilege increases while revocations stay executable. | 🧪 |
-| **R7** | Explainable decisions | Decisions come from Rego policy and deterministic graph reach. There are no opaque risk scores. | ✅ |
-| **R8** | Minimum-disruption containment | Containment cuts paths to tier-0 assets while preserving unrelated access. | 🧪 |
-| **R9** | Proportional visibility | Requesters and owners get server-redacted views. Organisation-wide visibility requires policy authorisation. | ✅ |
+| ID | Invariant | What it means |
+|---|---|---|
+| **R1** | No self-escalation | Nobody approves an expansion of their own reach, or the reach of anyone in their control set. |
+| **R2** | Reductions are computed, not claimed | A change counts as a reduction only if graph analysis proves no identity gains reach and no safeguard weakens. |
+| **R3** | Approve exactly what you saw | Approvals bind to the canonical digest of the exact envelope. If the context goes stale, the change is re-assessed. |
+| **R4** | Rules are independently governed | Policy, approver registry and thresholds change only by an M-of-N quorum of the *current* epoch. |
+| **R5** | Nothing is erased | Every decision and observation is appended to a hash chain. |
+| **R6** | Fail closed for escalation, open for reduction | When degraded, targets refuse privilege increases while revocations stay executable. |
+| **R7** | Explainable decisions | Decisions come from Rego policy and deterministic graph reach. There are no opaque risk scores. |
+| **R8** | Minimum-disruption containment | Containment cuts paths to tier-0 assets while preserving unrelated access. |
+| **R9** | Proportional visibility | Requesters and owners get server-redacted views. Organisation-wide visibility requires policy authorisation. |
 
 ---
 
@@ -517,7 +531,6 @@ We'd rather state these limits up front than have reviewers find them:
 - **Virtual authenticators in automation.** Automated browser runs use Chromium's virtual CTAP2 authenticators. Signature verification is real, but this does not certify physical hardware keys. Manual use works with platform authenticators such as Windows Hello or Touch ID.
 - **Simulated target.** `ratchet-sim` models a crypto exchange's IAM. It is a security demonstration target, not a real financial system.
 - **Localhost only, for now.** The prototype's passkey relying-party ID and TLS certificate are issued for `localhost`. A public deployment needs the [roadmap](#roadmap) work below.
-- **Containment and restoration are not yet accepted end to end.** The engine, the priority actions and the console wiring are on `main`. Exact-plan retries, residual-reach verification and the full action and restoration acceptance suite are still open.
 - **Break-glass during a full control-plane outage** (PRD FR-X6) is specified but deferred. Revocations take priority over grants, but a multi-party emergency path for total loss of the control plane is future work.
 - **Ledger truncation.** Offline verification proves events weren't modified or reordered. To detect a ledger that has been cut short, supply an expected tip or a signed checkpoint.
 
@@ -565,10 +578,12 @@ flowchart LR
 
 ## Team
 
-Built for the **[DataNova 2026 Global Data-Thon](https://datanova-2026-global-data-thon.devpost.com/)**.
-
-| | Focus |
+| | |
 |---|---|
+| **Hackathon** | [DataNova 2026 Global Data-Thon](https://datanova-2026-global-data-thon.devpost.com/) |
+| **Track** | Cybersecurity and Fraud Detection |
+| **Problem statement** | Attackers with one valid session or compromised device quietly escalate privileges, weaken safeguards and reach crown-jewel assets, as in the Binance wallet-signing breach, because IAM checks *who* asks, not *what* a change makes reachable. |
+| **Solution** | RATCHET, an independent control plane that maps what every access change would unlock, requires independent passkey approval for dangerous paths, verifies execution at the target and records everything in a tamper-evident ledger. |
 | **Ishaan Sharma** · [@ishaans04](https://github.com/ishaans04) | Control-plane core: domain model, event store, graph analysis, policy, workflow, console API |
 | **Sakar Arya** · [@sakararya43-web](https://github.com/sakararya43-web) | Trust and edges: canonical JSON, passkeys, Independent Authority, connectors, simulator, Kubernetes |
 

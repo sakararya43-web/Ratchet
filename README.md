@@ -8,6 +8,7 @@
 
 [![CI](https://github.com/sakararya43-web/Ratchet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sakararya43-web/Ratchet/actions/workflows/ci.yml?query=branch%3Amain)
 [![Core phase checks](https://github.com/sakararya43-web/Ratchet/actions/workflows/core.yml/badge.svg?branch=main)](https://github.com/sakararya43-web/Ratchet/actions/workflows/core.yml?query=branch%3Amain)
+[![Demo site](https://github.com/sakararya43-web/Ratchet/actions/workflows/pages.yml/badge.svg?branch=main)](https://sakararya43-web.github.io/Ratchet/)
 [![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](go.mod)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](web/package.json)
 [![WebAuthn](https://img.shields.io/badge/WebAuthn-passkeys-4285F4?logo=fidoalliance&logoColor=white)](https://www.w3.org/TR/webauthn-3/)
@@ -16,9 +17,42 @@
 
 **DataNova 2026 Global Data-Thon · Track: Cybersecurity and Fraud Detection**
 
+### [Open the live demo &rarr;](https://sakararya43-web.github.io/Ratchet/)
+
+A guided, clickable demo on a **fictional crypto exchange with mock data**. It runs entirely in your browser:<br>no sign-up, no server, nothing to install. To run RATCHET against your own data, [run it yourself](#run-it-yourself).
+
 <img src="docs/images/landing-hero.png" alt="RATCHET landing page: Power needs a boundary" width="900">
 
 </div>
+
+---
+
+## Two ways to run RATCHET
+
+The same console runs in two modes. It picks one automatically when it loads.
+
+| | **Hosted demo** | **Run it yourself** |
+|---|---|---|
+| **Open** | [sakararya43-web.github.io/Ratchet](https://sakararya43-web.github.io/Ratchet/) | `https://localhost:8444` on your machine |
+| **Data** | Northwind Exchange: a small, **fictional** organisation with mock records | Your organisation, read from the target by the connector and stored in PostgreSQL |
+| **Backend** | None. An in-browser stand-in answers the same API with the same permission rules | Go control-plane core, graph service, connector, NATS JetStream, PostgreSQL |
+| **Sign-in** | Pick one of four personas | Real accounts issued by the operator |
+| **Passkeys** | Simulated prompt, clearly labelled | Real WebAuthn: Windows Hello, Touch ID or a security key |
+| **Audit chain** | Real SHA-256 hash chain, re-verified in your browser | Real, persisted, and verifiable offline with `ratchetctl` |
+| **State** | Lives in your browser tab. *Reset* or a reload restores the start | Persistent. Nothing is erased |
+| **Setup** | None | Docker and Python, then one command |
+
+```mermaid
+flowchart LR
+    Load["Console loads"] --> Ask{"Does a RATCHET core<br/>answer /api/setup?"}
+    Ask -->|"yes"| Live["Live mode<br/>real backend, real passkeys,<br/>your data"]
+    Ask -->|"no: GitHub Pages,<br/>or a dev server alone"| Demo["Demo mode<br/>in-browser backend,<br/>fictional mock data"]
+    Override["?mode=demo · ?mode=live · ?mode=auto"] -.->|"overrides, remembered<br/>in this browser"| Ask
+    style Live fill:#16241b,stroke:#22c55e,color:#fff
+    style Demo fill:#2a1f14,stroke:#e35b35,color:#fff
+```
+
+> **Everything in the hosted demo is fictional.** Northwind Exchange, its people and its records are made up for this demonstration, and a "Demo data · fictional exchange" label stays on screen the whole time.
 
 ---
 
@@ -97,9 +131,12 @@ flowchart LR
     style Ratchet fill:#16241b,stroke:#22c55e,color:#fff
 ```
 
-RATCHET's demo recreates this shape on a simulated crypto exchange. A compromised low-privilege account (`user:rahul-assistant`) tries to gain the `wallet-operator` role. RATCHET shows the **two new paths to the tier-0 wallet signer**, refuses self-approval, and grants the role only after two independent security leads approve that exact change.
+Both ways of running RATCHET recreate this shape on a simulated crypto exchange:
 
-> The incident motivates the design. The demo uses a simulated exchange, and it does not claim that RATCHET would have prevented the Binance incident.
+- **The hosted demo** follows Rahul, a finance analyst whose laptop session is taken over. The session tries to weaken the withdrawal rule, then asks for exchange-admin rights. RATCHET rejects the first request, sends the second to two independent security leads, and contains the session with a minimum-disruption cut. [Walk through it below.](#the-hosted-demo)
+- **The local prototype** starts a compromised low-privilege account (`user:rahul-assistant`) that tries to gain the `wallet-operator` role. RATCHET shows the **two new paths to the tier-0 wallet signer**, refuses self-approval, and grants the role only after two independent security leads approve that exact change, with real passkeys and real HTTP probes. [Walk through it below.](#local-prototype-walkthrough)
+
+> The incident motivates the design. Both demos use a simulated exchange, and neither claims that RATCHET would have prevented the Binance incident.
 
 ---
 
@@ -171,7 +208,7 @@ Containment is accountable: it records who initiated the response, what was rest
 
 ## Capabilities
 
-The landing page walks through the eight console workspaces as you scroll:
+The landing page walks through the eight console workspaces as you scroll. Most of them can be tried in the [hosted demo](#the-hosted-demo); the target probes, Kubernetes and offline verification need the [local backend](#run-it-yourself).
 
 <p align="center"><img src="docs/images/landing-tour.png" alt="Landing page tour: eight workspaces, one chain of evidence" width="900"></p>
 
@@ -179,18 +216,19 @@ The landing page walks through the eight console workspaces as you scroll:
 |---|---|
 | Consequence assessment: newly reachable resources, tier-0 paths, changed powers, weakened safeguards, blast radius per tier | Changes inspector · Impact |
 | Independent approval with passkeys (WebAuthn). The browser verifies the exact canonical envelope before signing. | Changes › *Review and approve* |
-| Self-approval, duplicate approval and insufficient quorum refused (owner quorum 1, tier-0 quorum 2) | Changes inspector (eligible and excluded approvers) · Demo walkthrough |
+| Self-approval, duplicate approval and insufficient quorum refused (owner quorum 1, tier-0 quorum 2) | Changes inspector (eligible and excluded approvers) · Local prototype walkthrough |
 | Every decision explained by the signed policy rule that produced it, with graph version and policy bundle hash | Changes inspector · Security policy |
 | Signed commands to the target plus independent read-back before `EXECUTED` | Changes timeline · real HTTP probes change between 403 and 200 |
 | Interactive access graph: focus, neighbourhoods, tier-0 tracing, reach and takeover relationships | Infrastructure |
 | Tamper-evident, hash-linked audit ledger, re-verified end to end in the browser | Audit › *Verify audit chain* |
-| Reviewed revocation that restores the starting access | Demo walkthrough |
+| Reviewed revocation that restores the starting access | Local prototype walkthrough |
 | Restricted, server-redacted views for requesters and owners | Every workspace |
 | Independent Authority: M-of-N governed policy and approver registry | Security policy |
 | Minimum-disruption containment with business continuity, and typed restoration through fresh review | Incidents |
 | Temporary-access expiry and drift-watch correction | Changes (duration and expiry status) |
 | Kubernetes RBAC adapter and fail-closed admission webhook | `internal/connector/k8s`, `cmd/ratchet-k8s-webhook` |
 | Offline audit-chain and proof-bundle verification | `ratchetctl audit verify` |
+| Guided, zero-install demo on fictional data, with persona switching and reset | [Hosted demo](https://sakararya43-web.github.io/Ratchet/) |
 
 ---
 
@@ -397,9 +435,114 @@ R9 in practice: the requester account can submit and assess its own changes, but
 
 ---
 
-## Quick start
+## The hosted demo
 
-### Prerequisites
+**[sakararya43-web.github.io/Ratchet](https://sakararya43-web.github.io/Ratchet/)** is the real console, published as a static site. With no RATCHET core behind it, the console switches to an in-browser stand-in that answers every API call over a small mock dataset, so every workspace and every button works.
+
+### Northwind Exchange: the fictional organisation
+
+The dataset is deliberately small: enough to show each feature once, nothing more. It contains:
+
+- 6 people and 2 service accounts;
+- 6 roles;
+- 6 resources and 2 safeguards, each with a criticality tier;
+- 7 access requests, one for each outcome;
+- 2 incidents.
+
+Choose who to sign in as; each persona sees only what RATCHET allows them to see.
+
+| Persona | Role in the story | What they see |
+|---|---|---|
+| **Rahul Sharma** | Finance analyst, the requester whose session is compromised | Own view: own requests, own impact. Policy, incidents and audit are refused |
+| **Priya Patel** | Finance lead, owner of the finance resources | Own view, plus requests that need a resource owner |
+| **Alice Vance** | Security lead 1 and incident responder | The whole organisation |
+| **Bob Chen** | Security lead 2, the second independent approval for tier-0 changes | The whole organisation |
+
+<p align="center"><img src="docs/images/demo-personas.png" alt="Demo sign-in: choose one of four fictional personas" width="820"></p>
+
+The seeded requests cover every decision the signed policy can reach:
+
+| Request | Outcome | Why |
+|---|---|---|
+| `req-1001` Rahul → Wallet Operator, 48 hours | Executed, expiry scheduled | Two security leads approved a reviewed month-end grant |
+| `req-1002` Meera → Finance Lead | Expired | Nobody approved it in time |
+| `req-1003` Meera → Staging Developer, 1 hour | Revoked | The temporary grant ended on schedule |
+| `req-1004` Alice revokes David's staging access | Executed without approval | Graph analysis proved it only reduces access |
+| `req-1005` David → Finance Lead, emergency | Held | Emergency access needs a fixed duration |
+| `req-1006` Rahul weakens the withdrawal rule | Rejected | Weakening a tier-0 safeguard is prohibited |
+| `req-1007` Rahul → Exchange Administrator | Awaiting approval | New tier-0 power needs two independent security leads |
+
+### The guided tour
+
+Entering the console from the landing page starts an 11-step tour of one story, Rahul's compromised session, across every workspace. Each step signs in as the right persona and opens the right record; the actions are yours to take. Reopen it any time from **Guided tour** in the top bar, and use **Reset** to start over.
+
+```mermaid
+flowchart LR
+    subgraph AsRahul["As Rahul, the requester"]
+        direction TB
+        S1["1 · Changes<br/>approved month-end<br/>wallet access"] --> S2["2 · Changes<br/>safeguard weakening<br/>rejected by policy"]
+        S2 --> S3["3 · Changes<br/>admin request waits<br/>for two security leads"]
+        S3 --> S4["4 · Impact<br/>what approval<br/>would unlock"]
+        S4 --> S5["5 · Audit<br/>refused: a requester's<br/>view is narrow"]
+    end
+    subgraph AsAlice["As Alice, the security lead"]
+        direction TB
+        S6["6 · Overview<br/>critical incident<br/>in the queue"] --> S7["7 · Infrastructure<br/>route from Rahul to<br/>the hot wallet"]
+        S7 --> S8["8 · Security policy<br/>the rules that<br/>decided"]
+        S8 --> S9["9 · Incidents<br/>minimum-disruption<br/>containment plan"]
+        S9 --> S10["10 · Incidents<br/>execute with<br/>a passkey"]
+        S10 --> S11["11 · Audit<br/>verify the<br/>hash chain"]
+    end
+    AsRahul --> AsAlice
+    style AsRahul fill:#2a1f14,stroke:#e35b35,color:#fff
+    style AsAlice fill:#16241b,stroke:#22c55e,color:#fff
+```
+
+<p align="center"><img src="docs/images/demo-tour.png" alt="Guided tour, step 3: Rahul's exchange-admin request waits for two security leads and self-approval is refused" width="900"></p>
+
+At step 9, RATCHET computes the cheapest set of revocations that cuts every route from Rahul to a tier-0 asset: end the laptop session and revoke Wallet Operator. The business-continuity view shows that finance reports and everyone else's work keep running, while only wallet signing is isolated. Executing the plan puts Rahul's pending admin request on hold.
+
+| Minimum-disruption containment | Passkey confirmation (simulated in the demo) |
+|:---:|:---:|
+| <img src="docs/images/demo-containment.png" alt="Containment plan: two actions, eleven activities remain operational, wallet signing isolated" width="330"> | <img src="docs/images/demo-passkey.png" alt="Simulated passkey prompt, labelled as such, confirming the exact containment plan" width="520"> |
+
+### What is real in the demo, and what is simulated
+
+The demo runs the production console code unchanged. Only the server and the authenticator are replaced.
+
+| Real: the same code as the live console | Simulated: stands in for the server |
+|---|---|
+| Every workspace, inspector, filter and chart | The core's API, answered from memory in your browser tab |
+| Policy rules, read from the project's actual [`policies/change.rego`](policies/change.rego) | The decision itself, computed by a TypeScript mirror of that rule chain |
+| Approval envelopes and RFC 8785 digests, checked by the browser before any passkey prompt | The passkey prompt: a labelled dialog instead of your authenticator |
+| The SHA-256 audit hash chain, recomputed link by link by *Verify audit chain* | Target execution and read-back: the demo connector reports success |
+| Permission rules: requesters are refused organisation-wide views, self-approval and duplicate approval are refused | Times are relative to when you open the page |
+
+The demo code lives in [`web/src/demo/`](web/src/demo/). Add `?mode=live` to force the real backend, `?mode=demo` to force the demo, or `?mode=auto` to go back to automatic detection.
+
+---
+
+## Run it yourself
+
+Run RATCHET on your own machine when you want the real backend: persistent state, real passkeys, real execution against a target, and your own data. There are three levels.
+
+| Level | You get | You need |
+|---|---|---|
+| **1. Console only** | The demo above, served locally, for UI work | Node.js |
+| **2. Full prototype** | Every service, real WebAuthn passkeys, a real ledger in PostgreSQL, a stateful exchange target with HTTP probes | Docker and Python |
+| **3. Your own data** | The prototype analysing *your* organisation instead of the sample exchange | Level 2, plus a model of your organisation |
+
+### 1. Console only (demo mode, no Docker)
+
+```bash
+cd web
+npm ci
+npm run dev        # http://localhost:3000, opens in demo mode because no core is running
+```
+
+### 2. The full prototype (live mode)
+
+#### Prerequisites
 
 | Tool | Version | Used for |
 |---|---|---|
@@ -408,7 +551,7 @@ R9 in practice: the requester account can submit and assess its own changes, but
 | Node.js | 20+ | Console development and browser tests (optional) |
 | Browser with a platform authenticator | — | Passkey approvals (Windows Hello, Touch ID or a security key) |
 
-### Run the prototype
+#### Start it
 
 ```bash
 git clone https://github.com/sakararya43-web/Ratchet.git
@@ -433,7 +576,7 @@ On first start, the launcher generates random database and broker secrets, creat
 
 The [prototype runbook](docs/ishaan/prototype-runbook.md) covers credential management, restarts and recovery in detail.
 
-### Useful commands
+#### Useful commands
 
 ```bash
 python scripts/prototype.py status                          # container status
@@ -453,21 +596,44 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:58085/api/v1/b
   -H "Content-Type: application/json" -d '{"session_id":"session:intern-workstation-1","amount_usd":100}'
 ```
 
-### Develop the console
+Working on the console against the running prototype? Rebuild the embedded assets with `python scripts/core-web-build.py`, then `python scripts/prototype.py restart`. The Vite dev server on its own always runs in demo mode, because passkeys and sessions live on the core's HTTPS origin.
+
+### 3. Bring your own data
+
+In live mode, RATCHET does not ship its own picture of your organisation. The **connector** reads identities, roles, grants and sessions from the target system, and the core builds its authorisation graph from that snapshot. Every analysis, decision and containment plan then runs on your data, and every change is executed and read back at the target.
+
+```mermaid
+flowchart LR
+    T["Your target system<br/>identities · roles · grants · sessions"] -->|"sync snapshot"| C["Connector"]
+    C -->|"NATS JetStream"| G["Core + graph service<br/>reach · tier-0 paths · min-cut"]
+    G --> P["Signed policy<br/>rules · owners · quorum"]
+    G --> UI["Console<br/>live mode"]
+    UI -->|"approved change"| C
+    C -->|"execute, then independent read-back"| T
+```
+
+| To model | Where |
+|---|---|
+| **Your organisation in the simulator**: people, service accounts, sessions, roles, grants, and resources with their criticality tier | [`cmd/ratchet-sim/domain/seed.go`](cmd/ratchet-sim/domain/seed.go). The seed is used on a fresh deployment, see below |
+| **Who approves what**: resource owners, security leads, quorum | The signed policy bundle and approver registry, changed only through the Independent Authority ([`policies/`](policies/), `ratchetctl`) |
+| **A real Kubernetes cluster**: RBAC roles and bindings, with a fail-closed admission webhook | The Kubernetes adapter in [`internal/connector/k8s/`](internal/connector/k8s/) and [`cmd/ratchet-k8s-webhook`](cmd/ratchet-k8s-webhook/) |
+| **Another identity system** such as AWS IAM, Entra ID, Okta or GitHub | Implement the connector contract (sync, execute, read-back) in [`internal/connector/`](internal/connector/). These connectors are on the [roadmap](#roadmap) |
+
+The simulator writes its state on first start and keeps it, and the ledger never forgets the old organisation. A new seed therefore needs a fresh deployment, which **permanently deletes** the prototype's ledger, identities and target state. Keep the identities that sign in to the console (listed in `users.json`), or provision matching accounts with the operator tool:
 
 ```bash
-cd web
-npm ci
-npm run dev        # Vite dev server
-npm test           # canonical JSON and approval-envelope tests
-npm run build      # type-check + production bundle
+python scripts/prototype.py stop
+docker compose --env-file .local/prototype/prototype.env -f deploy/prototype.compose.yaml down -v   # deletes the volumes
+python scripts/prototype.py start                # rebuilds images with your seed
 ```
+
+> Keep real credentials out of the repository. The prototype writes every secret to `.local/`, which is gitignored.
 
 ---
 
-## Demo walkthrough
+## Local prototype walkthrough
 
-Every account starts on the **Overview**. Its metrics and attention queue (held requests, pending approvals and active incidents, each with its reason and age) open straight into the record that needs attention:
+This is the four-account journey on the full prototype, with real passkeys and real target probes. Every account starts on the **Overview**. Its metrics and attention queue (held requests, pending approvals and active incidents, each with its reason and age) open straight into the record that needs attention:
 
 <p align="center"><img src="docs/images/console-overview.png" alt="Console overview: metrics and the attention queue" width="900"></p>
 
@@ -500,7 +666,7 @@ flowchart LR
 6. **Audit** shows both approval events and the execution, each with its own hash in the chain.
 7. Reviewed **ROLE_REVOKE** requests return both probes to **403**. Nothing is reset: the ledger, identities and trust root stay intact.
 
-The step-by-step guide is in [`docs/ishaan/prototype-walkthrough.md`](docs/ishaan/prototype-walkthrough.md). PR [#2](https://github.com/sakararya43-web/Ratchet/pull/2) adds a timed presenter script and a four-window presenter launcher. The launcher uses virtual CTAP2 authenticators with real backend signature verification.
+The step-by-step guide is in [`docs/ishaan/prototype-walkthrough.md`](docs/ishaan/prototype-walkthrough.md). PR [#2](https://github.com/sakararya43-web/Ratchet/pull/2) added a timed presenter script and a four-window presenter launcher (`python scripts/demo.py present`). The launcher uses virtual CTAP2 authenticators with real backend signature verification.
 
 ---
 
@@ -525,6 +691,7 @@ python scripts/prototype-browser.py
 | **Integration** (build tags `integration`, `peerintegration`) | PostgreSQL event store, Authority database, crash and restart recovery, the full attack families |
 | **Browser acceptance** ([`web/e2e/`](web/e2e/)) | Four-account approval journey and Authority flows over real HTTPS |
 | **Hosted CI** | [CI](.github/workflows/ci.yml) and [Core phase checks](.github/workflows/core.yml) on every push to `main`, including the built-image browser journey on Linux |
+| **Demo site** | [Demo site](.github/workflows/pages.yml) type-checks and builds the console with a relative base, then deploys it to GitHub Pages on every push to `main` that touches the console or policies |
 
 The badges at the top show live CI status. They are the authoritative signal for the current commit.
 
@@ -555,6 +722,7 @@ Ratchet/
 │   ├── connector/             # Sync, execute, read-back, drift (+ k8s/, sim/ adapters)
 │   └── webassets/             # Production console embedded into the Go binary
 ├── web/                       # React 19 + Vite console and landing site
+│   └── src/demo/              # Hosted demo: dataset, graph engine, in-browser API, tour
 ├── policies/                  # Rego authorisation and change policies (+ tests)
 ├── proto/ratchet/v1/          # ConnectRPC / protobuf contracts
 ├── e2e/scenarios/             # Attack-scenario acceptance tests
@@ -591,7 +759,8 @@ We'd rather state these limits up front than have reviewers find them:
 - **Single-host demonstration.** All services share one machine. Running them as separate processes with separate keys is not isolation from that machine's administrator. In production, the Independent Authority belongs on separately administered infrastructure.
 - **Virtual authenticators in automation.** Automated browser runs use Chromium's virtual CTAP2 authenticators. Signature verification is real, but this does not certify physical hardware keys. Manual use works with platform authenticators such as Windows Hello or Touch ID.
 - **Simulated target.** `ratchet-sim` models a crypto exchange's IAM. It is a security demonstration target, not a real financial system.
-- **Localhost only, for now.** The prototype's passkey relying-party ID and TLS certificate are issued for `localhost`. A public deployment needs the [roadmap](#roadmap) work below.
+- **The hosted demo is a simulation.** It runs the real console, but decisions come from a TypeScript mirror of the signed policy, passkeys are a labelled dialog, and target execution is assumed rather than read back. Its state lives in your browser tab and resets on reload. It shows *what RATCHET does*; the local prototype shows *that it does it*.
+- **The live backend is localhost only, for now.** The prototype's passkey relying-party ID and TLS certificate are issued for `localhost`. A public live deployment needs the [roadmap](#roadmap) work below.
 - **Break-glass during a full control-plane outage** (PRD FR-X6) is specified but deferred. Revocations take priority over grants, but a multi-party emergency path for total loss of the control plane is future work.
 - **Ledger truncation.** Offline verification proves events weren't modified or reordered. To detect a ledger that has been cut short, supply an expected tip or a signed checkpoint.
 
@@ -599,19 +768,20 @@ We'd rather state these limits up front than have reviewers find them:
 
 ## Roadmap
 
+Already delivered: the landing site and console redesign, the interactive graph explorer, and a public hosted demo with a guided tour and one-click reset. What comes next:
+
 ```mermaid
 flowchart LR
-    subgraph Now["Next: finish and share"]
-        N0["Merge the demo-ready redesign (#2)"]
-        N1["Configurable origin and passkey RP ID"]
-        N2["Hosted demo<br/>free VM + Cloudflare Tunnel + Access"]
-        N3["One-click demo reset<br/>without touching the ledger"]
+    subgraph Now["Next: a public live backend"]
+        N1["Configurable origin<br/>and passkey RP ID"]
+        N2["Hosted live prototype<br/>free VM + Cloudflare Tunnel + Access"]
+        N3["Ledger-preserving reset<br/>for the live prototype"]
     end
     subgraph Next["Then: complete the story"]
         X1["Containment acceptance<br/>exact-plan retries, residual-reach proof"]
         X2["Restoration acceptance<br/>typed flows with fresh review"]
-        X3["Interactive graph explorer<br/>visual paths to tier-0"]
-        X4["Live Authority ceremony<br/>member rotation in the browser"]
+        X3["Live Authority ceremony<br/>member rotation in the browser"]
+        X4["Load your own organisation<br/>from a file, without code"]
     end
     subgraph Later["Later: towards production"]
         L1["Real connectors<br/>AWS IAM · Entra ID · Okta · GitHub"]
@@ -625,13 +795,12 @@ flowchart LR
 
 | Horizon | Item | Why it matters |
 |---|---|---|
-| **Next** | Merge the redesign and presenter tooling ([#2](https://github.com/sakararya43-web/Ratchet/pull/2)) | One `main` with the new landing site, console and demo launcher |
-| | Configurable origin and RP ID, hosted demo behind Cloudflare Access | Lets judges and reviewers try the real thing without a local setup |
-| | Demo reset that preserves the ledger | Repeatable demos without weakening the "nothing is erased" rule |
-| **Then** | Containment and restoration acceptance | Turns the wired min-cut execution and restoration flows into an end-to-end, verified demo |
+| **Next** | Configurable origin and RP ID, hosted live prototype behind Cloudflare Access | Lets reviewers use the real backend and real passkeys, not only the demo |
+| | Ledger-preserving reset for the live prototype | Repeatable live demos without weakening the "nothing is erased" rule |
+| **Then** | Containment and restoration acceptance | Turns the wired min-cut execution and restoration flows into an end-to-end, verified journey on the live backend |
 | | Live Authority ceremony in the browser | Member addition, removal and credential rotation under the current quorum |
-| | Visual graph explorer | Shows *why* a role reaches a tier-0 asset, not just that it does |
-| **Later** | Cloud and identity-provider connectors | The connector contract already separates targets. Each new target needs sync, execute and read-back. |
+| | Organisation import from a file | Try RATCHET on your own organisation without editing the simulator seed |
+| **Later** | Cloud and identity-provider connectors | The connector contract already separates targets. Each new target needs sync, execute and read-back |
 | | Break-glass, separated Authority, external witnesses | Closes the remaining gaps in the trust model for production use |
 | | Multi-tenant operations, metrics and SIEM export | Operational readiness for real security teams |
 
@@ -657,6 +826,7 @@ flowchart LR
 | [Prototype walkthrough](docs/ishaan/prototype-walkthrough.md) | Four-account demo, step by step |
 | [Prototype runbook](docs/ishaan/prototype-runbook.md) | Build, start, trust TLS, manage credentials |
 | [Prototype acceptance](docs/ishaan/prototype-acceptance.md) | Recorded acceptance results and retained scope |
+| [Hosted demo](https://sakararya43-web.github.io/Ratchet/) · [demo source](web/src/demo/) | The guided demo on fictional mock data, and the code behind it |
 | [PR #2: demo-ready redesign](https://github.com/sakararya43-web/Ratchet/pull/2) | Landing site, console redesign, presenter script and UI design notes |
 | [Security hardening](docs/security_hardening.md) · [Trust limits](docs/trust_limits.md) | Threat model boundaries and container hardening |
 | [Architecture](RATCHET_Architecture.md) · [PRD](PRD.md) · [Idea document](RATCHET_Full_Idea_Document.md) | Full specification |

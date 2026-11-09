@@ -12,6 +12,27 @@
 - Never claim phase completion without its real integration and security evidence.
 - This file is separate from Sakar's root `CHANGELOG.md` to avoid Windows filename collisions.
 
+## Focused prototype demo readiness - 2026-11-09
+
+- Preserved the pre-existing checkout in a source-only local snapshot and parked
+  the completion profile without deleting its roots, ledgers or volumes. Selected
+  the accepted access-review prototype for the bounded demonstration.
+- Added reusable native-WebAuthn presenter sessions, exact localhost certificate
+  pinning, real simulator probes, fast rehearsal, captioned recording and a
+  strictly allowlisted shareable-package builder. Private credentials remain in
+  ignored local files. Virtual authenticators are explicitly identified.
+- Improved the overview, request filtering, execution-state badges and readable
+  server errors. All 20 frontend tests, production build and npm audit passed.
+- The full browser approval/refusal/target-access journey passed. A complete
+  5-minute recording passed with independently checked audit continuity and
+  reviewed revocations restoring the starting access; final candidate checks are
+  tracked in `demo-ready-progress.md`.
+- Resolved the existing governance lint findings with named HTTP constants,
+  lowercase errors and an equivalent URL-scheme condition. No authorization,
+  quorum, passkey or target-verification checks were relaxed.
+- This bounded demo does not close completion A/B/C or the full PRD. Original
+  containment, restoration, automation and offline-proof requirements remain.
+
 ## Project completion A - governance and verified response (in progress)
 
 - Began the newly authorized completion Phase A on main after `8dae676`.
@@ -33,13 +54,31 @@
   Authority events; mutated cached state is refused against immutable history.
 - Added explicit HTTPS enrollment-only serving and authenticated console gateway.
   Bootstrap serving mounts no target execution or policy-decision API. Regular
-  serving requires current signed governance policy and active member proof.
+  serving requires active member proof and the independent Authority's current
+  registry/quorum authorization; mutable target policy cannot grant an Authority
+  vote or deadlock governance during registry/policy transition.
   Authority publishes public artifacts for the existing root-pinned core loader.
 - Dedicated real PostgreSQL/HTTP native governance race acceptance passes,
   including membership/threshold rotation, removed/stale members, immutable pins,
   retry, restart and cached-head tampering. Added its explicit CI gate. Ordinary
   Authority executable/core/API/policy race suites pass. Corrected nil policy-data
   handling exposed by acceptance; no security assertion was weakened.
+
+- Completed the actual native browser governance journey on the preserved,
+  isolated `ratchet-completion-a-v2` profile: genesis, distinct quorum, policies,
+  member removal/addition, old-quorum threshold change, credential rotation and
+  independently verified core adoption through epoch 4 / policy 1.3.0. The run
+  passed in 57.1 seconds with no browser runtime errors. Earlier profile volumes
+  and private recovery keys remain preserved; no root or ledger was reset.
+- Tightened first operator pin against actual active enrollment, refused duplicate
+  public keys as distinct Authority members, fixed the explicit credential label
+  and retained actual built assets. Targeted Go race suites and all 20 frontend
+  tests/build/audit pass. Changes after `2781fd2` remain uncommitted; final full
+  acceptance and hosted CI are pending, and containment/restoration remain open.
+- At the user's request, prepared the self-contained Antigravity continuation
+  prompt in `antigravity-completion-handoff.md`, distinguishing the accepted
+  prototype from new completion A/B/C and documenting local-only work, required
+  remaining implementation, security constraints and actual acceptance gates.
 
 ## Prototype C - browser journey and acceptance (2026-11-08)
 

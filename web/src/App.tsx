@@ -46,6 +46,7 @@ function Console() {
   const [enteringDemo, setEnteringDemo] = useState(() => location.hash.includes('demo=1'));
   const [setup, setSetup] = useState<boolean|null>(null);
   const [governance, setGovernance] = useState(false);
+  const [containment, setContainment] = useState(false);
   const [identity, setIdentity] = useState<Session | null>(null);
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const [tab, setTab] = useState<Tab>('Overview');
@@ -62,7 +63,7 @@ function Console() {
   const [restricted, setRestricted] = useState(false);
   const tenantId = identity?.principal.tenant_id;
   const work = useCallback(async (action: () => Promise<void>) => { setBusy(true); setError(''); setNotice(''); try { await action(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } }, []);
-  useEffect(() => { void request<{mode:string;governance?:boolean}>('/api/setup').then(r=>{const active=r.mode==='AUTHORITY_GENESIS';setSetup(active);setGovernance(active||!!r.governance);if(active)setTab('Passkeys');}).catch(()=>setSetup(false));void (location.hash.includes('demo=1') ? enterDemo() : session()).then(setIdentity).catch(() => { if (location.hash.includes('demo=1')) setError('Automatic demo entry is unavailable. Sign in manually below.'); }).finally(() => setEnteringDemo(false)); }, []);
+  useEffect(() => { void request<{mode:string;governance?:boolean;containment?:boolean}>('/api/setup').then(r=>{const active=r.mode==='AUTHORITY_GENESIS';setSetup(active);setGovernance(active||!!r.governance);setContainment(!!r.containment);if(active)setTab('Passkeys');}).catch(()=>setSetup(false));void (location.hash.includes('demo=1') ? enterDemo() : session()).then(setIdentity).catch(() => { if (location.hash.includes('demo=1')) setError('Automatic demo entry is unavailable. Sign in manually below.'); }).finally(() => setEnteringDemo(false)); }, []);
   // Only the most recent result request may render: a slower tab load must not
   // overwrite a newer, narrower query such as a request-specific audit search.
   const resultTicket = useRef(0);
@@ -108,9 +109,9 @@ function Console() {
     if (target === tab && target === 'Audit') void work(async () => load());
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const context: ConsoleContextValue | null = useMemo(() => identity ? {
-    tenantId: identity.principal.tenant_id, actor: identity.principal.actor_id, scope: bootstrap?.scope ?? 'SELF', organization: bootstrap?.scope === 'ORGANIZATION',
+    tenantId: identity.principal.tenant_id, actor: identity.principal.actor_id, scope: bootstrap?.scope ?? 'SELF', organization: bootstrap?.scope === 'ORGANIZATION', containment,
     bootstrap, changes, busy, focus, go, inspect: setInspecting, work, notify: setNotice, reloadChanges,
-  } : null, [identity, bootstrap, changes, busy, focus, go, work, reloadChanges]);
+  } : null, [identity, bootstrap, changes, busy, focus, go, work, reloadChanges, containment]);
   if (!identity && enteringDemo) return <main className="demo-opening"><Brand/><p role="status">Opening the requester demo…</p></main>;
   if (!identity || !context) return <div className="login-shell"><div className="login-art"><a href="#" aria-label="Ratchet home"><Brand/></a><div><p className="eyebrow">THE SECURITY CONTROL PLANE</p><h1>Access with<br/><span className="serif-word">intention.</span></h1><Mechanism/><p>Independent review.<br/>Verifiable change.</p></div><span className="login-edition">RATCHET / LOCAL PROTOTYPE</span></div><main className="login"><a href="#" className="back-link"><ArrowLeft size={16}/> Back to Ratchet</a><div className="login-form"><span className="login-icon"><Fingerprint size={28}/></span><p className="eyebrow">AUTHORIZED PERSONNEL</p><h2>Welcome to<br/>the control plane.</h2><p>Sign in with your operator-issued account.</p><form onSubmit={e => form(e, async v => { setIdentity(await login(v.Tenant, v.Actor, v.Password)); })}><Fields names={['Tenant', 'Actor']} /><label>Password<input name="Password" type="password" autoComplete="current-password" required /></label><button className="button-primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}<ArrowRight size={18}/></button></form>{error && <p role="alert">{error}</p>}<p className="login-note"><ShieldCheck size={16}/> Approval actions require a separately enrolled passkey.</p></div><span className="login-edition">IDENTITY FIRST. AUTHORITY VERIFIED.</span></main></div>;
   const authority = !restricted && governance && tenantId ? <AuthorityPanel tenant={tenantId} actor={identity.principal.actor_id}/> : null;

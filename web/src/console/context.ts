@@ -12,6 +12,8 @@ export type ConsoleContextValue = {
   actor: string;
   scope: string;
   organization: boolean;
+  // Containment planning and restoration are served only when the operator configured revocation costs.
+  containment: boolean;
   bootstrap: Bootstrap | null;
   changes: Change[];
   busy: boolean;

@@ -147,7 +147,14 @@ test('real local prototype: independent browser approval, verified target access
     await lead1.getByRole('navigation').getByRole('button', { name: 'Audit', exact: true }).click();
     await expect(lead1.getByRole('button', { name: 'Find request audit' })).toBeEnabled();
     await lead1.getByLabel('Request', { exact: true }).fill(sensitive);
+    const auditQueries: string[] = [];
+    lead1.on('request', r => { if (r.url().endsWith('AuditService/QueryAuditEvents')) auditQueries.push(r.postData() ?? ''); });
     await lead1.getByRole('button', { name: 'Find request audit' }).click();
+    await lead1.waitForTimeout(3000);
+    console.log('DIAG sensitive', sensitive, 'ordinary', ordinary);
+    console.log('DIAG queries', JSON.stringify(auditQueries));
+    console.log('DIAG rows', JSON.stringify(await lead1.locator('tbody tr').evaluateAll(rows => rows.map(r => [...r.querySelectorAll('td')].slice(0, 3).map(c => c.textContent)))));
+    console.log('DIAG api', JSON.stringify(audit.body.events.map((e: { eventType: string; streamId: string }) => [e.eventType, e.streamId])));
     await expect(lead1.getByRole('cell', { name: 'ChangeExecuted', exact: true })).toHaveCount(1);
     await expect(lead1.getByRole('cell', { name: 'ChangeExecuted', exact: true })).toBeVisible();
     await lead1.screenshot({ path: resolve(local, 'audit-acceptance.png'), fullPage: true });

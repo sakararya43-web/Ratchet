@@ -6,15 +6,38 @@ export interface Bootstrap { principal: Principal; graph_version: number; scope:
 export interface Change { requestId: string; tenantId: string; requestedBy?: string; canonicalApprovalEnvelopeJson?: string; graphVersion?: string; requiredApproverGroups?: string[]; kind: string; targetIdentity: string; requestedAccess: string; status: string; revision: string; changeDigest: string; requiredQuorum?: number; decisionReasons?: string[]; justification?: string }
 export type Document = Record<string, unknown>;
 let csrf = '';
+export class ApiError extends Error {
+  readonly status: number;
+  readonly detail: string;
+  constructor(status: number, detail: string) {
+    super(`${status}: ${detail}`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.detail = detail;
+  }
+}
 export async function request<T>(path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   if (!path.startsWith('/api/')) throw new Error('Same-origin core API required');
   const response = await fetch(path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: { ...headers, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const text = await response.text();
-  if (!response.ok) throw new Error(`${response.status}: ${text.slice(0, 1000)}`);
+  if (!response.ok) {
+    let detail = text.slice(0, 1000);
+    try { const body = JSON.parse(text) as { message?: string; error?: string }; detail = body.message || body.error || detail; } catch { /* Preserve non-JSON server errors. */ }
+    throw new ApiError(response.status, detail);
+  }
   return text ? JSON.parse(text) as T : undefined as T;
 }
 export async function session(): Promise<Session> { const s = await request<Session>('/api/auth/session'); csrf = s.csrf_token; return s; }
 export async function login(tenant: string, actor: string, password: string): Promise<Session> { const s = await request<Session>('/api/auth/login', { tenant_id: tenant, actor_id: actor, password }); csrf = s.csrf_token; return s; }
+let demoEntry: Promise<Session> | undefined;
+export function enterDemo(): Promise<Session> {
+  demoEntry ??= session().catch(async () => {
+    const s = await request<Session>('/api/auth/demo', {});
+    csrf = s.csrf_token;
+    return s;
+  }).finally(() => { demoEntry = undefined; });
+  return demoEntry;
+}
 export function rpc<T>(service: string, method: string, body: unknown): Promise<T> { return request<T>(`/api/ratchet.v1.${service}/${method}`, body); }
 export function mutation(revision = '0') { return { idempotencyKey: crypto.randomUUID(), correlationId: crypto.randomUUID(), expectedRevision: revision }; }
 export function decode(raw: string): Uint8Array<ArrayBuffer> { return Uint8Array.from(atob(raw.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)); }
@@ -38,14 +61,23 @@ export async function approve(change: Change, tenantId: string): Promise<unknown
   await verifyEnvelope(fresh, tenantId);
   const me = await session();
   if (me.principal.tenant_id !== tenantId) throw new Error('Authenticated tenant changed');
-  const begin = await request<Options>('/api/passkeys/assert/begin', { change_digest: fresh.changeDigest });
-  await verifyChallenge(tenantId, me.principal.actor_id, fresh.changeDigest, begin.challenge_nonce ?? '', begin.options.publicKey.challenge as string);
+  const submission = await assertDigest(fresh.changeDigest, tenantId, me.principal.actor_id);
+  return rpc('ChangeService', 'ApproveChange', { tenantId, requestId: change.requestId, assertionResponseJson: JSON.stringify(submission), approvedEnvelopeDigest: change.changeDigest, mutation: mutation(change.revision) });
+}
+export async function assertDigest(digest: string, tenantId: string, actorId: string, credentialId?: string): Promise<unknown> {
+  const me = await session();
+  if (me.principal.tenant_id !== tenantId || me.principal.actor_id !== actorId) throw new Error('Authenticated operation actor changed');
+  const begin = await request<Options>('/api/passkeys/assert/begin', { change_digest: digest });
+  await verifyChallenge(tenantId, actorId, digest, begin.challenge_nonce ?? '', begin.options.publicKey.challenge as string);
   const o = begin.options.publicKey;
-  const credential = await navigator.credentials.get({ publicKey: { ...o, challenge: decode(o.challenge as string), allowCredentials: descriptors(o.allowCredentials) } as PublicKeyCredentialRequestOptions }) as PublicKeyCredential | null;
+  let allowed = descriptors(o.allowCredentials);
+  if (credentialId) allowed = allowed?.filter(c => hex(c.id as ArrayBuffer) === hex(decode(credentialId).buffer));
+  if (credentialId && !allowed?.length) throw new Error('Required enrolled operation credential unavailable');
+  const credential = await navigator.credentials.get({ publicKey: { ...o, challenge: decode(o.challenge as string), allowCredentials: allowed } as PublicKeyCredentialRequestOptions }) as PublicKeyCredential | null;
   if (!credential) throw new Error('Approval cancelled');
   const response = credential.response as AuthenticatorAssertionResponse;
   const verified = await request<{ submission: unknown }>('/api/passkeys/assert/finish', { session_id: begin.session_id, credential_id: hex(credential.rawId), client_data_json: encode(response.clientDataJSON), authenticator_data: encode(response.authenticatorData), signature: encode(response.signature) });
-  return rpc('ChangeService', 'ApproveChange', { tenantId, requestId: change.requestId, assertionResponseJson: JSON.stringify(verified.submission), approvedEnvelopeDigest: change.changeDigest, mutation: mutation(change.revision) });
+  return verified.submission;
 }
 
 export function revokePasskey(credential: string, ticket: string): Promise<unknown> {

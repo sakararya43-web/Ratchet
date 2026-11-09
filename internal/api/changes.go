@@ -127,6 +127,11 @@ func (a *ChangeAPI) request(ctx context.Context, c domain.Change) (*v1.ChangeReq
 	if err != nil {
 		return nil, err
 	}
+	return a.view(ctx, p, c, detail)
+}
+
+// view builds the response for a change whose visibility was already decided.
+func (a *ChangeAPI) view(ctx context.Context, p workflow.Actor, c domain.Change, detail bool) (*v1.ChangeRequest, error) {
 	text, err := a.service.PrivateContext(ctx, c)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
@@ -314,8 +319,10 @@ func (a *ChangeAPI) ListChanges(ctx context.Context, r *connect.Request[v1.ListC
 	if page.More {
 		response.NextPageToken = a.cursor(changeCursor{Tenant: p.TenantID, Filter: cursor.Filter, After: page.After, Position: page.End, Temporary: cursor.Temporary})
 	}
-	for _, c := range page.Changes {
-		view, err := a.request(ctx, c)
+	for i, c := range page.Changes {
+		// Reuse the window's own visibility decision: re-deciding per change reloaded the
+		// whole graph context for every row and could disagree with the window snapshot.
+		view, err := a.view(ctx, p, c, page.Details[i])
 		if err != nil {
 			return nil, changeError(err)
 		}

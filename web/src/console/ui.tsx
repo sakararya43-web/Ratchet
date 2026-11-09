@@ -17,11 +17,11 @@ export function ago(iso?: string): string {
   if (!iso) return '—';
   const at = Date.parse(iso);
   if (Number.isNaN(at) || at < 0) return '—';
-  const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
+  const delta = Math.round((Date.now() - at) / 1000);
+  // Expiry times lie in the future; say so instead of clamping them to "0s ago".
+  const seconds = Math.abs(delta);
+  const span = seconds < 60 ? `${seconds}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m` : seconds < 86400 ? `${Math.floor(seconds / 3600)}h` : `${Math.floor(seconds / 86400)}d`;
+  return delta < -5 ? `in ${span}` : `${span} ago`;
 }
 export function When({ iso }: { iso?: string }) {
   return <time dateTime={iso} title={iso}>{ago(iso)}</time>;

@@ -29,6 +29,12 @@ export interface Change {
 }
 export type Document = Record<string, unknown>;
 let csrf = '';
+// Demo mode swaps the network and the authenticator for in-browser stand-ins; live mode uses neither.
+type Transport = (path: string, body?: unknown) => Promise<unknown>;
+type Authenticator = { get(o: CredentialRequestOptions): Promise<Credential | null>; create(o: CredentialCreationOptions): Promise<Credential | null> };
+let transport: Transport | null = null;
+let authenticator: Authenticator = { get: o => navigator.credentials.get(o), create: o => navigator.credentials.create(o) };
+export function installBackend(t: Transport, a: Authenticator): void { transport = t; authenticator = a; }
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string;
@@ -41,6 +47,7 @@ export class ApiError extends Error {
 }
 export async function request<T>(path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   if (!path.startsWith('/api/')) throw new Error('Same-origin core API required');
+  if (transport) return await transport(path, body) as T;
   const response = await fetch(path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', headers: { ...headers, 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const text = await response.text();
   if (!response.ok) {
@@ -73,7 +80,7 @@ export async function registerPasskey(label: string, ticket: string): Promise<vo
   const begin = await request<Options>('/api/passkeys/register/begin', {}, { 'X-Ratchet-Credential-Authorization': ticket });
   const o = begin.options.publicKey as unknown as Omit<PublicKeyCredentialCreationOptions, 'challenge' | 'user' | 'excludeCredentials'> & { challenge: string; user: { id: string; name: string; displayName: string }; excludeCredentials?: { id: string; type: 'public-key' }[] };
   const user = o.user as { id: string; name: string; displayName: string };
-  const credential = await navigator.credentials.create({ publicKey: { ...o, challenge: decode(o.challenge as string), user: { ...user, id: decode(user.id) }, excludeCredentials: descriptors(o.excludeCredentials) } as PublicKeyCredentialCreationOptions }) as PublicKeyCredential | null;
+  const credential = await authenticator.create({ publicKey: { ...o, challenge: decode(o.challenge as string), user: { ...user, id: decode(user.id) }, excludeCredentials: descriptors(o.excludeCredentials) } as PublicKeyCredentialCreationOptions }) as PublicKeyCredential | null;
   if (!credential) throw new Error('Registration cancelled');
   const response = credential.response as AuthenticatorAttestationResponse;
   await request(`/api/passkeys/register/finish?session_id=${encodeURIComponent(begin.session_id)}&label=${encodeURIComponent(label)}`, { id: credential.id, rawId: urlEncode(credential.rawId), type: credential.type, authenticatorAttachment: credential.authenticatorAttachment, clientExtensionResults: credential.getClientExtensionResults(), response: { attestationObject: urlEncode(response.attestationObject), clientDataJSON: urlEncode(response.clientDataJSON), transports: response.getTransports() } });
@@ -96,7 +103,7 @@ export async function assertDigest(digest: string, tenantId: string, actorId: st
   let allowed = descriptors(o.allowCredentials);
   if (credentialId) allowed = allowed?.filter(c => hex(c.id as ArrayBuffer) === hex(decode(credentialId).buffer));
   if (credentialId && !allowed?.length) throw new Error('Required enrolled operation credential unavailable');
-  const credential = await navigator.credentials.get({ publicKey: { ...o, challenge: decode(o.challenge as string), allowCredentials: allowed } as PublicKeyCredentialRequestOptions }) as PublicKeyCredential | null;
+  const credential = await authenticator.get({ publicKey: { ...o, challenge: decode(o.challenge as string), allowCredentials: allowed } as PublicKeyCredentialRequestOptions }) as PublicKeyCredential | null;
   if (!credential) throw new Error('Approval cancelled');
   const response = credential.response as AuthenticatorAssertionResponse;
   const verified = await request<{ submission: unknown }>('/api/passkeys/assert/finish', { session_id: begin.session_id, credential_id: hex(credential.rawId), client_data_json: encode(response.clientDataJSON), authenticator_data: encode(response.authenticatorData), signature: encode(response.signature) });
@@ -108,7 +115,7 @@ export async function executeContainment(plan: { planId: string; planDigest: str
   if (me.principal.tenant_id !== tenantId) throw new Error('Authenticated tenant changed');
   const begin = await request<Options>('/api/passkeys/assert/begin', { containment_plan_digest: plan.planDigest });
   const o = begin.options.publicKey;
-  const credential = await navigator.credentials.get({ publicKey: { ...o, challenge: decode(o.challenge as string), allowCredentials: descriptors(o.allowCredentials) } as PublicKeyCredentialRequestOptions }) as PublicKeyCredential | null;
+  const credential = await authenticator.get({ publicKey: { ...o, challenge: decode(o.challenge as string), allowCredentials: descriptors(o.allowCredentials) } as PublicKeyCredentialRequestOptions }) as PublicKeyCredential | null;
   if (!credential) throw new Error('Containment execution cancelled');
   const response = credential.response as AuthenticatorAssertionResponse;
   const verified = await request<{ submission: unknown }>('/api/passkeys/assert/finish', { session_id: begin.session_id, credential_id: hex(credential.rawId), client_data_json: encode(response.clientDataJSON), authenticator_data: encode(response.authenticatorData), signature: encode(response.signature) });

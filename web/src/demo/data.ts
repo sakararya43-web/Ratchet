@@ -2,15 +2,7 @@
 // Kept deliberately small: enough to show each feature, nothing more.
 import changeRego from '../../../policies/change.rego?raw';
 
-export const TENANT = 'tenant-northwind-demo';
-
-export type Persona = { id: string; name: string; role: string; summary: string; scope: 'SELF' | 'ORGANIZATION' };
-export const personas: Persona[] = [
-  { id: 'user:rahul', name: 'Rahul Sharma', role: 'Finance analyst · requester', summary: 'Submits access requests. Cannot approve his own escalation.', scope: 'SELF' },
-  { id: 'user:priya', name: 'Priya Patel', role: 'Finance lead · resource owner', summary: 'Approves access to the finance resources she owns.', scope: 'SELF' },
-  { id: 'user:alice', name: 'Alice Vance', role: 'Security lead 1 · responder', summary: 'Reviews tier-0 changes, investigates incidents and runs containment.', scope: 'ORGANIZATION' },
-  { id: 'user:bob', name: 'Bob Chen', role: 'Security lead 2', summary: 'The second independent approval for any tier-0 change.', scope: 'ORGANIZATION' },
-];
+export { TENANT, personas, type Persona } from './personas';
 
 export type DemoNode = { id: string; type: string; name: string; tier?: number; properties?: Record<string, string> };
 export type DemoEdge = { source: string; target: string; kind: string; action?: string };

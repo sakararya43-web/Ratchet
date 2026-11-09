@@ -242,3 +242,25 @@
 .demo-passkey p { color:var(--muted); line-height:1.55; }
 .demo-passkey .eyebrow { color:var(--accent); font:11px/1.4 Consolas,monospace; letter-spacing:.12em; }
 .demo-passkey-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+
+/* Demo mode: label, persona switcher and persona sign-in */
+.demo-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 9px; border:1px solid #e6b9a6; background:#f8e6dc; color:#9a3d1f; font:10px/1.4 Consolas,monospace; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.demo-bar { display:flex; align-items:center; gap:10px; margin-left:auto; font-size:11px; color:var(--muted); min-width:0; }
+.demo-bar label { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+.demo-bar select { padding:6px 8px; font-size:11px; background:transparent; border:1px solid var(--line); color:var(--ink); max-width:230px; }
+.demo-bar button { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; font-size:11px; white-space:nowrap; }
+.demo-personas { margin-top:26px; }
+.demo-personas>p:not(.demo-badge) { font-size:12px; line-height:1.7; color:var(--muted); margin:14px 0 18px; }
+.demo-personas ul { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+.demo-personas li button { width:100%; display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:12px; padding:14px; text-align:left; background:transparent; border:1px solid #bfc2b5; }
+.demo-personas li button:hover:not(:disabled) { border-color:var(--ink); background:#ecebe1; }
+.demo-personas strong { display:block; font-size:14px; font-weight:500; }
+.demo-personas small { display:block; font-size:11px; color:var(--muted); margin-top:3px; line-height:1.45; }
+.demo-scope { font:9px/1.4 Consolas,monospace; text-transform:uppercase; letter-spacing:.06em; padding:3px 6px; border:1px solid var(--line); color:var(--muted); }
+.demo-scope[data-scope="ORGANIZATION"] { border-color:#c3cfaf; background:#e5ebd9; color:#545e43; }
+@media(max-width:1250px){ .demo-bar label>span { display:none; } .demo-bar select { max-width:170px; } }
+@media(max-width:760px){
+  .console-topbar:has(.demo-bar) { height:auto; flex-wrap:wrap; padding-top:10px; padding-bottom:10px; row-gap:8px; }
+  .demo-bar { order:3; width:100%; margin-left:0; flex-wrap:wrap; }
+  .demo-bar select { max-width:170px; }
+}

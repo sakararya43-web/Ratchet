@@ -1,6 +1,6 @@
 // Demo stand-in for the browser's passkey prompt. It never touches a real authenticator:
 // it asks the viewer to confirm, then returns a credential-shaped object for the demo backend.
-import { personas } from './data';
+import { personas } from './personas';
 import { demoPersona } from './backend';
 
 type Purpose = 'sign' | 'register';

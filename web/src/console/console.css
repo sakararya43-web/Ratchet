@@ -233,3 +233,4 @@
 .console-main .row-action{white-space:nowrap}
 .workspace-split.has-inspector .data-table col{width:auto!important}
 .console-main .small-count{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.plain-list li>svg{display:inline-block;vertical-align:-2px;margin-right:6px}

@@ -1,451 +1,587 @@
+<div align="center">
+
 # RATCHET
 
-### Independent Security Control Plane for Preventing Privilege Escalation & Minimal-Disruption Containment
+### An independent security control plane that reviews what an access change *makes possible* before it happens.
 
-[![DataNova 2026](https://img.shields.io/badge/DataNova_2026-Devpost_Submission-0052CC?style=for-the-badge&logo=devpost&logoColor=white)](https://datanova-2026-global-data-thon.devpost.com/)
-[![Go Version](https://img.shields.io/badge/Go-1.24-00ADD8?style=flat-square&logo=go)](https://go.dev/)
-[![React Version](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![ConnectRPC](https://img.shields.io/badge/ConnectRPC-v1.6-2B4C7E?style=flat-square)](https://connectrpc.com/)
-[![WebAuthn](https://img.shields.io/badge/WebAuthn-W3C%20Level%203-4285F4?style=flat-square&logo=fido)](https://www.w3.org/TR/webauthn-3/)
-[![RFC 8785](https://img.shields.io/badge/RFC%208785-Canonical%20JSON-388E3C?style=flat-square)](https://www.rfc-editor.org/rfc/rfc8785)
-[![Zero Cost](https://img.shields.io/badge/Infrastructure-Zero%20Paid%20Dependencies-black?style=flat-square)](#tech-stack)
-[![Vulnerabilities](https://img.shields.io/badge/CVEs-0%20Known-success?style=flat-square)](#test-and-quality)
+*Getting inside an organisation should not mean gaining control of the organisation.*
+
+[![CI](https://github.com/sakararya43-web/Ratchet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sakararya43-web/Ratchet/actions/workflows/ci.yml?query=branch%3Amain)
+[![Core phase checks](https://github.com/sakararya43-web/Ratchet/actions/workflows/core.yml/badge.svg?branch=main)](https://github.com/sakararya43-web/Ratchet/actions/workflows/core.yml?query=branch%3Amain)
+[![Go](https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white)](go.mod)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](web/package.json)
+[![WebAuthn](https://img.shields.io/badge/WebAuthn-passkeys-4285F4?logo=fidoalliance&logoColor=white)](https://www.w3.org/TR/webauthn-3/)
+[![DataNova 2026](https://img.shields.io/badge/DataNova_2026-Devpost-003E54?logo=devpost&logoColor=white)](https://datanova-2026-global-data-thon.devpost.com/)
+
+<img src="docs/images/landing-hero.png" alt="RATCHET landing page: Power needs a boundary" width="900">
+
+<sub>Landing page from the redesign in review in <a href="https://github.com/sakararya43-web/Ratchet/pull/2">#2</a>.</sub>
+
+</div>
 
 ---
 
-> ### *"Getting inside an organisation should not mean gaining control of the organisation."*
+## Contents
+
+- [Why RATCHET](#why-ratchet)
+- [What the prototype demonstrates](#what-the-prototype-demonstrates)
+- [Screenshots](#screenshots)
+- [How it works](#how-it-works)
+- [Architecture](#architecture)
+- [Security invariants](#security-invariants)
+- [Quick start](#quick-start)
+- [Demo walkthrough](#demo-walkthrough)
+- [Testing and quality](#testing-and-quality)
+- [Repository layout](#repository-layout)
+- [Tech stack](#tech-stack)
+- [Known limits](#known-limits)
+- [Roadmap](#roadmap)
+- [Team](#team)
+- [Further documentation](#further-documentation)
 
 ---
 
-## At a Glance
+## Why RATCHET
 
-| Pillar | Metric / Specification | Impact |
-|---|---|---|
-| **Core Paradigm** | **Consequence-Driven Authorization** | Evaluates what an access change *makes possible* across the entire authorization graph, rather than merely who requested it. |
-| **Surgical Containment** | **~1 ms Revocation Latency** (< 5s SLA) | Solves a graph min-cut problem to instantly sever compromise routes to Tier-0 assets while preserving **>87.5%** of unaffected business operations. |
-| **Governance Quorum** | **$M$-of-$N$ ECDSA Hardware Passkeys** | Security policies and approver registries cannot be altered by rogue admins or single stolen sessions; requires cryptographic W3C WebAuthn quorum. |
-| **Tamper Evidence** | **100% Offline Verifiable Hash Chains** | $H_i = \text{SHA256}(H_{i-1} \parallel \text{canonicalJSON}(E_i))$ backed by signed Merkle checkpoints verifiable via the standalone `ratchetctl` CLI. |
-| **Edge Enforcement** | **Stateful Exchange & Kubernetes RBAC** | Real-time outbound connector framework with continuous drift watch, plus a fail-closed Kubernetes admission webhook detecting 5 escalation primitives. |
-| **Engineering Rigor** | **Zero Scaffolding · 100% Test Pass** | All 15 Go packages pass without cache; 15/15 RFC 8785 golden vectors pass in Go & TypeScript; 0 compiler warnings; 0 dependencies on paid services. |
+Organisations invest heavily in the front door: SSO, MFA, hardware keys and zero-trust networking. Breaches still happen through **valid** sessions: a stolen token, a compromised developer laptop, an over-privileged CI account or a manipulated insider. Once inside, the damage comes from what happens next:
+
+1. **Quiet privilege expansion.** The attacker requests or grants a role that looks harmless.
+2. **Safeguard erosion.** The rules that would catch them, such as withdrawal limits, two-person rules and audit logging, are weakened.
+3. **Reaching the crown jewels.** A chain of ordinary-looking permissions leads to a tier-0 asset such as a wallet signer or customer database.
+
+Traditional IAM and PAM ask *"is this person allowed to request this role?"* If the attacker controls an authorised account, the answer is always yes.
+
+RATCHET asks a different question: **"what would this change make reachable, who must independently approve that, and did the target actually end up in that state?"**
 
 ```mermaid
 flowchart LR
-    A["Intruder Breaches Perimeter<br/>(Stolen Session / Dev Device)"] --> B["Requests Privilege Mutation"]
-    B --> C{"RATCHET Evaluation"}
-    C -->|"Exposes Tier-0 Crown Jewel"| D["🚫 Refused under Invariant R1"]
-    C -->|"Weakens Safeguard Rule"| E["🔐 M-of-N Security Quorum Required"]
-    C -->|"Rogue Out-of-Band Edit"| F["👁️ Drift Watch Engine Auto-Reverts"]
-    C -->|"Active Intrusion Detected"| G["⚡ Priority Min-Cut Revocation (~1ms)"]
-    G --> H["✅ Legitimate Business Unbroken (>87.5%)"]
-
-    style A fill:#2d1b1b,stroke:#ef4444,color:#fff
-    style B fill:#1e293b,stroke:#eab308,color:#fff
-    style C fill:#0f172a,stroke:#3b82f6,color:#fff
-    style D fill:#450a0a,stroke:#dc2626,color:#fff
-    style E fill:#1e1b4b,stroke:#6366f1,color:#fff
-    style F fill:#312e81,stroke:#818cf8,color:#fff
-    style G fill:#064e3b,stroke:#059669,color:#fff
-    style H fill:#022c22,stroke:#10b981,color:#fff
-```
-
----
-
-## The Problem
-
-### The Perimeter Fallacy
-Modern enterprise security teams spend millions hardening the initial entry point: Single Sign-On (SSO), Multi-Factor Authentication (MFA), Hardware FIDO keys, and Zero Trust Network Access (ZTNA). Despite this investment, catastrophic breaches remain routine:
-* **Session Hijacking**: Stolen session tokens bypass MFA entirely.
-* **Compromised Developer Workstations**: Malware on a developer's laptop inherits valid credentials.
-* **Misused Service Accounts**: Long-lived CI/CD and automation tokens are granted broad wildcards.
-* **Malicious Insiders & Social Engineering**: Attackers manipulate authorized operators into making administrative changes.
-
-### The Real Danger: What Happens *After* Entry
-An initial breach is rarely fatal on its own. An employee who can read finance reports does not destroy a company. The catastrophic failure occurs during the **Privilege Escalation** and **Lateral Movement** phases:
-1. **Silent Privilege Expansion**: The attacker uses the initial session to request or self-grant an administrative role.
-2. **Safeguard Destruction**: The attacker weakens the security rules designed to detect them (disabling audit logging, removing 2-person rule requirements, or modifying withdrawal thresholds).
-3. **Crown Jewel Reaching**: The attacker moves laterally from non-critical systems to Tier-0 crown jewels (cryptocurrency wallet signers, customer databases, master cryptographic keys).
-
-### The Inherent Flaw of Existing IAM & PAM
-Traditional Identity and Access Management (IAM) and Privileged Access Management (PAM) systems evaluate access requests by asking:
-> *"Does the requester have the required role or group to submit this request?"*
-
-This question is fundamentally broken. If an attacker controls an authorized account, the answer is always **"Yes"**. 
-
-Traditional systems cannot see the **topological consequence** of the grant. They do not know whether granting a seemingly minor role creates a hidden transitive path to an offline cold wallet, nor do they prevent an approver from approving an escalation for someone they control.
-
-```mermaid
-flowchart TD
-    subgraph Traditional["Traditional IAM & PAM: Reactive & Blind to Consequence"]
-        T1["Valid Identity Session"] --> T2{"User allowed to request role?"}
-        T2 -->|"Yes (Role matches policy)"| T3["Granted"]
-        T3 --> T4["Attacker silently reaches Tier-0 Wallet Signer"]
+    subgraph Traditional["Traditional IAM"]
+        direction TB
+        T1["Valid session"] --> T2{"Role allowed?"}
+        T2 -->|yes| T3["Granted"]
+        T3 --> T4["Hidden path to tier-0 asset"]
     end
-
-    subgraph RATCHET_Approach["RATCHET: Proactive Consequence Analysis"]
-        R1["Valid Identity Session"] --> R2["Topological Graph Reach Analysis"]
-        R2 --> R3{"What does this change make reachable?"}
-        R3 -->|"Exposes Tier-0 or weakens safeguard"| R4["Invariant R1 Violation:<br/>Self-Escalation & Control Set Blocked"]
-        R3 -->|"Requires Independent Governance"| R5["Hardware WebAuthn Quorum Ceremony"]
+    subgraph Ratchet["RATCHET"]
+        direction TB
+        R1["Valid session"] --> R2["Graph reach analysis"]
+        R2 --> R3{"What becomes reachable?"}
+        R3 -->|"nothing sensitive"| R4["Owner approval"]
+        R3 -->|"tier-0 path"| R5["Two independent security leads"]
+        R3 -->|"self or controlled approver"| R6["Refused"]
+        R4 --> R7["Signed execution + independent read-back"]
+        R5 --> R7
     end
-
     style Traditional fill:#2a1a1a,stroke:#ef4444,color:#fff
-    style RATCHET_Approach fill:#16241b,stroke:#22c55e,color:#fff
+    style Ratchet fill:#16241b,stroke:#22c55e,color:#fff
 ```
 
----
+Two principles shape the design:
 
-## Why RATCHET?
-
-RATCHET introduces **Consequence-Driven Authorization**: an independent security control plane that evaluates the state of the world that would exist *after* a proposed change, **before** the target infrastructure applies it.
-
-### 1. Consequence-Driven, Not Identity-Driven
-RATCHET replaces blind role checks with 4 plain-language mathematical evaluations:
-1. **Who is requesting?** Authenticated actor with cryptographic proof of identity.
-2. **What new power will this change create?** Transitive reach calculation across the entire authorization graph (`Reach(identity)`), uncovering hidden routes to critical resources.
-3. **What could this change put at risk?** Identifying weakened safeguards, newly controllable identities (`ControlSet(identity)`), and blast-radius expansion.
-4. **Is this change governed?** Hardware-bound WebAuthn passkey assertions collected under $M$-of-$N$ threshold governance.
-
-### 2. The Asymmetric Access Law
-> **Taking access away must be faster, easier, and safer than granting access.**
-
-During an incident, traditional access management requires cumbersome bureaucratic approvals to revoke access, or responders panic and execute a full network shutdown that paralyzes the business. 
-* In RATCHET, **reductions** (terminating sessions, revoking roles, isolating accounts) bypass standard request backlogs and execute via a **dedicated priority worker pipeline** with read-back verification.
-* By contrast, **escalations** (gaining new roles, altering safeguards) are subjected to heavy cryptographic friction and multi-signer quorums.
-
-### 3. The 9 Immutable Invariants
-RATCHET enforces 9 mathematical and architectural rules that cannot be bypassed by software updates or administrator override:
-
-| Invariant | Title | Rule & Operational Defense |
-|---|---|---|
-| **R1** | **No Self-Escalation** | A principal can **never** approve an expansion of its own reach, nor the reach of any identity within its transitive **Control Set** (`ControlSet(identity)`). |
-| **R2** | **Reductions are Computed, Not Claimed** | A mutation is classified as a *reduction* if and only if graph analysis proves no identity gains reach and no safeguard is weakened. Removing a deny-rule is strictly an escalation. |
-| **R3** | **Approve Exactly What You Saw** | Every approval is cryptographically bound to the canonical digest of the exact change envelope and graph state via domain-separated randomized challenges (`RATCHET_APPROVAL_V1:`). Stale context forces re-assessment. |
-| **R4** | **Rules are Independently Governed** | Policies, approver registries, and quorum thresholds change **only** through $M$-of-$N$ cryptographic signatures under the **Current-Quorum Rule** (epoch $k$ transitions require epoch $k$ signatures, not the proposed weaker epoch $k+1$). |
-| **R5** | **Nothing is Erased** | Every decision, observation, and state change is appended to a cryptographic hash chain: $H_i = \text{SHA256}(H_{i-1} \parallel \text{canonicalJSON}(E_i))$. |
-| **R6** | **Fail-Closed for Escalations, Stay Open for Reductions** | If the control plane is degraded or partitioned, target adapters refuse all privilege increases, while containment revocations remain executable. |
-| **R7** | **Explainable & Replayable Decisions** | Decisions are derived from pure Rego policy and deterministic graph reach. No black-box machine learning models or unexplainable risk scores. |
-| **R8** | **Minimum-Disruption Containment** | Containment algorithms solve a graph min-cut problem to isolate Tier-0 crown jewels while preserving $>87.5\%$ of non-critical operational identity access. |
-| **R9** | **Proportionality & Privacy** | Data collection is strictly scoped to access decisions; server-redacted requester views prevent privileged audit leaks across organizational boundaries. |
+- **Consequence over identity.** Decisions come from the authorisation graph *after* the proposed change, not from the requester's title.
+- **Asymmetric access.** Granting power is slow and governed, while taking power away should be fast and safe. RATCHET classifies a change as a *reduction* only when graph analysis proves it. A change is never treated as a reduction just because the requester says so.
 
 ---
 
-## How It Works
+## What the prototype demonstrates
 
-RATCHET protects high-assurance infrastructure through a six-stage lifecycle:
+RATCHET is a hackathon prototype built to production-grade engineering standards. To keep what you can see working separate from what's still in progress, every capability is labelled:
+
+| Capability | Status | Where to see it |
+|---|:---:|---|
+| Consequence assessment: newly reachable resources, tier-0 paths, changed powers, weakened safeguards | ✅ **Live demo** | Console › Changes and Impact |
+| Independent approval with passkeys (WebAuthn). The browser verifies the exact canonical envelope before signing. | ✅ **Live demo** | Console › Changes › *Review exact change* |
+| Self-approval, duplicate approval and insufficient quorum refused (owner quorum 1, tier-0 quorum 2) | ✅ **Live demo** | Walkthrough steps 3–8 |
+| Signed commands to the target plus independent read-back before `EXECUTED` | ✅ **Live demo** | Real HTTP probes change between 403 and 200 |
+| Tamper-evident, hash-linked audit ledger | ✅ **Live demo** | Console › Audit |
+| Reviewed revocation that restores the starting access | ✅ **Live demo** | Walkthrough final step |
+| Restricted, server-redacted views for requesters and owners | ✅ **Live demo** | Requester cannot list the organisation graph |
+| Minimum-disruption containment planning (weighted min-cut over the graph) | 🧪 **Implemented and tested** | `internal/graph/containment.go`, `e2e/scenarios/contain_rahul` |
+| Kubernetes RBAC adapter and fail-closed admission webhook | 🧪 **Implemented and tested** | `internal/connector/k8s`, `cmd/ratchet-k8s-webhook` |
+| Temporary-access expiry and drift-watch correction | 🧪 **Implemented and tested** | `internal/connector`, `internal/workflow` |
+| Offline audit-chain and proof-bundle verification | 🧪 **Implemented and tested** | `ratchetctl audit verify` |
+| Independent Authority: M-of-N governed policy and approver registry, separate database, governance UI | 🚧 **In progress** | `completion-a` profile, `internal/authority`, Console › Security policy |
+| Containment execution: four priority actions, exact-plan authorisation, incident lifecycle | 🚧 **In progress** | `internal/workflow/containment.go`, Console › Incidents |
+| Typed restoration flows with fresh independent review | 🚧 **In progress** | `internal/workflow/execution.go` |
+
+> ✅ Exercised end to end in the browser prototype against a stateful exchange simulator. 🧪 Implemented with automated tests, but not yet part of the live demo. 🚧 Wired on `main`; end-to-end acceptance still open.
+
+---
+
+## Screenshots
+
+> The landing site and restyled console below come from the demo-ready redesign in review in [#2](https://github.com/sakararya43-web/Ratchet/pull/2). The recorded walkthrough shows the console currently on `main`.
+
+### Public site
+
+| Landing page | The protocol |
+|:---:|:---:|
+| <img src="docs/images/landing-hero.png" alt="Landing page hero" width="440"> | <img src="docs/images/landing-protocol.png" alt="Landing page protocol section" width="440"> |
+
+### Operator console
+
+| Overview, organisation-wide view of a security lead | Infrastructure: observed authorisation graph |
+|:---:|:---:|
+| <img src="docs/images/console-overview.png" alt="Console overview with graph statistics" width="440"> | <img src="docs/images/console-infrastructure.png" alt="Infrastructure graph nodes with criticality tiers" width="440"> |
+| **Audit: one wallet grant from request to verified execution** | **Sign-in** |
+| <img src="docs/images/console-audit-trail.png" alt="Hash-linked audit events for one change" width="440"> | <img src="docs/images/console-sign-in.png" alt="Console sign-in" width="440"> |
+
+The audit view shows the two separate `ChangeApprovalRecorded` events required by the tier-0 quorum, followed by `ChangeExecuting` and `ChangeExecuted`. Each event carries its own hash in the chain.
+
+### Recorded walkthrough
+
+<details>
+<summary><b>Four key moments from the recorded demo rehearsal (click to expand)</b></summary>
+<br>
+
+These frames come from the recorded presenter rehearsal on 2026-11-08 and show the dark console theme currently on `main`. The behaviour is the same in the redesign.
+
+| 1 · A valid session cannot approve its own escalation | 2 · The owner reviews the exact consequence |
+|:---:|:---:|
+| <img src="docs/images/walkthrough-1-self-approval-refused.png" alt="Self approval refused" width="440"> | <img src="docs/images/walkthrough-2-owner-review.png" alt="Owner reviewing newly reachable resources" width="440"> |
+| **3 · Tier-0 access: one approval is not enough** | **4 · Quorum reached, execution independently verified** |
+| <img src="docs/images/walkthrough-3-one-of-two.png" alt="One of two approvals recorded; 2 new tier-0 paths" width="440"> | <img src="docs/images/walkthrough-4-quorum-executed.png" alt="Wallet role executed after two approvals" width="440"> |
+
+</details>
+
+---
+
+## How it works
+
+Every access change follows the same path: **assess → approve → execute → verify → record**.
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Requester as Employee / Attacker
-    actor Approver as Security Lead Quorum
-    participant Console as Web Console (React 19)
-    participant Core as Control Plane Core (Half A)
-    participant Auth as Independent Authority (Half B)
-    participant Conn as Priority Connector (Half B)
-    participant Target as Simulated Exchange / K8s (Half B)
+    actor Req as Requester
+    actor Rev as Independent reviewer(s)
+    participant UI as Console (browser)
+    participant Core as Control-plane core
+    participant Graph as Graph service
+    participant Bus as NATS JetStream
+    participant Conn as Connector
+    participant Tgt as Target (exchange simulator)
 
-    Requester->>Console: Submit Privilege Escalation Request
-    Console->>Core: SubmitChangeRequest(intent)
-    Note over Core: 1. Graph Reach Traversal<br/>2. Consequence & Crown Jewel Check<br/>3. Invariant R1 Verification
-    Core-->>Console: Evaluation: Sensitive Escalation (Requires 2-Lead Quorum)
-    
-    Approver->>Console: Inspect Blast-Radius Consequence Diff
-    Approver->>Auth: W3C WebAuthn Passkey Ceremony (RATCHET_APPROVAL_V1)
-    Auth-->>Console: Cryptographic Approval Assertion
-    Console->>Core: RecordApproval(assertion)
-    
-    Note over Core: Verify M-of-N Quorum<br/>Confirm Non-Stale Graph State
-    Core->>Conn: ExecCommand(ASSIGN_ROLE, cmdID, precondition)
-    Conn->>Target: Execute IAM Mutation (Broker Token)
-    Target-->>Conn: Mutation Acknowledged
-    Conn->>Target: Independent Read-Back Verify(cmdID)
-    Target-->>Conn: Observed State Confirmed
-    Conn->>Core: ExecResult(Success, ObservedRevision)
-    Core->>Core: Immutably Append Monotonic Hash Chain (R5)
+    Req->>UI: Request ROLE_ASSIGN (identity, role, justification)
+    UI->>Core: SubmitChange
+    Core->>Graph: Simulate change on current graph version
+    Graph-->>Core: Newly reachable resources, tier-0 paths, weakened safeguards
+    Note over Core: Rego policy selects reviewers and quorum.<br/>Requester and controlled identities are excluded (R1).
+    Core-->>UI: AWAITING_APPROVAL (quorum 1 or 2)
+
+    Rev->>UI: Review exact change
+    UI->>UI: Recompute canonical envelope digest (RFC 8785) and check it matches the server
+    Rev->>UI: Approve with passkey
+    UI->>Core: WebAuthn assertion bound to tenant, actor, digest and nonce
+    Note over Core: Verify signature, freshness and independence.<br/>Quorum reached means APPROVED.
+
+    Core->>Bus: Signed command (execution ID, expected precondition)
+    Bus->>Conn: Deliver command
+    Conn->>Tgt: Apply role change with broker credential
+    Conn->>Tgt: Independent read-back
+    Tgt-->>Conn: Observed state
+    Conn->>Bus: Signed receipt (observed revision)
+    Bus->>Core: Receipt
+    Core->>Core: EXECUTED, appended to the hash-linked ledger
 ```
 
-### The Six Operational Stages
+### Change lifecycle
 
-1. **Topological Graph Ingestion & Sync**:
-   * Outbound connectors ingest identities (humans, service accounts), roles, permissions, resources (criticality tiers 0–3), and safeguards (security rules as first-class graph assets).
-   * Changes stream incrementally via NATS JetStream with durable revision cursors and gap-detection resynchronization.
-
-2. **Pre-Execution Consequence Simulation**:
-   * When an access mutation is submitted, RATCHET executes a graph traversal algorithm calculating `Reach(identity)` (everything the account can touch directly or indirectly) and `PathsTo(identity, Tier0)`.
-   * The Impact Simulator displays a side-by-side consequence diff showing newly exposed crown jewels and blast-radius expansion before a single permission is granted.
-
-3. **Multi-Signer Hardware Passkey Ceremony**:
-   * Ordinary changes require one resource-owner approval. Sensitive changes exposing Tier-0 assets require an $M$-of-$N$ quorum of Security Leads.
-   * Signers execute a real W3C WebAuthn ceremony where the hardware key signs a randomized, domain-separated challenge cryptographically binding the exact operation digest and target revision:
-     $$\text{Challenge} = \text{SHA256}(\text{"RATCHET\_APPROVAL\_V1:"} \parallel \text{TenantID} \parallel \text{ActorID} \parallel \text{ChangeDigest} \parallel \text{Nonce})$$
-
-4. **Verified Execution & Independent Read-Back**:
-   * Target mutations are executed exclusively through the connector's isolated broker credential.
-   * Immediately following execution, the connector performs an **independent read-back verification** against the target's raw IAM state. It compares observed reality against expected state, preventing false positives from target write failures.
-
-5. **Immutable Hash Chain & Checkpoint Signing**:
-   * Every event is appended to an unbroken SHA-256 hash chain:
-     $$H_i = \text{SHA256}(H_{i-1} \parallel \text{canonicalJSON}(E_i))$$
-   * The Independent Authority computes Merkle tree roots over sequence batches and co-signs versioned audit checkpoints.
-
-6. **Out-of-Band Drift Watch & Priority Containment**:
-   * If a rogue operator bypasses RATCHET and mutates target IAM directly, the connector's **Watch Engine** detects the revision gap, flags the unauthorized drift, and executes an automated corrective reversion.
-   * If an account is compromised, responders trigger **Surgical Containment**: RATCHET calculates the minimum graph cut required to eliminate all paths to Tier-0 crown jewels, executing session terminations and role revocations in **~1 ms** while unaffected staff continue working uninterrupted.
-
----
-
-## System Architecture
-
-RATCHET is architected with a strict separation of concerns between two collaborative halves: **Half A (Control Plane Core)** and **Half B (Trust, Edges & Experience)**. They interact exclusively across frozen, typed contract boundaries ([`proto/ratchet/v1/`](file:///proto/ratchet/v1/) and [`internal/ports/`](file:///internal/ports/)).
+The state machine lives in [`internal/domain/change.go`](internal/domain/change.go). It is pure and deterministic, and it never skips verification.
 
 ```mermaid
-graph TD
-    subgraph UI["Web Console (React 19 + Vite) — Half B"]
-        V1["Overview & Attention Queue"]
-        V2["Infrastructure Topology Map"]
-        V3["Change Review & Passkeys"]
-        V4["Impact Simulator (Consequence Diff)"]
-        V5["Security Policy Governance"]
-        V6["Incident Containment (Min-Cut)"]
-        V7["Audit & Ledger Explorer"]
-        V8["Emergency & Drift Operations"]
+stateDiagram-v2
+    [*] --> SUBMITTED
+    SUBMITTED --> ASSESSED: graph impact computed
+    ASSESSED --> ALLOWED: verified reduction / no approval needed
+    ASSESSED --> AWAITING_APPROVAL: reviewers and quorum selected
+    ASSESSED --> HELD: context changed or policy hold
+    ASSESSED --> REJECTED: invariant violated
+    AWAITING_APPROVAL --> APPROVED: independent quorum reached
+    AWAITING_APPROVAL --> EXPIRED: envelope expired
+    APPROVED --> EXECUTING: signed command issued
+    ALLOWED --> EXECUTING
+    EXECUTING --> EXECUTED: target read-back verified
+    EXECUTING --> FAILED: verification failed
+    EXECUTED --> REVOKED: temporary grant expired and revoked
+    REJECTED --> [*]
+    EXPIRED --> [*]
+    FAILED --> [*]
+    REVOKED --> [*]
+```
+
+### What the reviewer actually signs
+
+A passkey approval cannot be replayed against a different change, a different reviewer or a stale graph. The challenge binds all of them together:
+
+```text
+challenge = SHA-256( "RATCHET_APPROVAL_V1:" ‖ tenant ‖ actor ‖ change_digest ‖ nonce )
+change_digest = SHA-256( RFC 8785 canonical JSON of the exact approval envelope )
+```
+
+The browser recomputes `change_digest` independently, in TypeScript and with the same golden test vectors as the Go backend, before it asks the authenticator to sign. If the server shows one change and signs another, the browser refuses.
+
+### Tamper-evident audit ledger
+
+```mermaid
+flowchart LR
+    E1["Event 1<br/>ChangeSubmitted"] --> H1["H1 = SHA-256(H0 ‖ canon(E1))"]
+    H1 --> E2["Event 2<br/>ChangeAssessed"] --> H2["H2 = SHA-256(H1 ‖ canon(E2))"]
+    H2 --> E3["Event 3<br/>ChangeApprovalRecorded"] --> H3["H3 = SHA-256(H2 ‖ canon(E3))"]
+    H3 --> More["…"] --> CP["Signed checkpoint<br/>(verifiable offline with ratchetctl)"]
+```
+
+Changing, removing or reordering any event breaks every later hash. `ratchetctl audit verify --expected-tip=<hex>` also detects a ledger that has been cut short.
+
+---
+
+## Architecture
+
+### Runtime: the local prototype
+
+The prototype runs as hardened containers: read-only root filesystems, all Linux capabilities dropped, `no-new-privileges`, a non-root user and pinned image digests. Only two ports are published, and both bind to `127.0.0.1`.
+
+```mermaid
+flowchart TB
+    Browser["Browser<br/>https://localhost:8444"]
+    Probe["Business probes<br/>http://127.0.0.1:58085"]
+
+    subgraph Host["Docker Compose: ratchet-prototype-v1 (shared network namespace)"]
+        Core["core<br/>ratchetd console-serve<br/>HTTPS API + embedded console"]
+        Graph["graph<br/>ratchetd graph-serve<br/>reach, paths, impact"]
+        Conn["connector<br/>ratchet-connector<br/>sync, execute, read-back"]
+        Sim["simulator<br/>ratchet-sim<br/>stateful exchange IAM"]
+        NATS[("NATS JetStream<br/>commands, receipts, snapshots")]
+        PG[("PostgreSQL 17<br/>event store, projections, jobs")]
+        Op["operator (one-shot)<br/>ratchet-prototype init<br/>keys, TLS, identities"]
     end
 
-    subgraph Core["Control Plane Core (Half A: Ishaan)"]
-        SM["Change State Machine (`domain`)"]
-        ES["Append-Only Event Store (`eventstore`)"]
-        GE["Graph Traversal Engine (`graph`)<br/>Reach · PathsTo · ControlSet · MinCut"]
-        PE["OPA / Rego Decision Engine (`policy`)"]
-        WF["Workflow & Quorum Engine (`workflow`)"]
-        JS["NATS JetStream Relay (`bus`)"]
+    Browser --> Core
+    Probe --> Sim
+    Core <--> PG
+    Graph <--> PG
+    Core <--> NATS
+    Graph <--> NATS
+    Conn <--> NATS
+    Conn -->|"broker token"| Sim
+    Op -.->|"provisions"| PG
+```
+
+The **`completion-a`** profile ([`deploy/completion-a.compose.yaml`](deploy/completion-a.compose.yaml)) adds the standalone **Independent Authority** (`ratchet-authority`) with its own PostgreSQL, an enrollment-only server and M-of-N governed policy and registry rotation.
+
+### Logical components
+
+```mermaid
+flowchart LR
+    subgraph Console["Web console · web/"]
+        L["Landing site"]
+        C["8 console views<br/>Overview · Changes · Infrastructure · Impact<br/>Security policy · Incidents · Audit · Passkeys"]
     end
-
-    subgraph Trust["Trust & Governance (Half B: Sakar)"]
-        CJ["RFC 8785 Canonical JSON (`canon`)"]
-        WV["WebAuthn Passkey Engine (`approval`)"]
-        IA["Independent Authority Service (`trust`)<br/>Genesis · Registry Quorum · Checkpoints"]
-        BV["Bundle Verifier (`ports.BundleVerifier`)"]
-        CLI["Offline Audit Verifier (`ratchetctl`)"]
+    subgraph CorePlane["Control-plane core"]
+        D["domain<br/>change state machine"]
+        ES["eventstore<br/>append-only + outbox"]
+        G["graph<br/>Reach · PathsTo · ControlSet · MinCut"]
+        P["policy<br/>embedded OPA / Rego"]
+        W["workflow<br/>River jobs, expiry, re-checks"]
+        API["api<br/>ConnectRPC + REST"]
     end
-
-    subgraph Edges["Edge Targets & Connectors (Half B: Sakar)"]
-        SIM["Simulated Exchange (`ratchet-sim`)<br/>Stateful IAM · Access Probes · Audit Log"]
-        CONN["Priority Connector Framework<br/>Sync · Verify · Priority Revocation · Watch"]
-        K8S["Kubernetes RBAC Adapter & Webhook<br/>Primitive Scanner · Fail-Closed Admission"]
+    subgraph Trust["Trust"]
+        CA["canon<br/>RFC 8785 Go + TS"]
+        AP["approval<br/>WebAuthn verification"]
+        AU["authority<br/>independent governance"]
+        CLI["ratchetctl<br/>offline verification"]
     end
-
-    UI <-->|ConnectRPC / HTTP| Core
-    UI <-->|WebAuthn & Quorum| Trust
-    Core <-->|BundleVerifier| Trust
-    Core <-->|NATS JetStream| CONN
-    CONN <-->|Broker API| SIM
-    CONN <-->|AdmissionReview| K8S
-
-    style UI fill:#0f172a,stroke:#38bdf8,color:#fff
-    style Core fill:#1e1b4b,stroke:#818cf8,color:#fff
-    style Trust fill:#064e3b,stroke:#34d399,color:#fff
-    style Edges fill:#1c1917,stroke:#f59e0b,color:#fff
+    subgraph Edges["Edges"]
+        CN["connector<br/>sync · execute · verify · drift"]
+        SIM["ratchet-sim<br/>exchange target"]
+        K8S["k8s adapter + webhook"]
+    end
+    Console <-->|"HTTPS"| API
+    API --> D & G & P
+    D --> ES
+    W --> ES
+    API --> AP
+    P --> AU
+    ES -->|"NATS"| CN
+    CN --> SIM & K8S
+    CA -.-> AP & ES
 ```
 
-### Team Division of Labor
-
-The system boundary between Ishaan and Sakar is clean, balanced, and strictly respected:
-
-| Component | Responsibility | Owner | Active Path |
-|---|---|:---:|---|
-| **Core Decision Engine** | Pure change state machine, invariant enforcement, decision transitions | **Ishaan** | `internal/domain` |
-| **Event Persistence** | Append-only event store, optimistic concurrency, outbox relay | **Ishaan** | `internal/eventstore`, `internal/bus` |
-| **Graph Analysis** | `Reach`, `PathsTo`, `ControlSet`, Monotonic reduction check, Min-Cut solver | **Ishaan** | `internal/graph` |
-| **Policy Evaluation** | Embedded OPA, Rego rules, policy bundle loading via `BundleVerifier` | **Ishaan** | `internal/policy`, `policies/` |
-| **Workflow Engine** | River job scheduling, timeouts, background execution, stale re-checks | **Ishaan** | `internal/workflow` |
-| **Read Projections** | UI read models, attention queue, incident list, audit query projection | **Ishaan** | `internal/projection`, `internal/api` |
-| **Web Console** | All 8 interactive views in React 19, Tailwind CSS, React Flow, TanStack | **Sakar** | `web/` |
-| **Canonical Serialization** | RFC 8785 JSON canonicalizer + SHA-256 in Go and TS, golden vector suite | **Sakar** | `internal/canon`, `web/src/lib/canon.ts` |
-| **Hardware Passkeys** | W3C WebAuthn Level 3 registration, session challenges, `ApprovalVerifier` | **Sakar** | `internal/approval` |
-| **Independent Authority** | Standalone service, genesis, approver registry, $M$-of-$N$ signing, checkpoints | **Sakar** | `internal/trust`, `cmd/ratchet-authority` |
-| **Target Simulator** | Stateful exchange IAM, durable sessions, business probes, audit log stream | **Sakar** | `cmd/ratchet-sim` |
-| **Connector Framework** | Sync engine, execute & verify, priority containment queue, drift watch | **Sakar** | `internal/connector`, `cmd/ratchet-connector` |
-| **Kubernetes Integration** | RBAC graph adapter, privilege escalation detector, admission webhook | **Sakar** | `internal/connector/k8s`, `cmd/ratchet-k8s-webhook` |
-| **Operational CLI** | Standalone tool for `genesis`, `policy sign`, and offline `audit verify` | **Sakar** | `cmd/ratchetctl` |
-| **E2E Scenarios** | Attack scenario test suites (D1–D8, all 6 FR-K6 attack families, hardening) | **Sakar** | `e2e/scenarios/` |
-| **Shared Contracts** | ConnectRPC protocols, Go interface ports, seed fixtures, Compose, CI | **Both** | `proto/`, `internal/ports/`, `testdata/`, `.github/` |
+The two halves of the codebase meet only through typed contracts in [`proto/ratchet/v1/`](proto/ratchet/v1/) and [`internal/ports/`](internal/ports/).
 
 ---
 
-## Repo Layout
+## Security invariants
 
-```
-Ratchet/
-├── .github/                       # CI workflows, CODEOWNERS, branch protection specs
-├── cmd/
-│   ├── ratchet-authority/         # Standalone Independent Authority service (Port 8086)
-│   ├── ratchet-connector/         # Outbound Connector runtime
-│   ├── ratchet-k8s-webhook/       # Kubernetes Validating Admission Webhook (Port 8443)
-│   ├── ratchet-sim/               # Stateful Simulated Crypto Exchange (Port 8085)
-│   └── ratchetctl/                # Operational CLI (genesis, policy sign, audit verify)
-├── deploy/                        # Production & local deployment manifests
-│   ├── docker-compose.yml         # Unified local orchestration stack
-│   ├── Dockerfile.authority       # Multi-stage non-root container for Authority
-│   ├── Dockerfile.connector       # Multi-stage non-root container for Connector
-│   ├── Dockerfile.k8s-webhook     # Multi-stage non-root container for K8s Webhook
-│   ├── Dockerfile.sim             # Multi-stage non-root container for Simulator
-│   └── Dockerfile.web             # Production static Nginx container for Console
-├── docs/                          # Technical specifications & evidence reports
-│   ├── evidence_pack.md           # Acceptance verification report (D1–D8, attack matrix)
-│   ├── security_hardening.md      # Zero-secrets, container security, failure boundaries
-│   └── trust_limits.md            # Hardware boundaries & single-host demonstration limits
-├── e2e/scenarios/                 # End-to-End Automated Acceptance Suites
-│   ├── contain_rahul/             # D6–D8 Rahul compromise & surgical containment (<5s SLA)
-│   ├── controlled_approver/       # D4 Invariant R1 subordinate approver refusal
-│   ├── hardening/                 # Crash restart recovery, cold-start sweeps, replay refusal
-│   ├── k6_attacks/                # Complete test suite for all 6 FR-K6 attack families
-│   ├── self_approval/             # D4 Invariant R1 self-approval refusal
-│   └── withdrawal_rule_edit/      # D5 Safeguard weakening vs governed policy amendment
-├── internal/
-│   ├── approval/                  # W3C WebAuthn passkey store, verification, challenge binding
-│   ├── audit/                     # Append-only hash chain models & offline verifier
-│   ├── canon/                     # Clean-room RFC 8785 Canonical JSON serializer & digester
-│   ├── connector/                 # Connector sync, priority queue, temporary grants, watch
-│   │   ├── k8s/                   # Kubernetes RBAC adapter, primitive detector, webhook
-│   │   └── sim/                   # Simulated exchange broker adapter (Execute & Verify)
-│   ├── ports/                     # Shared interface ports crossing architectural boundaries
-│   └── trust/                     # Genesis store, registry epochs, bundle verifier, checkpoints
-├── proto/ratchet/v1/              # ConnectRPC service & message schemas (protobuf)
-├── testdata/                      # Canonical golden test vectors, seed orgs, sample changes
-│   ├── authority/                 # Authority members and signed initial bundle fixtures
-│   ├── canon/                     # 13 RFC 8785 golden test vectors
-│   └── orgs/                      # exchange-v1.json deterministic seed fixture
-├── web/                           # RATCHET Operator Console (React 19 + Vite)
-│   ├── src/
-│   │   ├── components/            # 8 core console modules (Map, Containment, Policy, etc.)
-│   │   ├── lib/                   # TypeScript RFC 8785 canonicalizer, ConnectRPC client
-│   │   └── App.tsx                # Console root layout, theme, and tab navigation
-│   └── package.json               # Frontend dependencies & scripts
-├── CHANGELOG.md                   # Chronological engineering ledger of all phases & tasks
-├── PRD.md                         # Product Requirements Document
-├── RATCHET_Architecture.md        # Complete technical architecture specification
-├── RATCHET_Full_Idea_Document.md  # Core concept & threat model document
-└── SAKAR_IMPLEMENTATION_PLAN.md   # Implementation plan & 93/93 completed task gates
-```
+These rules are enforced in code and covered by tests. The **Status** column shows where each one can be observed today.
+
+| ID | Invariant | What it means | Status |
+|---|---|---|:---:|
+| **R1** | No self-escalation | Nobody approves an expansion of their own reach, or the reach of anyone in their control set. | ✅ |
+| **R2** | Reductions are computed, not claimed | A change counts as a reduction only if graph analysis proves no identity gains reach and no safeguard weakens. | ✅ |
+| **R3** | Approve exactly what you saw | Approvals bind to the canonical digest of the exact envelope. If the context goes stale, the change is re-assessed. | ✅ |
+| **R4** | Rules are independently governed | Policy, approver registry and thresholds change only by an M-of-N quorum of the *current* epoch. | 🧪 |
+| **R5** | Nothing is erased | Every decision and observation is appended to a hash chain. | ✅ |
+| **R6** | Fail closed for escalation, open for reduction | When degraded, targets refuse privilege increases while revocations stay executable. | 🧪 |
+| **R7** | Explainable decisions | Decisions come from Rego policy and deterministic graph reach. There are no opaque risk scores. | ✅ |
+| **R8** | Minimum-disruption containment | Containment cuts paths to tier-0 assets while preserving unrelated access. | 🧪 |
+| **R9** | Proportional visibility | Requesters and owners get server-redacted views. Organisation-wide visibility requires policy authorisation. | ✅ |
 
 ---
 
-## Test and Quality
+## Quick start
 
-RATCHET was engineered under strict zero-scaffolding standards. No mock API modes, no placeholder buttons, and no fake signatures exist in the repository.
+### Prerequisites
 
-### Verification Summary
+| Tool | Version | Used for |
+|---|---|---|
+| Docker (with Compose v2) | recent | Builds and runs everything. Go is **not** needed on the host. |
+| Python | 3.11+ | Launcher scripts |
+| Node.js | 20+ | Console development and browser tests (optional) |
+| Browser with a platform authenticator | — | Passkey approvals (Windows Hello, Touch ID or a security key) |
 
-```
-All Go tests (fresh, no cache):    PASS (100% across all 15 packages)
-Go vet static analysis:            0 warnings / 0 errors
-TypeScript canonical vectors:      15/15 PASS
-Vite / TypeScript build:           0 errors, 4.17s production bundle
-Security vulnerabilities:          0 (npm audit clean)
-Git branch:                        sakar (clean, fully synced with origin/sakar)
-```
+### Run the prototype
 
-### 1. Fresh Test Suite Execution (Zero Cache)
-Run the entire suite of unit, integration, and end-to-end scenario tests without cache:
 ```bash
-# Execute all Go tests without cache
-$env:CGO_ENABLED="0"; go test -v -count=1 ./...
+git clone https://github.com/sakararya43-web/Ratchet.git
+cd Ratchet
+
+# Build images, provision keys/TLS/identities, start every service
+python scripts/prototype.py start
 ```
 
-### 2. Static Analysis & Linter Cleanliness
-Verify that Go source code passes static type and correctness checks with zero warnings:
-```bash
-$env:CGO_ENABLED="0"; go vet ./...
-```
+On first start, the launcher generates random database and broker secrets, creates a local certificate authority, provisions four demo identities and waits for every service to report healthy. Private material is written to `.local/prototype/`, which is gitignored:
 
-### 3. RFC 8785 Cross-Language Golden Vectors
-Verify that the TypeScript canonicalizer produces exact matching canonical byte sequences and SHA-256 digests against the 13 golden vectors:
-```bash
-cd web
-npm test
-```
-
-### 4. Production Frontend Compilation
-Verify that all React 19 components, TypeScript types, and Tailwind styles compile without errors:
-```bash
-cd web
-npm run build
-```
-
-### 5. Automated Acceptance Scenarios (D1–D8)
-Every demonstration journey is backed by automated tests:
-* **`TestD1_OrdinaryAccessJourney`**: Verifies ordinary access blocked $\rightarrow$ Resource Owner passkey approved $\rightarrow$ connector executes $\rightarrow$ read-back independently verifies $\rightarrow$ live business report succeeds (200 OK).
-* **`TestD2_SensitiveAdminEscalationTwoLeadQuorum`**: Verifies sensitive escalation requires two independent Security Leads $\rightarrow$ 1-of-2 rejected $\rightarrow$ second lead signs $\rightarrow$ quorum reached $\rightarrow$ tampered request verification fails.
-* **`TestD4_SelfApprovalRefusal`**: Verifies Invariant R1 refusal when requester attempts to approve their own escalation.
-* **`TestD4_ControlledApproverRefusal`**: Verifies Invariant R1 refusal when a subordinate within the requester's Control Set attempts approval.
-* **`TestD5_SafeguardModificationProtection`**: Verifies direct modification of `safeguard:withdrawal-rule` is rejected, while governed policy amendments succeed via Authority quorum.
-* **`TestD6_D8_ContainRahul_ClickToRevocationSLA`**: Verifies click-to-verified-revocation < 5s SLA (**~1 ms** observed), zero Tier-0 reach, and Priya's finance report read preserved uninterrupted (> 87.5% organization access preserved).
-* **`TestHardening_PersistenceRestartAndColdStartRecovery`**: Proves Simulator, Authority, Priority Containment, and Temporary Grant managers survive process termination and cold restarts without data loss.
-
----
-
-## Tech Stack
-
-| Domain | Technology | Version | Purpose & Selection Justification |
-|---|---|---|---|
-| **Backend Core** | **Go** | `1.24` | Memory-safe, concurrency-native language ideal for high-throughput control planes, zero-CGO static binaries, and predictable latency. |
-| **Frontend Console** | **React** | `19.0` | Modern component architecture utilizing React 19 primitives, fast rendering, and strict state lifecycle isolation. |
-| **Build & Tooling** | **Vite** | `6.1` | Ultra-fast TypeScript compilation, Hot Module Replacement (HMR), and optimized production tree-shaken static bundling. |
-| **Language (Web)** | **TypeScript** | `5.7` | End-to-end type safety shared across ConnectRPC schemas and canonicalization logic. |
-| **Styling & Icons** | **Tailwind CSS** + **Lucide** | `3.4` / `0.475` | Utility-first, zero-runtime styling engine delivering high-contrast, accessible dark-mode UI with accessible SVG iconography. |
-| **Network Protocols** | **ConnectRPC** | `v1.6` | Type-safe, browser-compatible RPC protocol built over HTTP/2 and HTTP/1.1; eliminates brittle REST contracts and client generation drift. |
-| **Cryptography** | **RFC 8785 Canonical JSON** | IETF Standard | Deterministic JSON serialization ensuring identical SHA-256 hashes across Go backend and TypeScript browser environments. |
-| **Authentication** | **W3C WebAuthn Level 3** | W3C Standard | Hardware-backed FIDO2 passkey ceremonies binding human presence and user verification to domain-separated cryptographic challenges. |
-| **Policy Engine** | **Open Policy Agent (Rego)** | `v1` | Declarative, pure-logic policy evaluation decoupling access decisions from application code. |
-| **Event Streaming** | **NATS JetStream** | `v2.10` | Lightweight, ultra-fast publish-subscribe messaging layer with at-least-once delivery and durable consumer cursors. |
-| **Containerization** | **Docker & Compose** | `3.8+` | Multi-stage minimal Alpine container builds running under explicit unprivileged UID 10001 for zero-host-tampering deployments. |
-| **Real Target** | **Kubernetes RBAC** | `v1.30+` | Real-world target cluster integration via Validating Admission Webhooks and RBAC translation. |
-
----
-
-## Honest Limits
-
-In accordance with rigorous systems engineering standards, RATCHET explicitly discloses its operational boundaries and threat model limits:
-
-### 1. Single-Host Demonstration vs. Physical Air-Gapping
-In this repository's demonstration environment, all services (the control plane, Independent Authority, and target simulator) run on a single host operating system. While they run as isolated processes with distinct file storage, network ports, and cryptographic keys, **running on one machine is not evidence of isolation from that machine's root administrator**. In a production deployment, the Independent Authority must reside on physically segregated hardware with separate administrative credentials.
-
-### 2. Control-Plane Outage Break-Glass (The R6 / FR-X6 Boundary)
-Under Invariant R6, RATCHET is designed to fail-closed for privilege escalations while staying open for emergency reductions. In v1:
-* The priority containment engine and NATS replay ensure revocations are processed ahead of standard request queues.
-* Target admission webhooks are configured to permit `DELETE` operations during control-plane disconnects to prevent safety deadlocks.
-* However, a complete, multi-party cryptographic break-glass mechanism capable of operating during total, prolonged destruction of the control plane is specified as **PRD requirement FR-X6 (Priority 2)** and is deferred to v2.
-
-### 3. Fictional Target vs. Live Production Financial Networks
-The target simulator (`ratchet-sim`) represents a stateful cryptocurrency exchange featuring human employees, service accounts, and Tier-0 wallet signers. It is an **explicit security demonstration target**, not a live financial wallet product, payment rail, or production multi-tenant SaaS application.
-
-### 4. Authenticator Binding in Automated Tests
-W3C WebAuthn assertions in automated CI test suites are generated using deterministic in-memory ECDSA P-256 keys. Automated tests prove protocol correctness, signature verification, and challenge binding; they do not prove that a human physically touched a hardware security key. Manual verification via the interactive console utilizes platform authenticators (Windows Hello, Touch ID, or FIDO2 tokens).
-
-### 5. History Truncation Detection
-Offline verification of the hash chain guarantees that no intermediate event has been modified, deleted, or reordered. However, without an independently known expected tip digest or witness checkpoint, an offline export bundle could theoretically be truncated at an earlier valid link. Supplying an expected checkpoint tip via `ratchetctl audit verify --expected-tip=<hex>` closes this gap.
-
----
-
-## Hackathon Submission Details
-
-This project is submitted to the **DataNova 2026 Global Data-Thon**:
-👉 **[DataNova 2026 Devpost Hackathon Page](https://datanova-2026-global-data-thon.devpost.com/)**
-
-| Field | Submission Details |
+| File | Contents |
 |---|---|
-| **Project Name** | **RATCHET** |
-| **Tagline** | Independent Security Control Plane for Privilege Escalation Prevention & Minimal-Disruption Containment |
-| **Hackathon** | **DataNova 2026 Global Data-Thon** |
-| **Devpost URL** | [https://datanova-2026-global-data-thon.devpost.com/](https://datanova-2026-global-data-thon.devpost.com/) |
-| **Repository** | [https://github.com/sakararya43-web/Ratchet.git](https://github.com/sakararya43-web/Ratchet.git) |
-| **Active Branch** | **`sakar`** (tracking `origin/sakar`) |
-| **Team Members** | **Sakar Arya** & **Ishaan Sharma** |
-| **Contact Emails** | `sakararya43@gmail.com` · `sharmaishaaan04@gmail.com` |
-| **GitHub Profiles** | [sakararya43-web](https://github.com/sakararya43-web) · [ishaans04](https://github.com/ishaans04) |
-| **The Problem We Solve** | Perimeter defenses (VPN, MFA, ZTNA) fail when attackers steal valid sessions or compromise internal devices. Once inside, attackers quietly escalate privileges, weaken security rules, and move laterally to critical assets. RATCHET solves this by introducing an independent control plane that evaluates the topological consequence of access mutations *before* execution, enforces hardware passkey quorums under immutable invariants, and performs surgical min-cut containment in ~1 ms while preserving legitimate business operations. |
+| `.local/prototype/users.json` | Sign-in passwords and one-use passkey enrollment tickets for the four demo accounts |
+| `.local/prototype/ca.pem` | Public certificate of the local HTTPS authority |
+
+1. **Trust the local HTTPS certificate.** Import `.local/prototype/ca.pem` into your OS or browser trust store. Certificate checks stay on, because passkeys need a secure origin.
+2. Open **https://localhost:8444** and sign in with an account from `users.json`.
+3. Under **Passkeys**, register a passkey for each reviewer with its one-use enrollment ticket. Run `python scripts/prototype.py invite --actor <actor>` to issue a fresh ticket.
+
+The [prototype runbook](docs/ishaan/prototype-runbook.md) covers credential management, restarts and recovery in detail.
+
+### Useful commands
+
+```bash
+python scripts/prototype.py status                          # container status
+python scripts/prototype.py restart --no-build              # restart services, keep identities, ledger and target state
+python scripts/prototype.py stop                            # stop containers, keep volumes
+python scripts/prototype.py credentials                     # re-export users.json and ca.pem
+python scripts/prototype.py invite --actor user:sec-lead-1  # one-use passkey enrollment ticket
+python scripts/prototype.py renew-tls                       # rotate the local TLS certificate
+```
+
+Real target probes (403 before a grant, 200 after verified execution):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:58085/api/v1/business/finance-report/read \
+  -H "Content-Type: application/json" -d '{"session_id":"session:intern-workstation-1"}'
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:58085/api/v1/business/wallet/sign \
+  -H "Content-Type: application/json" -d '{"session_id":"session:intern-workstation-1","amount_usd":100}'
+```
+
+### Develop the console
+
+```bash
+cd web
+npm ci
+npm run dev        # Vite dev server
+npm test           # canonical JSON and approval-envelope tests
+npm run build      # type-check + production bundle
+```
 
 ---
 
-*RATCHET is an open-source security engineering project developed for high-assurance environments where compromise of authority is catastrophic.*
+## Demo walkthrough
+
+The demo uses four independent accounts in the tenant `tenant-exchange-demo`:
+
+| Account | Role in the story |
+|---|---|
+| `user:rahul-assistant` | Requester: starts with **no** finance or wallet access |
+| `user:finance-lead` | Resource owner for finance resources |
+| `user:sec-lead-1`, `user:sec-lead-2` | Independent security leads, both required for tier-0 access |
+
+```mermaid
+flowchart LR
+    A["Start<br/>finance 403 · wallet 403"] --> B["Request finance-analyst"]
+    B --> C["Self-approval refused"]
+    C --> D["Finance owner approves<br/>finance 200"]
+    D --> E["Request wallet-operator<br/>2 new tier-0 paths"]
+    E --> F["Lead 1 approves<br/>1 of 2, wallet still 403"]
+    F --> G["Lead 1 again: duplicate refused"]
+    G --> H["Lead 2 approves<br/>wallet 200"]
+    H --> I["Audit trail shows both approvals"]
+    I --> J["Reviewed revocations<br/>finance 403 · wallet 403"]
+```
+
+1. **Requester** submits `ROLE_ASSIGN` → `role:finance-analyst`. The request reaches `AWAITING_APPROVAL`. The requester's own approval attempt returns **403**.
+2. **Finance owner** opens *Review exact change*, checks the two newly reachable tier-2 resources and the verified digest, then approves with a passkey. After independent read-back, the finance probe returns **200**.
+3. **Requester** submits `ROLE_ASSIGN` → `role:wallet-operator`. The assessment shows **2 new tier-0 paths**, which requires two security leads.
+4. **Security lead 1** approves. The record shows 1 of 2 approvals and wallet signing still returns **403**. A second approval from the same lead is refused.
+5. **Security lead 2** approves. The change executes, read-back is verified and wallet signing returns **200**.
+6. **Audit** shows both approval events and the execution, each with its own hash in the chain.
+7. Reviewed **ROLE_REVOKE** requests return both probes to **403**. Nothing is reset: the ledger, identities and trust root stay intact.
+
+The step-by-step guide is in [`docs/ishaan/prototype-walkthrough.md`](docs/ishaan/prototype-walkthrough.md). PR [#2](https://github.com/sakararya43-web/Ratchet/pull/2) adds a timed presenter script and a four-window presenter launcher. The launcher uses virtual CTAP2 authenticators with real backend signature verification.
+
+---
+
+## Testing and quality
+
+```bash
+# Go: build, vet, unit + scenario tests (runs fine inside the golang:1.27.3 image)
+go build ./... && go vet ./... && go test -count=1 ./...
+
+# Console: types, unit tests, production build
+cd web && npx tsc --noEmit && npm test && npm run build
+
+# Full browser acceptance against the running prototype (real passkey ceremonies)
+python scripts/prototype-browser.py
+```
+
+| Suite | What it covers |
+|---|---|
+| **Unit and property tests** | State machine, graph reach and min-cut, Rego decisions, canonical JSON, WebAuthn verification, event store and outbox |
+| **Attack scenarios** ([`e2e/scenarios/`](e2e/scenarios/)) | Self-approval, controlled-approver refusal, safeguard edit versus governed amendment, containment of a compromised identity |
+| **Cross-language golden vectors** ([`testdata/canon/`](testdata/canon/)) | Go and TypeScript produce byte-identical canonical JSON and digests |
+| **Integration** (build tags `integration`, `peerintegration`) | PostgreSQL event store, Authority database, crash and restart recovery, the full attack families |
+| **Browser acceptance** ([`web/e2e/`](web/e2e/)) | Four-account approval journey and Authority flows over real HTTPS |
+| **Hosted CI** | [CI](.github/workflows/ci.yml) and [Core phase checks](.github/workflows/core.yml) on every push to `main`, including the built-image browser journey on Linux |
+
+The badges at the top show live CI status. They are the authoritative signal for the current commit.
+
+---
+
+## Repository layout
+
+```text
+Ratchet/
+├── cmd/
+│   ├── ratchetd/              # Control-plane core: console API, graph service, enrollment, recovery
+│   ├── ratchet-prototype/     # Operator tool: init, TLS, identities, invites, health
+│   ├── ratchet-authority/     # Standalone Independent Authority service
+│   ├── ratchet-connector/     # Outbound connector runtime
+│   ├── ratchet-sim/           # Stateful simulated crypto exchange (target)
+│   ├── ratchet-k8s-webhook/   # Kubernetes validating admission webhook
+│   └── ratchetctl/            # CLI: genesis, policy/registry governance, offline audit verify
+├── internal/
+│   ├── domain/                # Pure change state machine and invariants
+│   ├── graph/                 # Reach, PathsTo, ControlSet, impact, min-cut containment
+│   ├── policy/                # Embedded OPA engine and bundle verification
+│   ├── workflow/              # River jobs: execution, expiry, containment, incidents
+│   ├── eventstore/  bus/      # Append-only store, outbox, NATS relay
+│   ├── api/                   # ConnectRPC and REST handlers, sessions, privacy redaction
+│   ├── approval/              # WebAuthn registration and assertion verification
+│   ├── authority/  trust/     # Independent governance, genesis, checkpoints
+│   ├── canon/  audit/  ledger/# RFC 8785 canonical JSON, hash chain, verification
+│   ├── connector/             # Sync, execute, read-back, drift (+ k8s/, sim/ adapters)
+│   └── webassets/             # Production console embedded into the Go binary
+├── web/                       # React 19 + Vite console and landing site
+├── policies/                  # Rego authorisation and change policies (+ tests)
+├── proto/ratchet/v1/          # ConnectRPC / protobuf contracts
+├── e2e/scenarios/             # Attack-scenario acceptance tests
+├── deploy/                    # Dockerfiles and Compose profiles (prototype, completion-a, core)
+├── scripts/                   # Launchers, acceptance runners, demo presenter
+├── testdata/                  # Golden vectors, seed organisation, fixtures
+└── docs/                      # Runbooks, evidence, design notes, screenshots
+```
+
+---
+
+## Tech stack
+
+| Area | Technology |
+|---|---|
+| Backend | **Go 1.27**, ConnectRPC 1.19, pgx 5, River 0.51 (jobs), goose (migrations) |
+| Policy | **Open Policy Agent** 1.22 (embedded Rego) |
+| Messaging | **NATS JetStream** 2.11 |
+| Storage | **PostgreSQL 17** with separate migrator, runtime and projector roles |
+| Identity | **WebAuthn** passkeys (go-webauthn 0.18), domain-separated challenges |
+| Canonicalisation | **RFC 8785** JSON Canonicalization Scheme in Go and TypeScript |
+| Frontend | **React 19**, TypeScript 5.7, Vite 6, Tailwind CSS 3.4, Lucide icons |
+| Testing | Go testing + `rapid` property tests, Node test runner, Playwright |
+| Packaging | Multi-stage Docker builds, digest-pinned bases, read-only non-root containers |
+
+All dependencies are free and open source. The project uses no paid services.
+
+---
+
+## Known limits
+
+We'd rather state these limits up front than have reviewers find them:
+
+- **Single-host demonstration.** All services share one machine. Running them as separate processes with separate keys is not isolation from that machine's administrator. In production, the Independent Authority belongs on separately administered infrastructure.
+- **Virtual authenticators in automation.** Automated browser runs use Chromium's virtual CTAP2 authenticators. Signature verification is real, but this does not certify physical hardware keys. Manual use works with platform authenticators such as Windows Hello or Touch ID.
+- **Simulated target.** `ratchet-sim` models a crypto exchange's IAM. It is a security demonstration target, not a real financial system.
+- **Localhost only, for now.** The prototype's passkey relying-party ID and TLS certificate are issued for `localhost`. A public deployment needs the [roadmap](#roadmap) work below.
+- **Containment and restoration are not yet accepted end to end.** The engine, the priority actions and the console wiring are on `main`. Exact-plan retries, residual-reach verification and the full action and restoration acceptance suite are still open.
+- **Break-glass during a full control-plane outage** (PRD FR-X6) is specified but deferred. Revocations take priority over grants, but a multi-party emergency path for total loss of the control plane is future work.
+- **Ledger truncation.** Offline verification proves events weren't modified or reordered. To detect a ledger that has been cut short, supply an expected tip or a signed checkpoint.
+
+---
+
+## Roadmap
+
+```mermaid
+flowchart LR
+    subgraph Now["Next: finish and share"]
+        N0["Merge the demo-ready redesign (#2)"]
+        N1["Configurable origin and passkey RP ID"]
+        N2["Hosted demo<br/>free VM + Cloudflare Tunnel + Access"]
+        N3["One-click demo reset<br/>without touching the ledger"]
+    end
+    subgraph Next["Then: complete the story"]
+        X1["Containment acceptance<br/>exact-plan retries, residual-reach proof"]
+        X2["Restoration acceptance<br/>typed flows with fresh review"]
+        X3["Interactive graph explorer<br/>visual paths to tier-0"]
+        X4["Live Authority ceremony<br/>member rotation in the browser"]
+    end
+    subgraph Later["Later: towards production"]
+        L1["Real connectors<br/>AWS IAM · Entra ID · Okta · GitHub"]
+        L2["Kubernetes enforcement<br/>parity with the simulator journey"]
+        L3["Break-glass quorum (FR-X6)"]
+        L4["Physically separated Authority<br/>HSM / hardware-key signers"]
+        L5["Witnessed checkpoints<br/>external transparency log"]
+    end
+    Now --> Next --> Later
+```
+
+| Horizon | Item | Why it matters |
+|---|---|---|
+| **Next** | Merge the redesign and presenter tooling ([#2](https://github.com/sakararya43-web/Ratchet/pull/2)) | One `main` with the new landing site, console and demo launcher |
+| | Configurable origin and RP ID, hosted demo behind Cloudflare Access | Lets judges and reviewers try the real thing without a local setup |
+| | Demo reset that preserves the ledger | Repeatable demos without weakening the "nothing is erased" rule |
+| **Then** | Containment and restoration acceptance | Turns the wired min-cut execution and restoration flows into an end-to-end, verified demo |
+| | Live Authority ceremony in the browser | Member addition, removal and credential rotation under the current quorum |
+| | Visual graph explorer | Shows *why* a role reaches a tier-0 asset, not just that it does |
+| **Later** | Cloud and identity-provider connectors | The connector contract already separates targets. Each new target needs sync, execute and read-back. |
+| | Break-glass, separated Authority, external witnesses | Closes the remaining gaps in the trust model for production use |
+| | Multi-tenant operations, metrics and SIEM export | Operational readiness for real security teams |
+
+---
+
+## Team
+
+Built for the **[DataNova 2026 Global Data-Thon](https://datanova-2026-global-data-thon.devpost.com/)**.
+
+| | Focus |
+|---|---|
+| **Ishaan Sharma** · [@ishaans04](https://github.com/ishaans04) | Control-plane core: domain model, event store, graph analysis, policy, workflow, console API |
+| **Sakar Arya** · [@sakararya43-web](https://github.com/sakararya43-web) | Trust and edges: canonical JSON, passkeys, Independent Authority, connectors, simulator, Kubernetes |
+
+---
+
+## Further documentation
+
+| Document | Purpose |
+|---|---|
+| [Prototype walkthrough](docs/ishaan/prototype-walkthrough.md) | Four-account demo, step by step |
+| [Prototype runbook](docs/ishaan/prototype-runbook.md) | Build, start, trust TLS, manage credentials |
+| [Prototype acceptance](docs/ishaan/prototype-acceptance.md) | Recorded acceptance results and retained scope |
+| [PR #2: demo-ready redesign](https://github.com/sakararya43-web/Ratchet/pull/2) | Landing site, console redesign, presenter script and UI design notes |
+| [Security hardening](docs/security_hardening.md) · [Trust limits](docs/trust_limits.md) | Threat model boundaries and container hardening |
+| [Architecture](RATCHET_Architecture.md) · [PRD](PRD.md) · [Idea document](RATCHET_Full_Idea_Document.md) | Full specification |
+| [Changelog](CHANGELOG.md) | Engineering history |

@@ -13,7 +13,7 @@ import (
 	"github.com/sakararya43-web/Ratchet/internal/trust"
 )
 
-var ErrRefused = errors.New("Authority authorization or current artifact context refused")
+var ErrRefused = errors.New("authority authorization or current artifact context refused")
 
 type Bootstrap struct {
 	Tenant     string   `json:"tenant_id"`
@@ -108,6 +108,7 @@ func validMembers(members []trust.AuthorityMember, m int, candidates map[string]
 	active := 0
 	seen := map[string]bool{}
 	credentials := [][]byte{}
+	publicKeys := [][]byte{}
 	for _, member := range members {
 		candidate, ok := candidates[member.ActorID]
 		candidate.IsActive = member.IsActive
@@ -121,6 +122,12 @@ func validMembers(members []trust.AuthorityMember, m int, candidates map[string]
 			}
 		}
 		credentials = append(credentials, member.CredentialID)
+		for _, key := range publicKeys {
+			if slices.Equal(key, member.PublicKey) {
+				return ErrRefused
+			}
+		}
+		publicKeys = append(publicKeys, member.PublicKey)
 		if member.IsActive {
 			active++
 		}

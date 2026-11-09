@@ -196,6 +196,12 @@ func TestIndependentAuthorityNativeGovernanceAndRestart(t *testing.T) {
 	// explicit removal, addition and threshold transition.
 	member := members["carol"]
 	state = apply("carol", Input{ID: uuid.NewString(), Operation: "enroll", Epoch: 1, Member: &member})
+	if len(state.Candidates) != 1 || state.Candidates["carol"].ActorID != "carol" {
+		t.Fatal("candidate received other members' enrollment data")
+	}
+	if err = client.Do(ctx, "alice", "/v1/state", nil, &state); err != nil {
+		t.Fatal(err)
+	}
 	newMembers := []trust.AuthorityMember{state.Candidates["alice"], state.Candidates["carol"]}
 	state = apply("alice", Input{ID: uuid.NewString(), Operation: "registry_propose", Epoch: 1, Members: newMembers, Threshold: 1})
 	store, _ = trust.Import(state.Authority)

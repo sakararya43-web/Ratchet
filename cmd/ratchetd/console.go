@@ -316,9 +316,7 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	if len(governanceClients) > 0 {
-		apiMux.Handle("/authority/", http.StripPrefix("/authority", api.AuthorityGateway(governanceClients, credentials, verifier, func(ctx context.Context, p api.Principal) error {
-			return service.Authorize(ctx, workflow.Actor{TenantID: p.TenantID, ID: p.ActorID}, "governance")
-		})))
+		apiMux.Handle("/authority/", http.StripPrefix("/authority", api.AuthorityGateway(governanceClients, credentials, verifier, nil)))
 	}
 	apiMux.Handle("/console/bootstrap", api.ConsoleBootstrap(service, graphKey))
 	apiMux.Handle("/console/approval-review", api.ConsoleApprovalReview(service))
@@ -365,12 +363,23 @@ func runConsole(parent context.Context, args []string, out io.Writer) error {
 		apiMux.Handle("/ratchet.v1.ContainmentService/", containment)
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/setup", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"mode": "RUNNING", "governance": len(governanceClients) > 0})
+	})
 	nativeDecisions, err := api.NewKubernetesDecisionHandler(service)
 	if err != nil {
 		return err
 	}
 	mux.Handle("/api/ratchet.v1.DecisionService/DecideKubernetes", http.StripPrefix("/api", nativeDecisions))
 	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", sessions.Routes()))
+	if password := os.Getenv("RATCHET_DEMO_LOGIN_PASSWORD"); password != "" {
+		demo, err := sessions.DemoLogin(password)
+		if err != nil {
+			return err
+		}
+		mux.Handle("POST /api/auth/demo", demo)
+	}
 	passkeys := approval.MakePasskeyHandlerFactory(credentials, originURL.Hostname(), []string{config.Origin})(ports.PasskeyDeps{RPID: originURL.Hostname(), RPOrigins: []string{config.Origin}, SessionAPI: sessions})
 	mux.Handle("/api/passkeys/", sessions.Require(http.StripPrefix("/api/passkeys", passkeys)))
 	mux.Handle("/api/", http.StripPrefix("/api", sessions.Require(api.NewRequestLimits().Wrap(apiMux))))

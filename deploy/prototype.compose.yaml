@@ -50,7 +50,9 @@ services:
     command: [ratchetd, graph-serve, --config, /data/core/graph.json, --listen, '127.0.0.1:8443']
   core:
     <<: *runtime
-    environment: *runtime-env
+    environment:
+      <<: *runtime-env
+      RATCHET_DEMO_LOGIN_PASSWORD: ${RATCHET_DEMO_LOGIN_PASSWORD:-}
     volumes: [prototype-core:/data/core:ro]
     command: [ratchetd, console-serve, --config, /data/core/console.json, --listen, '0.0.0.0:8444']
     healthcheck:

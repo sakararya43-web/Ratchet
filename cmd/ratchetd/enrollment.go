@@ -32,7 +32,7 @@ func authorityClients(config consoleConfig) (map[string]*authority.Client, error
 			continue
 		}
 		if tenant.Execution == nil {
-			return nil, errors.New("Authority gateway signing identity required")
+			return nil, errors.New("authority gateway signing identity required")
 		}
 		raw, err := os.ReadFile(tenant.Execution.PrivateKeyFile)
 		if err != nil {
@@ -117,12 +117,7 @@ func runEnrollment(ctx context.Context, args []string, out io.Writer) error {
 	mux.Handle("/api/auth/", http.StripPrefix("/api/auth", sessions.Routes()))
 	passkeys := approval.MakePasskeyHandlerFactory(credentials, origin.Hostname(), []string{config.Origin})(ports.PasskeyDeps{RPID: origin.Hostname(), RPOrigins: []string{config.Origin}, SessionAPI: sessions})
 	mux.Handle("/api/passkeys/", sessions.Require(http.StripPrefix("/api/passkeys", passkeys)))
-	mux.Handle("/api/authority/", sessions.Require(http.StripPrefix("/api/authority", api.AuthorityGateway(clients, credentials, verifier, func(_ context.Context, p api.Principal) error {
-		if slices.Contains(config.AuthorityBootstrapActors, p.ActorID) {
-			return nil
-		}
-		return authority.ErrRefused
-	}))))
+	mux.Handle("/api/authority/", sessions.Require(http.StripPrefix("/api/authority", api.AuthorityGateway(clients, credentials, verifier, config.AuthorityBootstrapActors))))
 	mux.HandleFunc("GET /api/setup", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"mode":"AUTHORITY_GENESIS"}`))
@@ -139,7 +134,7 @@ func runEnrollment(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	server := &http.Server{Addr: *listen, Handler: api.NewRequestLimits().Wrap(mux), ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}}}
+	server := &http.Server{Addr: *listen, Handler: api.NewRequestLimits().WrapSessions(sessions, mux), ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS13, Certificates: []tls.Certificate{certificate}}}
 	finished := make(chan error, 1)
 	go func() { finished <- server.ListenAndServeTLS("", "") }()
 	select {

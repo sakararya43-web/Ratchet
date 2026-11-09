@@ -68,11 +68,11 @@ func runSecure(arguments []string) error {
 	configured, _ := json.Marshal(config.Bootstrap)
 	persisted, _ := json.Marshal(service.Bootstrap)
 	if string(configured) != string(persisted) {
-		return errors.New("Authority bootstrap configuration changed")
+		return errors.New("authority bootstrap configuration changed")
 	}
 	host, _, err := net.SplitHostPort(*listen)
 	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
-		return errors.New("Authority gateway must bind a loopback IP")
+		return errors.New("authority gateway must bind a loopback IP")
 	}
 	// Every request authenticates its core gateway and action proof. Public file
 	// export is retried independently from committed SQL; core verifies root/quorum.

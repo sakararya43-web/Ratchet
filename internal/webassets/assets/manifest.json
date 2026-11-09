@@ -1,9 +1,9 @@
 {
   "files": {
     "assets/index-B2NREd82.css": "56e1c716addae5f832fcd472a13cd18474d6931dc7ef0576f7491381f926e36f",
-    "assets/index-DNRLREv-.js": "412b1f0ba5ca2373f9dc5da498deef0caa97799c9c540c83fdb04ddbc6114c44",
+    "assets/index-DX_JcN3I.js": "ffbc8df6d62682f71e5957b5027f3fb78e716356bcda858dca9212a0a06fb669",
     "favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "index.html": "7cdf40ab4114abbcd2b222c3c57aac759ff6c979c15775b62e6b38d495e3f321"
+    "index.html": "d426ef3afd78e53228dd14b2c67676d11758a858142dce0df7bb7672b08b9b93"
   },
   "sources": {
     "e2e/authority.spec.ts": "0e941aa0f2149674256611573729bce6f8ad54b20f9e06f1995e891fc9f2aab7",
@@ -16,7 +16,7 @@
     "playwright.prototype.config.ts": "43efa20ad0ebf7081b6f03b9aa1dd577ca6fc4eb4e2363b693166609d0f31c9f",
     "postcss.config.js": "f0156321fafa19749b38a82ea29e7b1786a1f727b67372ef40cc66de0ed898fb",
     "public/favicon.svg": "7f3317ee4bdefb4071e30b267ad306a0d57d38a87c7f1decf021141f7d85bd01",
-    "src/App.tsx": "bf73b5f006027106a438245418c9987eed4f42dc7a51f74c17f754a5ad201d54",
+    "src/App.tsx": "1caa2fdbcc526e62994c2084bd4c6d4f946cfa6f89e535ae20e5375f0636c0d7",
     "src/AuthorityPanel.tsx": "882d72b3b1bcb2290a808fd098e3bbaa75d76abef3e6ca34372cba1c0f52f8b7",
     "src/Brand.tsx": "f9a286150d4a532b1342db01221fc0048f63e2b02ed574921af605c45513bc8e",
     "src/Landing.tsx": "510eb867e1a2fb0ee297ea82beec00ef15dc2b736ca21270383f5b97199448f4",

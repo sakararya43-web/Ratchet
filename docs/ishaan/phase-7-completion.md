@@ -115,7 +115,7 @@ One local instance and a quiescent restore do not establish HA, RPO or RTO.
 
 ## Remaining release work and merge review
 
-The [Phase 4 continuation list](phase-4-peer-handoff.md) remains required:
+The Phase 4 continuation list remains required:
 confirmed exact-plan four-action containment; durable priority attempts and
 truthful terminal/residual/uncertain-restart evidence; non-role restoration
 increase contracts; complete offline browser-approval packaging; and full

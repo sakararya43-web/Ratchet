@@ -1,7 +1,0 @@
-goos: windows
-goarch: amd64
-pkg: github.com/sakararya43-web/Ratchet/internal/graph
-cpu: 12th Gen Intel(R) Core(TM) i7-1260P
-BenchmarkImpact100kEdges 	       3	1376573300 ns/op	220271141 B/op	    3345 allocs/op
-PASS
-ok  	github.com/sakararya43-web/Ratchet/internal/graph	8.901s

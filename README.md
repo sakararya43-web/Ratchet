@@ -520,7 +520,7 @@ The demo runs the production console code unchanged. Only the server and the aut
 
 The demo code lives in [`web/src/demo/`](web/src/demo/). Add `?mode=live` to force the real backend, `?mode=demo` to force the demo, or `?mode=auto` to go back to automatic detection.
 
-To open a specific persona and workspace directly, use a deep link such as [`#/console?as=alice&tab=incidents`](https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=incidents). `as` takes `rahul`, `priya`, `alice` or `bob`. The 3-minute demo video is scripted from these links in [`docs/demo-video/`](docs/demo-video/script.md).
+To open a specific persona and workspace directly, use a deep link such as [`#/console?as=alice&tab=incidents`](https://sakararya43-web.github.io/Ratchet/#/console?as=alice&tab=incidents). `as` takes `rahul`, `priya`, `alice` or `bob`.
 
 ---
 

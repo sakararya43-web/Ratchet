@@ -68,7 +68,7 @@ without removing assertions or changing production deadlines. Its final result
 and elapsed time belong in the Phase 7 record; the historical measurement above
 does not establish performance for the new candidate.
 
-Run this suite, the interface/storage suite in [the gate report](phase-6-peer-gates.md)
-and the matcher sequentially. The complete real snapshot currently stores as a
+Run this suite, the Phase 6 interface/storage suite and the matcher
+sequentially. The complete real snapshot currently stores as a
 509,422-byte immutable event and replays after private source deletion. A snapshot
 or matcher pass by itself is not admission or end-to-end drift evidence.

@@ -1,10 +1,8 @@
 # Phase 0 core development
 
 This page describes the Phase 0 PostgreSQL-backed evidence operation. Phase 1
-now adds actual graph/impact services; see [its runtime handoff](phase-1-handoff.md).
-Phase 2 adds actual login, policy and workflow operations; see
-[its runtime handoff and remaining integration gates](phase-2-handoff.md).
-All work stays on `main`. See `changelog.md` before continuing the next phase.
+adds actual graph/impact services, and Phase 2 adds actual login, policy and
+workflow operations. All work stays on `main`.
 
 ## Local acceptance on Windows
 
@@ -77,8 +75,8 @@ the guard against known personal field names is only defense in depth.
 ## Integration boundaries
 
 Dependency files came from `origin/sakar` at `9662c46`; no Sakar branch ref or
-implementation was changed. Contract additions are proposed in
-`phase-0-contracts.md` and remain subject to peer agreement. The checked-in
+implementation was changed. Contract additions were proposed
+separately and remain subject to peer agreement. The checked-in
 `sakar-v1.binpb` is the original peer descriptor baseline, not a rebuilt copy of
 the new schema. CI must compare future changes to both that baseline and the
 previous main revision.
@@ -90,6 +88,6 @@ approval field or unsigned bundle. The user subsequently authorized Phases 1 and
 2 while the recorded peer acceptance gates remain open; that authorization does
 not substitute for shared review or successful integrated exit evidence.
 
-See `phase-0-handoff.md` for the known inherited peer audit-fixture failure and
+The Phase 0 handoff recorded a known inherited peer audit-fixture failure and
 the tested shared-file resolution. A merge rehearsal currently compiles both
 halves but does not have a fully green audit test verdict.

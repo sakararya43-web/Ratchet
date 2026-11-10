@@ -70,5 +70,5 @@ never rotates TLS or command signing identities.
 `python scripts/prototype-foundation.py` proves real TLS/password login,
 organization ingestion/readiness and preserved identities/graph across restart.
 Evidence is written under `.local/prototype/` with no passwords or tickets.
-Current milestone gates and unfinished original scope are in
-`prototype-progress.md`.
+Recorded acceptance results and retained scope are in
+[prototype-acceptance.md](prototype-acceptance.md).

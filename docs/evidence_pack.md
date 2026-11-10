@@ -12,7 +12,7 @@
 
 This Evidence Pack documents the complete implementation, cryptographic verification, and operational readiness of **Half B (Trust, Edges & Experience)** of the RATCHET Security Control Plane. 
 
-All phases defined in [`SAKAR_IMPLEMENTATION_PLAN.md`](../SAKAR_IMPLEMENTATION_PLAN.md) (Phases 0–7) have been implemented without placeholders, mocks, or scaffolding. Every privileged mutation requires cryptographic proof, every target action is independently verified via read-back, and every audit ledger entry is offline-verifiable.
+All phases of the trust and edges implementation plan (Phases 0–7) have been implemented without placeholders, mocks, or scaffolding. Every privileged mutation requires cryptographic proof, every target action is independently verified via read-back, and every audit ledger entry is offline-verifiable.
 
 ---
 
